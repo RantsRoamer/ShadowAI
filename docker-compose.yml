@@ -1,0 +1,36 @@
+services:
+  shadowai:
+    build: .
+    image: shadowai:latest
+    container_name: shadowai
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      # Persistent data: chat histories, personality.md, memory.md, and config.json
+      - shadowai-data:/app/data
+    environment:
+      # --- Ollama ---
+      # Point to your Ollama instance.
+      # On Docker Desktop (Mac/Windows): use host.docker.internal
+      # On Linux with Docker Engine:     use 172.17.0.1 or your host's LAN IP
+      - OLLAMA_URL=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3.2
+
+      # --- Auth ---
+      # Set ADMIN_PASSWORD on first run to initialise the password.
+      # After that you can manage it via the Config page and remove this line
+      # (if left set, it overrides the stored password on every restart).
+      - ADMIN_USER=admin
+      # - ADMIN_PASSWORD=changeme
+
+      # --- Web Search (optional) ---
+      # Uncomment and set your SearXNG URL to enable the web_search tool.
+      # - SEARXNG_URL=http://host.docker.internal:8080
+
+    # Allows host.docker.internal to resolve on Linux (no-op on Docker Desktop)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  shadowai-data:

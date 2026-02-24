@@ -1,0 +1,5 @@
+{
+  "name": "WHOIS Lookup",
+  "description": "Performs a WHOIS lookup for a domain or IP address.",
+  "enabled": true
+}

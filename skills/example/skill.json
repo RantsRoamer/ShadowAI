@@ -1,0 +1,5 @@
+{
+  "name": "Current Time",
+  "description": "Returns the current server time. Example skill—disable or delete if not needed.",
+  "enabled": true
+}

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Personality & Memory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/config.css" />
+  <style>
+    .personality-section { margin-bottom: 28px; }
+    .personality-section h2 { margin-bottom: 10px; }
+    .personality-section textarea { min-height: 140px; }
+    .form-actions .btn { margin-right: 10px; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/app" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <span class="nav-link active">PERSONALITY</span>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="config-main">
+    <div class="config-card">
+      <h1>PERSONALITY & MEMORY</h1>
+      <p class="config-note">Personality defines how the AI behaves. Memory stores facts the user asks the AI to remember. Both are injected into every chat.</p>
+
+      <section class="section personality-section">
+        <h2>Personality (data/personality.md)</h2>
+        <textarea id="personality" placeholder="e.g. Be concise. Use technical language. When the user asks to remember something, update Memory via /read and /write."></textarea>
+        <div class="form-actions" style="margin-top:10px;">
+          <button type="button" id="savePersonality" class="btn btn-small">Save personality</button>
+          <span id="personalityStatus" class="status"></span>
+        </div>
+      </section>
+
+      <section class="section personality-section">
+        <h2>Memory (data/memory.md)</h2>
+        <textarea id="memory" placeholder="Facts the AI should remember. The AI can append when user says &quot;remember X&quot;."></textarea>
+        <div class="form-actions" style="margin-top:10px;">
+          <button type="button" id="saveMemory" class="btn btn-small">Save memory</button>
+          <span id="memoryStatus" class="status"></span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/personality.js"></script>
+</body>
+</html>

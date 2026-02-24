@@ -1,0 +1,10 @@
+node_modules/
+config.json
+run/
+data/chats/
+data/personality.md
+data/memory.md
+.env
+*.log
+.DS_Store
+.claude/

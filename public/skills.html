@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Skills</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/config.css" />
+  <link rel="stylesheet" href="/static/skills.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/app" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/app" class="nav-link">CHAT</a>
+      <span class="nav-link active">SKILLS</span>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="config-main skills-main">
+    <div class="config-card">
+      <h1>SKILLS / PLUGINS</h1>
+      <p class="config-note">Skills are loaded without restart. Ask the AI in Chat to build a new skill—it will create <code>skills/&lt;id&gt;/skill.json</code> and <code>run.js</code>. Then enable it here.</p>
+
+      <div id="skillsList" class="skills-list"></div>
+
+      <div class="skill-empty" id="skillEmpty" style="display:none;">
+        <p>No skills yet. In Chat, ask the AI to create one, e.g. “Create a skill that calculates the current time” or “Build a plugin that fetches the weather”.</p>
+      </div>
+
+      <div class="form-actions" style="margin-top:16px;">
+        <button type="button" id="refreshBtn" class="btn btn-small">Refresh list</button>
+        <span id="status" class="status"></span>
+      </div>
+    </div>
+  </main>
+
+  <div id="skillEditOverlay" class="skill-edit-overlay" aria-hidden="true">
+    <div class="skill-edit-backdrop"></div>
+    <div class="skill-edit-modal">
+      <h2>Edit skill</h2>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" id="skillEditName" placeholder="Skill name" />
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <input type="text" id="skillEditDesc" placeholder="Short description" />
+      </div>
+      <div class="form-group">
+        <label>Code (run.js)</label>
+        <textarea id="skillEditCode" rows="16" placeholder="module.exports = { run };"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="button" id="skillEditCancel" class="btn btn-small">Cancel</button>
+        <button type="button" id="skillEditSave" class="btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/skills.js"></script>
+</body>
+</html>
