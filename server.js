@@ -361,10 +361,10 @@ app.put('/api/config', (req, res) => {
       config.channels = {
         apiKey: updates.channels.apiKey !== undefined ? String(updates.channels.apiKey) : (config.channels && config.channels.apiKey) || '',
         telegram: { ...(config.channels && config.channels.telegram), ...(updates.channels.telegram || {}), enabled: !!(updates.channels.telegram && updates.channels.telegram.enabled), botToken: (updates.channels.telegram && updates.channels.telegram.botToken !== undefined) ? String(updates.channels.telegram.botToken) : (config.channels && config.channels.telegram && config.channels.telegram.botToken) || '' },
-        discord: { ...(config.channels && config.channels.discord), ...(updates.channels.discord || {}), enabled: !!(updates.channels.discord && updates.channels.discord.enabled), botToken: (updates.channels.discord && updates.channels.discord.botToken !== undefined) ? String(updates.channels.discord.botToken) : (config.channels && config.channels.discord && config.channels.discord.botToken) || '' }
+        discord: { ...(config.channels && config.channels.discord), ...(updates.channels.discord || {}), enabled: !!(updates.channels.discord && updates.channels.discord.enabled), botToken: (updates.channels.discord && updates.channels.discord.botToken !== undefined) ? String(updates.channels.discord.botToken) : (config.channels && config.channels.discord && config.channels.discord.botToken) || '', allowedUserIds: Array.isArray(updates.channels.discord && updates.channels.discord.allowedUserIds) ? updates.channels.discord.allowedUserIds.filter(id => typeof id === 'string').map(s => s.trim()).filter(Boolean) : (config.channels && config.channels.discord && config.channels.discord.allowedUserIds) || [] }
       };
     } else if (!config.channels) {
-      config.channels = { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } };
+      config.channels = { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } };
     }
 
     replaceConfig(config);
@@ -385,7 +385,7 @@ app.put('/api/config', (req, res) => {
           if (safe.auth) safe.auth = { user: safe.auth.user || '' };
           return safe;
         })(),
-        channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } }
+        channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } }
       }
     });
   } catch (e) {

@@ -60,6 +60,7 @@
     document.getElementById('telegramBotToken').value = ch.telegram?.botToken ?? '';
     document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
     document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
+    document.getElementById('discordAllowedUserIds').value = Array.isArray(ch.discord?.allowedUserIds) ? ch.discord.allowedUserIds.join(', ') : (ch.discord?.allowedUserIds ?? '');
   }
   function toggleEmailAuth() {
     const useAuth = document.getElementById('emailUseAuth').checked;
@@ -183,7 +184,8 @@
       },
       discord: {
         enabled: document.getElementById('discordEnabled').checked,
-        botToken: document.getElementById('discordBotToken').value.trim()
+        botToken: document.getElementById('discordBotToken').value.trim(),
+        allowedUserIds: document.getElementById('discordAllowedUserIds').value.split(',').map(s => s.trim()).filter(Boolean)
       }
     };
   }
