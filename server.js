@@ -16,6 +16,7 @@ const personalityLib = require('./lib/personality.js');
 const heartbeatLib = require('./lib/heartbeat.js');
 const searxngLib = require('./lib/searxng.js');
 const fetchUrlLib = require('./lib/fetchUrl.js');
+const structuredMemory = require('./lib/structuredMemory.js');
 const chatStore = require('./lib/chatStore.js');
 const emailLib = require('./lib/email.js');
 const logger = require('./lib/logger.js');
@@ -658,7 +659,34 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           }
         }
       } : null;
-      const tools = [appendMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : []), ...skillTools, ...getSchedulerToolDefinitions()];
+      const getMemoryTool = {
+        type: 'function',
+        function: {
+          name: 'get_memory',
+          description: 'Get a structured memory value from data/memory.json by key. Use this for key-value facts like timezone, current project, etc. (not for free-form notes).',
+          parameters: {
+            type: 'object',
+            required: ['key'],
+            properties: { key: { type: 'string', description: 'Memory key' } }
+          }
+        }
+      };
+      const setMemoryTool = {
+        type: 'function',
+        function: {
+          name: 'set_memory',
+          description: 'Set a structured memory value in data/memory.json. Use this to store or update key-value facts (e.g. user timezone, current project).',
+          parameters: {
+            type: 'object',
+            required: ['key', 'value'],
+            properties: {
+              key: { type: 'string', description: 'Memory key' },
+              value: { type: 'string', description: 'Memory value' }
+            }
+          }
+        }
+      };
+      const tools = [appendMemoryTool, getMemoryTool, setMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : []), ...skillTools, ...getSchedulerToolDefinitions()];
 
       if (tools.length > 0) {
         let messagesForOllama = [...fullMessages];
@@ -733,6 +761,17 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                     logger.error('send_email tool error:', err.message);
                     content = 'Error: ' + err.message;
                   }
+                }
+              } else if (name === 'get_memory') {
+                const key = args.key != null ? String(args.key).trim() : '';
+                content = key ? structuredMemory.getMemory(key) : '';
+              } else if (name === 'set_memory') {
+                const key = args.key != null ? String(args.key).trim() : '';
+                const value = args.value != null ? String(args.value) : '';
+                if (!key) content = 'Error: key is required.';
+                else {
+                  structuredMemory.setMemory(key, value);
+                  content = `Stored structured memory for key \"${key}\".`;
                 }
               } else if (['create_skill', 'add_heartbeat_job', 'update_skill', 'update_heartbeat_job', 'list_heartbeat_jobs'].includes(name)) {
                 content = await executeSchedulerTool(name, args);

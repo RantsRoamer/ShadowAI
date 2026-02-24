@@ -4,6 +4,7 @@ run/
 data/chats/
 data/personality.md
 data/memory.md
+data/memory.json
 data/AIBEHAVIOR.md
 .env
 *.log

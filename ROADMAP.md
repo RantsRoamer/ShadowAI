@@ -9,10 +9,11 @@ This document lists features that would expand ShadowAI: persistent memory, mult
 | Area | ShadowAI today |
 |------|----------------|
 | **Chat** | Web UI, multi-model (Main Brain + agents), streaming, regenerate, copy, export |
-| **Memory** | `memory.md` + `append_memory` tool; personality; per-chat custom instructions |
+| **Memory & behavior** | `personality.md` + `memory.md` (free-form) + `memory.json` (structured key–value store via `get_memory`/`set_memory`) + `AIBEHAVIOR.md` (who you are / how the AI should help); per-chat custom instructions |
 | **Search** | SearXNG web search + `fetch_url` for reading pages |
 | **Email** | Send email (with default To); configurable SMTP |
-| **Automation** | Heartbeat (scheduled tasks with conditions) |
+| **Channels** | CLI client + Telegram and Discord bots (DMs), configurable API key and allowed Discord user IDs; channel chats appear in the web UI alongside normal chats |
+| **Automation** | Heartbeat scheduler (cron-style jobs that run skills or prompts every X minutes/hours/days; persisted `lastRunAt` so missed runs while offline are caught up once on restart; optional “email result” for skill jobs) |
 | **Skills** | Create/manage/run skills (plugins); run in chat via `/skill <id>` |
 | **Code** | `/run js` / `/run py` in chat; sandboxed execution |
 | **Files** | `/read`, `/write`, `/list` for project files (self-update) |
@@ -24,11 +25,11 @@ This document lists features that would expand ShadowAI: persistent memory, mult
 
 ### 1. **Multi-channel messaging** (high impact, high effort)
 
-Same AI on WhatsApp, Telegram, Discord, CLI.
+Same AI on WhatsApp and more channels (Telegram, Discord, CLI already implemented).
 
-- **Telegram bot** — Long-polling or webhook; same backend, new route that turns messages into chat turns and streams replies. Reuse existing auth or use bot token.
-- **Discord bot** — Slash commands or DMs; same idea: message → history → Ollama → reply.
-- **WhatsApp** — Often via Twilio/WhatsApp Business API or unofficial bridges; more setup.
+- **Telegram bot** — Implemented: long-polling bot that turns messages into chat turns, with per-user history and integration with the main chat store.
+- **Discord bot** — Implemented: DMs (and server channels) mapped to per-user chats, typing indicator, `/reset` command, and restricted access via allowed user IDs.
+- **WhatsApp** — Still open: typically via Twilio/WhatsApp Business API or unofficial bridges; more setup and deployment considerations.
 
 ---
 
@@ -36,9 +37,9 @@ Same AI on WhatsApp, Telegram, Discord, CLI.
 
 “Knowledge graph” style: remembers projects and preferences across months.
 
-- **Structured memory** — Besides `memory.md`, add a small DB or JSON store (e.g. `data/memory.json`) for key-value or graph-like facts (e.g. “user’s timezone”, “current project”). Expose via tools: `get_memory(key)`, `set_memory(key, value)`.
-- **Conversation summarization** — Periodically (or on demand) summarize long threads and store “user prefers X” / “project Y” in memory so the system prompt can include recent context.
-- **Cross-chat context** — When loading a chat, optionally inject a short “recent facts” block from global memory so the model doesn’t rely only on in-chat history.
+- **Structured memory** — Implemented: besides `memory.md`, there is `data/memory.json` for key-value or graph-like facts (e.g. “user’s timezone”, “current project”), exposed via `get_memory(key)` and `set_memory(key, value)` tools.
+- **Conversation summarization** — (Partially conceptual) The model can already summarize threads and then call `set_memory` / `append_memory` to store distilled facts (“user prefers X”, “project Y”); future work is to make this more automated or periodic.
+- **Cross-chat context** — Implemented: when building the system prompt, a short “structured memory” block (keys from `memory.json`) is injected so the model doesn’t rely only on in-chat history and has shared context across chats and channels.
 
 ---
 
@@ -108,9 +109,9 @@ Send photos, get analysis (receipts, objects, scenes).
 
 Cron, webhooks, recurring reminders.
 
-- **Heartbeat** — You already have this; extend with more triggers: “every day at 8am,” “every 15 minutes,” or “when webhook GET /api/heartbeat/trigger/:id” is called.
-- **Cron-style schedules** — Store cron expressions in config or DB; a single scheduler loop runs them and invokes the same “run a prompt and optionally send result” logic as Heartbeat.
-- **Webhooks** — Public endpoint with a secret: POST body (e.g. “summary of this incident”) → one-shot assistant run → optional reply or email.
+- **Heartbeat** — Already implemented: cron-style jobs stored in config, evaluated every 30 seconds. Jobs track `lastRunAt` so missed runs while offline are caught up once on restart. Extend with more triggers: “every 15 minutes,” or “when webhook GET /api/heartbeat/trigger/:id” is called.
+- **Cron-style schedules** — Already implemented for skills and prompts; could be extended with richer job types or conditions.
+- **Webhooks** — Still open: public endpoint with a secret: POST body (e.g. “summary of this incident”) → one-shot assistant run → optional reply or email.
 
 ---
 
@@ -145,8 +146,8 @@ MCP for advanced tools and integrations.
 
 1. **Quick wins** — CLI client; webhook trigger for Heartbeat; PDF text tool (or a single “read document” skill).
 2. **High value, contained scope** — Vision (images in chat); calendar (one provider, e.g. Google or CalDAV); email read (IMAP).
-3. **Channels** — Telegram bot, then Discord; reuse same `/api/chat` and auth.
-4. **Automation** — Richer Heartbeat (cron, webhooks); smart home (Home Assistant skill or generic HTTP).
+3. **Channels** — (Partially done) WhatsApp or other channels; reuse same `/api/chat` and auth as the existing CLI/Telegram/Discord integrations.
+4. **Automation** — Richer Heartbeat (webhooks, conditions); smart home (Home Assistant skill or generic HTTP).
 5. **Bigger bets** — Browser automation (Puppeteer/Playwright or MCP); richer memory (structured store + summarization); voice (Whisper + TTS).
 
 If you say which area you want to tackle first (e.g. “Telegram bot” or “vision” or “calendar”), the next step is to break that into concrete tasks and API changes for ShadowAI.
