@@ -37,6 +37,7 @@
         <button type="button" class="config-tab" data-tab="ollama" role="tab" aria-selected="false">Ollama</button>
         <button type="button" class="config-tab" data-tab="searxng" role="tab" aria-selected="false">SearXNG</button>
         <button type="button" class="config-tab" data-tab="notifications" role="tab" aria-selected="false">Notifications</button>
+        <button type="button" class="config-tab" data-tab="channels" role="tab" aria-selected="false">Channels</button>
       </div>
 
       <div id="panel-server" class="config-panel active" role="tabpanel">
@@ -154,6 +155,32 @@
           <div class="form-group">
             <button type="button" id="testEmailBtn" class="btn btn-small">Send test email</button>
             <span id="testEmailStatus" class="status" style="margin-left:8px;"></span>
+          </div>
+        </section>
+      </div>
+
+      <div id="panel-channels" class="config-panel" role="tabpanel" hidden>
+        <section class="section">
+          <h2>Channels (CLI, Telegram, Discord)</h2>
+          <p class="section-desc">Use the same AI from the command line or messaging apps. Set an API key for CLI and optional bot tokens for Telegram/Discord. Restart the server after changing.</p>
+          <div class="form-group">
+            <label>API key (for CLI and channel auth)</label>
+            <input type="password" id="channelsApiKey" placeholder="Leave empty to disable channel API" autocomplete="off" />
+            <span class="section-desc">Set this to use the CLI or to authenticate channel requests. Restart after saving.</span>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="telegramEnabled" /> Enable Telegram bot</label>
+          </div>
+          <div class="form-group">
+            <label>Telegram bot token</label>
+            <input type="password" id="telegramBotToken" placeholder="From @BotFather" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="discordEnabled" /> Enable Discord bot</label>
+          </div>
+          <div class="form-group">
+            <label>Discord bot token</label>
+            <input type="password" id="discordBotToken" placeholder="From Discord Developer Portal" autocomplete="off" />
           </div>
         </section>
       </div>
