@@ -20,6 +20,7 @@
   let chatListData = [];
   let abortController = null;
   let customInstructionsSaveTimeout = null;
+  let uiSettings = { showToolCalls: true, promptLibrary: true };
 
   async function loadChats() {
     try {
@@ -230,6 +231,10 @@
       opt.textContent = a.name || a.id;
       agentSelect.appendChild(opt);
     });
+    const ui = cfg.ui || {};
+    uiSettings.showToolCalls = ui.showToolCalls !== false;
+    uiSettings.promptLibrary = ui.promptLibrary !== false;
+    document.getElementById('promptsBtn').style.display = uiSettings.promptLibrary ? '' : 'none';
   }
 
   function addMessage(role, content, isError = false, explicitIndex) {
@@ -504,7 +509,7 @@
               if (data.toolCall) {
                 updateTypingStatus(data.toolCall);
               }
-              if (data.toolResult) {
+              if (data.toolResult && uiSettings.showToolCalls) {
                 const block = addToolCallBlock(data.toolResult.name, data.toolResult.args, data.toolResult.result, data.toolResult.error);
                 pendingToolBlocks.push(block);
                 // Attach to typing indicator while waiting for response
