@@ -520,7 +520,9 @@ app.get('/api/chat/history', (req, res) => {
 
 app.post('/api/chat/reset', (req, res) => {
   const user = req.session && req.session.user;
-  if (user) chatStore.clearCurrentChat(user);
+  const channelOwner = (req.body && req.body.username != null) ? String(req.body.username).trim() : '';
+  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
+  if (effectiveUser) chatStore.clearCurrentChat(effectiveUser);
   res.json({ ok: true });
 });
 

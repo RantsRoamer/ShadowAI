@@ -208,7 +208,12 @@
 
   async function clearChat() {
     try {
-      await fetch('/api/chat/reset', { method: 'POST' });
+      const body = currentChannelOwner ? { username: currentChannelOwner } : {};
+      await fetch('/api/chat/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
     } catch (_) {}
     history = [];
     messagesEl.innerHTML = '';
