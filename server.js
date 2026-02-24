@@ -357,45 +357,42 @@ app.get('/api/config', (req, res) => {
 app.put('/api/config', (req, res) => {
   try {
     const updates = req.body || {};
+    if (!updates || typeof updates !== 'object') {
+      return res.status(400).json({ error: 'Invalid request body' });
+    }
+
     const current = getConfig();
+    const config = JSON.parse(JSON.stringify(current));
 
-    const config = {
-      server: updates.server ? { ...current.server, ...updates.server } : current.server,
-      auth: current.auth,
-      ollama: current.ollama,
-      heartbeat: current.heartbeat,
-      skills: current.skills,
-      searxng: current.searxng,
-      email: current.email,
-      sessionSecret: current.sessionSecret
-    };
-
-    if (updates.auth) {
+    if (updates.server && typeof updates.server === 'object') {
+      config.server = { ...config.server, ...updates.server };
+    }
+    if (updates.auth && typeof updates.auth === 'object') {
       const authUpdates = { ...updates.auth };
       if (authUpdates.passwordHash && !String(authUpdates.passwordHash).startsWith('$2')) {
         authUpdates.passwordHash = bcrypt.hashSync(authUpdates.passwordHash, 12);
       }
-      config.auth = { ...current.auth, ...authUpdates };
+      config.auth = { ...config.auth, ...authUpdates };
       if (updates.auth.passwordHash === '') delete config.auth.passwordHash;
     }
-
-    if (updates.ollama) {
-      const prev = current.ollama || {};
+    if (updates.ollama && typeof updates.ollama === 'object') {
+      const prev = config.ollama || {};
       const next = updates.ollama;
       config.ollama = {
-        ...prev,
-        ...next,
+        mainUrl: next.mainUrl !== undefined ? String(next.mainUrl).trim() : (prev.mainUrl || 'http://localhost:11434'),
+        mainModel: next.mainModel !== undefined ? String(next.mainModel).trim() : (prev.mainModel || 'llama3.2'),
+        temperature: next.temperature !== undefined ? Number(next.temperature) : (prev.temperature ?? 0.7),
+        num_predict: next.num_predict !== undefined ? Number(next.num_predict) : (prev.num_predict ?? 2048),
         agents: Array.isArray(next.agents) ? next.agents : (Array.isArray(prev.agents) ? prev.agents : [])
       };
     }
-
     if (updates.heartbeat && Array.isArray(updates.heartbeat)) config.heartbeat = updates.heartbeat;
-    if (updates.skills && updates.skills.enabledIds !== undefined) config.skills = { ...(current.skills || {}), enabledIds: updates.skills.enabledIds };
-    if (updates.searxng) config.searxng = { ...(current.searxng || {}), ...updates.searxng };
-    if (updates.email) {
-      config.email = { ...(current.email || {}), ...updates.email };
-      if (updates.email.auth) {
-        config.email.auth = { ...(current.email && current.email.auth) || {}, ...updates.email.auth };
+    if (updates.skills && updates.skills.enabledIds !== undefined) config.skills = { ...(config.skills || {}), enabledIds: updates.skills.enabledIds };
+    if (updates.searxng && typeof updates.searxng === 'object') config.searxng = { ...(config.searxng || {}), ...updates.searxng };
+    if (updates.email && typeof updates.email === 'object') {
+      config.email = { ...(config.email || {}), ...updates.email };
+      if (updates.email.auth && typeof updates.email.auth === 'object') {
+        config.email.auth = { ...(config.email.auth || {}), ...updates.email.auth };
         if (config.email.auth.pass === '' || config.email.auth.pass === undefined) delete config.email.auth.pass;
         if (!config.email.auth.user) config.email.auth = undefined;
       }
