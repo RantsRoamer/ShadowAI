@@ -198,6 +198,25 @@ app.post('/api/memory/append', (req, res) => {
   }
 });
 
+app.get('/api/behavior', (req, res) => {
+  try {
+    res.json({ content: personalityLib.readBehavior() });
+  } catch (e) {
+    logger.error('GET /api/behavior:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/behavior', (req, res) => {
+  try {
+    personalityLib.writeBehavior(req.body?.content ?? '');
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('PUT /api/behavior:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Skills
 // ---------------------------------------------------------------------------
