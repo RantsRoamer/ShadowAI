@@ -1,0 +1,5 @@
+{
+  "name": "Traceroute",
+  "description": "Resolve the path to an IP address or DNS entry using traceroute or tracert",
+  "enabled": true
+}

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    .login-card { position: relative; }
+    .login-card::before {
+      content: 'SHADOW_AI';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      letter-spacing: 6px;
+      color: var(--green-mid);
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="card login-card">
+      <h1>SYSTEM ACCESS</h1>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">User</label>
+          <input type="text" id="username" name="username" autocomplete="username" placeholder="admin" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" autocomplete="current-password" placeholder="••••••••" required />
+        </div>
+        <button type="submit" class="btn" style="width:100%; margin-top:8px;">AUTHENTICATE</button>
+        <div id="error" class="error-msg" style="display:none;"></div>
+      </form>
+    </div>
+  </div>
+  <script src="/static/login.js"></script>
+</body>
+</html>

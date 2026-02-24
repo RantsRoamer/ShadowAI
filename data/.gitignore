@@ -1,0 +1,5 @@
+# Exclude all chat histories and AI memory from version control.
+# This data is sensitive (conversation history, personal facts) and user-specific.
+chats/
+personality.md
+memory.md

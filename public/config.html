@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Config</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/config.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/app" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <span class="nav-link active">CONFIG</span>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="config-main">
+    <div class="config-card">
+      <h1>SYSTEM CONFIG</h1>
+      <p class="config-note">Port and host changes require restarting the server.</p>
+
+      <div class="config-tabs" role="tablist">
+        <button type="button" class="config-tab active" data-tab="server" role="tab" aria-selected="true">Server</button>
+        <button type="button" class="config-tab" data-tab="auth" role="tab" aria-selected="false">Auth</button>
+        <button type="button" class="config-tab" data-tab="ollama" role="tab" aria-selected="false">Ollama</button>
+        <button type="button" class="config-tab" data-tab="searxng" role="tab" aria-selected="false">SearXNG</button>
+        <button type="button" class="config-tab" data-tab="notifications" role="tab" aria-selected="false">Notifications</button>
+      </div>
+
+      <div id="panel-server" class="config-panel active" role="tabpanel">
+        <section class="section">
+          <h2>Server</h2>
+          <div class="form-group">
+            <label>Bind address</label>
+            <input type="text" id="host" placeholder="0.0.0.0" />
+          </div>
+          <div class="form-group">
+            <label>Port</label>
+            <input type="number" id="port" placeholder="9090" min="1" max="65535" />
+          </div>
+        </section>
+      </div>
+
+      <div id="panel-auth" class="config-panel" role="tabpanel" hidden>
+        <section class="section">
+          <h2>Auth</h2>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="username" placeholder="admin" />
+          </div>
+          <div class="form-group">
+            <label>Password (leave blank to keep current)</label>
+            <input type="password" id="password" placeholder="••••••••" />
+          </div>
+        </section>
+      </div>
+
+      <div id="panel-ollama" class="config-panel" role="tabpanel" hidden>
+        <section class="section">
+          <h2>Ollama — Main Brain</h2>
+          <div class="form-group">
+            <label>Ollama URL</label>
+            <input type="text" id="mainUrl" placeholder="http://localhost:11434" />
+          </div>
+          <div class="form-group">
+            <label>Main model</label>
+            <div class="input-with-btn">
+              <input type="text" id="mainModel" placeholder="llama3.2" />
+              <button type="button" id="fetchMainModels" class="btn btn-small">Fetch models</button>
+            </div>
+            <select id="mainModelList" class="model-list" style="display:none;"></select>
+          </div>
+          <div class="form-group">
+            <label>Temperature (0–2, higher = more random)</label>
+            <input type="number" id="ollamaTemperature" placeholder="0.7" min="0" max="2" step="0.1" />
+          </div>
+          <div class="form-group">
+            <label>Max tokens (num_predict)</label>
+            <input type="number" id="ollamaNumPredict" placeholder="2048" min="1" max="131072" />
+          </div>
+        </section>
+        <section class="section">
+          <h2>Agents (e.g. Coding)</h2>
+          <p class="section-desc">Use different models for coding or other tasks. Each agent can use the same or a different Ollama server.</p>
+          <div id="agentsList"></div>
+          <button type="button" id="addAgent" class="btn btn-small">+ Add agent</button>
+        </section>
+      </div>
+
+      <div id="panel-searxng" class="config-panel" role="tabpanel" hidden>
+        <section class="section">
+          <h2>SearXNG (Web search)</h2>
+          <p class="section-desc">Let the AI search the internet. Enter your SearXNG instance URL (e.g. https://search.example.com).</p>
+          <div class="form-group">
+            <label>SearXNG URL</label>
+            <input type="url" id="searxngUrl" placeholder="https://search.example.com" />
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="searxngEnabled" /> Enable web search for the AI</label>
+          </div>
+          <p class="section-desc"><a href="/debug">Debug SearXNG</a> — run a test search and see request URL, status, and response.</p>
+        </section>
+      </div>
+
+      <div id="panel-notifications" class="config-panel" role="tabpanel" hidden>
+        <section class="section">
+          <h2>Email (Notifications)</h2>
+          <p class="section-desc">Configure SMTP so the AI can email you when you ask it to (e.g. "email me this summary").</p>
+          <div class="form-group">
+            <label>SMTP host</label>
+            <input type="text" id="emailHost" placeholder="smtp.example.com" />
+          </div>
+          <div class="form-group">
+            <label>Port</label>
+            <input type="number" id="emailPort" placeholder="25" min="1" max="65535" />
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="emailSecure" /> Use TLS/SSL (port 465)</label>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="emailUseAuth" /> Use authentication</label>
+          </div>
+          <div class="form-group" id="emailAuthGroup">
+            <label>Username</label>
+            <input type="text" id="emailUser" placeholder="user@example.com" />
+          </div>
+          <div class="form-group" id="emailPassGroup">
+            <label>Password</label>
+            <input type="password" id="emailPass" placeholder="••••••••" />
+          </div>
+          <div class="form-group">
+            <label>From (sender address)</label>
+            <input type="text" id="emailFrom" placeholder="ShadowAI &lt;noreply@example.com&gt;" />
+          </div>
+          <div class="form-group">
+            <label>Default To (recipient when user says "email me")</label>
+            <input type="text" id="emailDefaultTo" placeholder="you@example.com" />
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="emailEnabled" /> Enable email (AI can send when user asks)</label>
+          </div>
+          <div class="form-group">
+            <button type="button" id="testEmailBtn" class="btn btn-small">Send test email</button>
+            <span id="testEmailStatus" class="status" style="margin-left:8px;"></span>
+          </div>
+        </section>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" id="saveBtn" class="btn">Save config</button>
+        <span id="status" class="status"></span>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/config.js"></script>
+</body>
+</html>

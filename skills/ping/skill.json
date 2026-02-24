@@ -1,0 +1,5 @@
+{
+  "name": "Ping",
+  "description": "Ping a host. Args: host (required), count (optional, default 4).",
+  "enabled": true
+}

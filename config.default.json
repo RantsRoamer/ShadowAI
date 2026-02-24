@@ -1,0 +1,31 @@
+{
+  "server": { "host": "0.0.0.0", "port": 9090 },
+  "auth": { "username": "admin", "passwordHash": "admin" },
+  "ollama": {
+    "mainUrl": "http://localhost:11434",
+    "mainModel": "llama3.2",
+    "temperature": 0.7,
+    "num_predict": 2048,
+    "agents": [
+      {
+        "id": "coding",
+        "name": "Coding Agent",
+        "url": "http://localhost:11434",
+        "model": "codellama",
+        "enabled": true
+      }
+    ]
+  },
+  "heartbeat": [],
+  "skills": { "enabledIds": [] },
+  "searxng": { "url": "", "enabled": false },
+  "email": {
+    "host": "",
+    "port": 25,
+    "secure": false,
+    "auth": { "user": "", "pass": "" },
+    "from": "",
+    "defaultTo": "",
+    "enabled": false
+  }
+}

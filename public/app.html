@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/app" class="logo">SHADOW_AI</a>
+      <select id="agentSelect" class="agent-select" title="Model / Agent">
+        <option value="">Main Brain</option>
+      </select>
+    </div>
+    <nav class="header-nav">
+      <span class="nav-link active">CHAT</span>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <button type="button" id="clearChatBtn" class="btn btn-small" title="Clear conversation">CLEAR</button>
+      <button type="button" id="exportChatBtn" class="btn btn-small" title="Export chat">EXPORT</button>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <aside class="chat-sidebar">
+      <button type="button" id="newChatBtn" class="btn btn-small new-chat-btn">+ New chat</button>
+      <input type="text" id="sidebarSearch" class="sidebar-search" placeholder="Search chats..." aria-label="Search chats" />
+      <ul id="chatList" class="chat-list"></ul>
+    </aside>
+    <div class="chat-content">
+      <div class="chat-toolbar">
+        <input type="text" id="messageSearch" class="message-search" placeholder="Search in messages..." aria-label="Search in messages" />
+      </div>
+    <div id="messages" class="messages"></div>
+    <div class="input-area">
+      <div class="custom-instructions-wrap">
+        <button type="button" id="customInstructionsToggle" class="custom-instructions-toggle" aria-expanded="false" aria-controls="customInstructionsPanel">
+          <span class="custom-instructions-chevron" aria-hidden="true">▶</span>
+          <span class="custom-instructions-label">Custom instructions for this chat</span>
+        </button>
+        <div id="customInstructionsPanel" class="custom-instructions-panel" hidden>
+          <label class="custom-instructions-include">
+            <input type="checkbox" id="customInstructionsEnabled" checked />
+            Include when sending
+          </label>
+          <textarea id="customInstructions" rows="2" placeholder="e.g. Always respond in bullet points."></textarea>
+        </div>
+      </div>
+      <div class="input-row">
+        <textarea id="userInput" rows="2" placeholder="Tell me something ...."></textarea>
+        <button type="button" id="stopBtn" class="btn btn-stop" title="Stop generation" style="display:none;">STOP</button>
+        <button type="button" id="sendBtn" class="btn send-btn">SEND</button>
+      </div>
+      <div class="input-hint">
+        <span>Run code: <code>/run js &lt;code&gt;</code> or <code>/run py &lt;code&gt;</code></span>
+        <span>File: <code>/read path</code> · <code>/write path</code> · <code>/list [path]</code></span>
+        <span>Skill: <code>/skill &lt;id&gt; [JSON]</code></span>
+        <span>Clear: <code>/reset</code></span>
+      </div>
+    </div>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
