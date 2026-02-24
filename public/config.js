@@ -58,6 +58,9 @@
     document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
     document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
     document.getElementById('discordAllowedUserIds').value = Array.isArray(ch.discord?.allowedUserIds) ? ch.discord.allowedUserIds.join(', ') : (ch.discord?.allowedUserIds ?? '');
+    const ui = c.ui || {};
+    document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
+    document.getElementById('promptLibrary').checked = ui.promptLibrary !== false;
   }
   function toggleEmailAuth() {
     const useAuth = document.getElementById('emailUseAuth').checked;
@@ -166,7 +169,11 @@
         enabled: document.getElementById('searxngEnabled').checked
       },
       email: getEmailFromDom(),
-      channels: getChannelsFromDom()
+      channels: getChannelsFromDom(),
+      ui: {
+        showToolCalls: document.getElementById('showToolCalls').checked,
+        promptLibrary: document.getElementById('promptLibrary').checked
+      }
     };
 
     setStatus('Saving...');
@@ -205,6 +212,9 @@
         document.getElementById('telegramBotToken').value = ch.telegram?.botToken ?? '';
         document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
         document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
+        const ui = c.ui || {};
+        document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
+        document.getElementById('promptLibrary').checked = ui.promptLibrary !== false;
       }
       setStatus('Saved. Restart server to apply port/host changes.');
     } catch (e) {

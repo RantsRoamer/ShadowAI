@@ -354,7 +354,8 @@ app.get('/api/config', (req, res) => {
       if (safe.auth) safe.auth = { user: safe.auth.user || '' }; // never send pass
       return safe;
     })(),
-    channels: c.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } }
+    channels: c.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } },
+    ui: c.ui || { showToolCalls: true, promptLibrary: true }
   });
 });
 
@@ -401,6 +402,9 @@ app.put('/api/config', (req, res) => {
         if (!config.email.auth.user) config.email.auth = undefined;
       }
     }
+    if (updates.ui && typeof updates.ui === 'object') {
+      config.ui = { ...(config.ui || {}), ...updates.ui };
+    }
     if (updates.channels && typeof updates.channels === 'object') {
       config.channels = {
         apiKey: updates.channels.apiKey !== undefined ? String(updates.channels.apiKey) : (config.channels && config.channels.apiKey) || '',
@@ -429,7 +433,8 @@ app.put('/api/config', (req, res) => {
           if (safe.auth) safe.auth = { user: safe.auth.user || '' };
           return safe;
         })(),
-        channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } }
+        channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } },
+        ui: config.ui || { showToolCalls: true, promptLibrary: true }
       }
     });
   } catch (e) {
