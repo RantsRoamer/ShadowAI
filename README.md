@@ -142,6 +142,7 @@ echo "Summarize the last three messages" | node scripts/cli.js
 2. In Config → Channels, enable **Discord** and paste the token. Restart the server.
 3. Install the optional dependency: `npm install discord.js`
 4. Invite the bot to your server (OAuth2 → URL Generator, scopes: bot, permissions: Send Messages, Read Message History, etc.). Each user gets their own conversation history.
+5. **Restrict who can use the bot:** set **Allowed Discord user IDs** to a comma-separated list of Discord user IDs (e.g. `123456789012345678`). Leave empty to allow everyone. Enable Developer Mode in Discord (User Settings → App Settings) then right-click a user → Copy user ID.
 
 ## Skills / plugins
 
