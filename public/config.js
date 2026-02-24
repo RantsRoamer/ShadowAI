@@ -54,6 +54,12 @@
     document.getElementById('emailDefaultTo').value = e.defaultTo ?? '';
     document.getElementById('emailEnabled').checked = e.enabled === true;
     toggleEmailAuth();
+    const ch = c.channels || {};
+    document.getElementById('channelsApiKey').value = ch.apiKey ?? '';
+    document.getElementById('telegramEnabled').checked = ch.telegram?.enabled === true;
+    document.getElementById('telegramBotToken').value = ch.telegram?.botToken ?? '';
+    document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
+    document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
   }
   function toggleEmailAuth() {
     const useAuth = document.getElementById('emailUseAuth').checked;
@@ -168,6 +174,20 @@
     };
   }
 
+  function getChannelsFromDom() {
+    return {
+      apiKey: document.getElementById('channelsApiKey').value.trim(),
+      telegram: {
+        enabled: document.getElementById('telegramEnabled').checked,
+        botToken: document.getElementById('telegramBotToken').value.trim()
+      },
+      discord: {
+        enabled: document.getElementById('discordEnabled').checked,
+        botToken: document.getElementById('discordBotToken').value.trim()
+      }
+    };
+  }
+
   document.getElementById('emailUseAuth').addEventListener('change', toggleEmailAuth);
   document.getElementById('testEmailBtn').addEventListener('click', async () => {
     const statusEl = document.getElementById('testEmailStatus');
@@ -232,7 +252,8 @@
         url: document.getElementById('searxngUrl').value.trim() || '',
         enabled: document.getElementById('searxngEnabled').checked
       },
-      email: getEmailFromDom()
+      email: getEmailFromDom(),
+      channels: getChannelsFromDom()
     };
 
     setStatus('Saving...');
@@ -266,6 +287,12 @@
         document.getElementById('emailDefaultTo').value = e.defaultTo ?? '';
         document.getElementById('emailEnabled').checked = e.enabled === true;
         toggleEmailAuth();
+        const ch = c.channels || {};
+        document.getElementById('channelsApiKey').value = ch.apiKey ?? '';
+        document.getElementById('telegramEnabled').checked = ch.telegram?.enabled === true;
+        document.getElementById('telegramBotToken').value = ch.telegram?.botToken ?? '';
+        document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
+        document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
       }
       setStatus('Saved. Restart server to apply port/host changes.');
     } catch (e) {

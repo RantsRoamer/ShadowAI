@@ -1,6 +1,12 @@
 {
-  "server": { "host": "0.0.0.0", "port": 9090 },
-  "auth": { "username": "admin", "passwordHash": "admin" },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 9090
+  },
+  "auth": {
+    "username": "admin",
+    "passwordHash": "admin"
+  },
   "ollama": {
     "mainUrl": "http://localhost:11434",
     "mainModel": "llama3.2",
@@ -17,15 +23,34 @@
     ]
   },
   "heartbeat": [],
-  "skills": { "enabledIds": [] },
-  "searxng": { "url": "", "enabled": false },
+  "skills": {
+    "enabledIds": []
+  },
+  "searxng": {
+    "url": "",
+    "enabled": false
+  },
   "email": {
     "host": "",
     "port": 25,
     "secure": false,
-    "auth": { "user": "", "pass": "" },
+    "auth": {
+      "user": "",
+      "pass": ""
+    },
     "from": "",
     "defaultTo": "",
     "enabled": false
+  },
+  "channels": {
+    "apiKey": "",
+    "telegram": {
+      "enabled": false,
+      "botToken": ""
+    },
+    "discord": {
+      "enabled": false,
+      "botToken": ""
+    }
   }
 }

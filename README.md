@@ -4,8 +4,11 @@ Web-based AI assistant that connects to a local [Ollama](https://ollama.com) ser
 
 **Repository:** [https://github.com/RantsRoamer/ShadowAI](https://github.com/RantsRoamer/ShadowAI)
 
+For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart home, browser automation, vision, MCP), see [ROADMAP.md](ROADMAP.md).
+
 ## Features
 
+- **Multi-channel** — Same AI from CLI, Telegram, and Discord (Config → Channels; optional bots)
 - **Password protected** — default login `admin` / `admin` (change in Config)
 - **Multi-model** — Main Brain model + optional agents (e.g. Coding Agent) from same or different Ollama URLs
 - **Config via UI** — Server bind address (default `0.0.0.0`), port (default `9090`), auth, Ollama URLs and models
@@ -98,6 +101,47 @@ Config, chat history, and personality data are stored in the `/app/data` volume 
 - **Auth**: Username and password. Leave password blank to keep current.
 - **Ollama — Main Brain**: Base URL (e.g. `http://localhost:11434`) and model name. Use "Fetch models" to list models from the server.
 - **Agents**: Add agents (e.g. Coding Agent) with their own URL and model. Select the agent in the chat header to use it for that conversation.
+- **Channels**: API key for the channel API (CLI/bots), and optional Telegram and Discord bots. **Restart the server** after changing channel settings.
+
+## Multi-channel messaging
+
+Use the same AI from the **CLI**, **Telegram**, and **Discord**. Configure in **CONFIG → Channels** and restart the server for changes to take effect.
+
+### API key
+
+Set an **API key** in Config → Channels. It is required for the channel API and is not used by the web UI. Keep it secret.
+
+### CLI
+
+Send a message and get a reply from the running ShadowAI server:
+
+```bash
+# Set env (use the same value as in Config → Channels)
+export SHADOWAI_API_KEY=your-api-key
+export SHADOWAI_URL=http://localhost:9090   # optional; default is http://localhost:9090
+
+# From arguments
+node scripts/cli.js "Hello, what can you do?"
+# or
+npm run cli -- "Hello"
+
+# From stdin
+echo "Summarize the last three messages" | node scripts/cli.js
+```
+
+### Telegram bot
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) and copy the bot token.
+2. In Config → Channels, enable **Telegram** and paste the token. Restart the server.
+3. Install the optional dependency: `npm install node-telegram-bot-api`
+4. Start a chat with your bot in Telegram; each user gets their own conversation history.
+
+### Discord bot
+
+1. In [Discord Developer Portal](https://discord.com/developers/applications), create an application and add a bot. Copy the bot token. Under **Bot**, enable **MESSAGE CONTENT INTENT** (required to read messages).
+2. In Config → Channels, enable **Discord** and paste the token. Restart the server.
+3. Install the optional dependency: `npm install discord.js`
+4. Invite the bot to your server (OAuth2 → URL Generator, scopes: bot, permissions: Send Messages, Read Message History, etc.). Each user gets their own conversation history.
 
 ## Skills / plugins
 

@@ -19,6 +19,8 @@ const fetchUrlLib = require('./lib/fetchUrl.js');
 const chatStore = require('./lib/chatStore.js');
 const emailLib = require('./lib/email.js');
 const logger = require('./lib/logger.js');
+const systemPrompt = require('./lib/systemPrompt.js');
+const chatRunner = require('./lib/chatRunner.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -94,53 +96,10 @@ app.use(authMiddleware);
 app.use('/static', express.static(PUBLIC));
 
 // ---------------------------------------------------------------------------
-// System prompt builder
+// System prompt builder (delegates to lib)
 // ---------------------------------------------------------------------------
 function buildSystemPrompt(customInstructions = '') {
-  let text = 'You are ShadowAI, a helpful assistant. ';
-  const personality = personalityLib.readPersonality().trim();
-  if (personality) {
-    text += '\n\n--- Your personality (follow this) ---\n' + personality + '\n--- End personality ---\n\n';
-  }
-  const memory = personalityLib.readMemory().trim();
-  if (memory) {
-    text += '--- Things to remember (you have an append_memory tool to add to this; do not ask the user to run /read or /write) ---\n' + memory + '\n--- End memory ---\n\n';
-  }
-  text += 'The user can run code by sending: /run js <code> or /run py <code>. They can read a file: /read <path>, write: /write <path> then newline then content, list dir: /list [path]. You can suggest these commands. When the user asks you to REMEMBER something (e.g. "remember my name is X"), you must use the append_memory tool to save it—do not tell the user to run /read or /write. The append_memory tool runs automatically. Memory is already in your context above so you can answer "who am I" etc. from it. Be concise and technical. Use markdown for structure (headers, **bold**, lists, tables) and emojis when they add clarity or a friendly tone.';
-  text += ' When the user asks you to write code or create a skill, tell them to select the Coding Agent (or the coding agent they configured) from the model dropdown at the top of the chat for better results.';
-  try {
-    skillsLib.ensureEnabledSkillsLoaded();
-    const skills = skillsLib.listSkills().filter(s => s.enabled && s.loaded);
-    if (skills.length > 0) {
-      text += '\n\nAvailable skills (user can run with /skill <id> [JSON args]): ' +
-        skills.map(s => `"${s.id}" (${s.name}): ${s.description}`).join('; ') +
-        '. You also have these as tools—when you use a tool it runs automatically and you get the result. Use the appropriate tool when it would help (e.g. ping a host when the user asks to check connectivity). Prefer using tools over suggesting /run or /skill when a skill fits the request.';
-      const enabledIds = (getConfig().skills || {}).enabledIds;
-      if (Array.isArray(enabledIds) && enabledIds.length > 0) {
-        text += ' Currently enabled skills (remember these are on): ' + enabledIds.join(', ') + '.';
-      }
-    }
-    text += '\n\nWhen the user asks you to CREATE a new skill/plugin you MUST output it in this exact format so the system can create the files. Use this block (copy exactly, no extra text inside the block):\nSKILL_ID: <id>\nSKILL_NAME: <display name>\nSKILL_DESCRIPTION: <short description>\nSKILL_CODE:\n<full run.js code - must export run(args) or module.exports = { run }>\nEND_SKILL_CODE\nAfter the block, say "Click the Create skill button below to add this skill, then enable it on the Skills page."';
-  } catch (e) {
-    logger.warn('buildSystemPrompt: skills error:', e.message);
-  }
-  const searxng = getConfig().searxng || {};
-  if (searxng.url && searxng.enabled) {
-    text += '\n\nYou have a web_search tool that lets you search the live internet via SearXNG. '
-      + 'Use it whenever the user asks about current events, external facts, websites, APIs, or anything you need to look up. '
-      + 'Call it with a clear search query, then base your answer on the returned results. '
-      + 'Do NOT say that you lack internet or browsing access—when you need outside information, use the web_search tool instead.';
-  }
-  text += '\n\nYou have a fetch_url tool to fetch a webpage and read its content. When the user gives you a URL or asks you to check a website, call fetch_url with that URL (must be http or https), then summarize or answer using the returned title and content.';
-  const email = getConfig().email || {};
-  if (email.host && email.from && email.defaultTo && email.enabled) {
-    text += '\n\nYou have a send_email tool. When the user asks you to email them something (a summary, a file, a reminder, etc.), call send_email with subject and text. Do NOT pass a "to" parameter (or pass it only when the user explicitly gives a different email address)—when "to" is omitted, the system sends to the configured default address. Use the default whenever the user says "email me", "send it to me", or does not specify who to send to.';
-  }
-  const custom = (customInstructions || '').trim();
-  if (custom) {
-    text += '\n\n--- Custom instructions for this chat (follow these) ---\n' + custom + '\n--- End custom instructions ---';
-  }
-  return text;
+  return systemPrompt.buildSystemPrompt(customInstructions);
 }
 
 // ---------------------------------------------------------------------------
@@ -350,7 +309,8 @@ app.get('/api/config', (req, res) => {
       const safe = { ...e };
       if (safe.auth) safe.auth = { user: safe.auth.user || '' }; // never send pass
       return safe;
-    })()
+    })(),
+    channels: c.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } }
   });
 });
 
@@ -397,6 +357,15 @@ app.put('/api/config', (req, res) => {
         if (!config.email.auth.user) config.email.auth = undefined;
       }
     }
+    if (updates.channels && typeof updates.channels === 'object') {
+      config.channels = {
+        apiKey: updates.channels.apiKey !== undefined ? String(updates.channels.apiKey) : (config.channels && config.channels.apiKey) || '',
+        telegram: { ...(config.channels && config.channels.telegram), ...(updates.channels.telegram || {}), enabled: !!(updates.channels.telegram && updates.channels.telegram.enabled), botToken: (updates.channels.telegram && updates.channels.telegram.botToken !== undefined) ? String(updates.channels.telegram.botToken) : (config.channels && config.channels.telegram && config.channels.telegram.botToken) || '' },
+        discord: { ...(config.channels && config.channels.discord), ...(updates.channels.discord || {}), enabled: !!(updates.channels.discord && updates.channels.discord.enabled), botToken: (updates.channels.discord && updates.channels.discord.botToken !== undefined) ? String(updates.channels.discord.botToken) : (config.channels && config.channels.discord && config.channels.discord.botToken) || '' }
+      };
+    } else if (!config.channels) {
+      config.channels = { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } };
+    }
 
     replaceConfig(config);
 
@@ -415,7 +384,8 @@ app.put('/api/config', (req, res) => {
           const safe = { ...e };
           if (safe.auth) safe.auth = { user: safe.auth.user || '' };
           return safe;
-        })()
+        })(),
+        channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } }
       }
     });
   } catch (e) {
@@ -784,6 +754,37 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Channel API (CLI / bots) — API key auth, no session
+// ---------------------------------------------------------------------------
+app.post('/api/channel/chat', chatLimiter, async (req, res) => {
+  const channels = getConfig().channels || {};
+  const apiKey = (channels.apiKey || '').trim();
+  const keyFromHeader = (req.headers['x-api-key'] || '').trim();
+  const keyFromBody = (req.body && req.body.apiKey != null) ? String(req.body.apiKey).trim() : '';
+  const provided = keyFromHeader || keyFromBody;
+  if (!apiKey) return res.status(503).json({ error: 'Channels API key not configured' });
+  if (provided !== apiKey) return res.status(401).json({ error: 'Invalid or missing API key' });
+
+  const message = req.body && req.body.message != null ? String(req.body.message).trim() : '';
+  if (!message) return res.status(400).json({ error: 'message required' });
+  const userId = (req.body && req.body.userId != null) ? String(req.body.userId) : 'cli';
+  const username = 'channel_' + userId;
+
+  try {
+    const data = chatStore.readChat(username);
+    const messages = (data && data.messages) ? [...data.messages] : [];
+    messages.push({ role: 'user', content: message });
+    const { content } = await chatRunner.runChatTurn({ user: username, messages, customInstructions: (data && data.customInstructions) || '', agentId: null });
+    messages.push({ role: 'assistant', content });
+    const usedChatId = chatStore.writeChat(username, messages);
+    res.json({ content, chatId: usedChatId });
+  } catch (e) {
+    logger.error('POST /api/channel/chat:', e.message);
+    res.status(502).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Code execution
 // ---------------------------------------------------------------------------
 app.post('/api/run', runLimiter, async (req, res) => {
@@ -923,6 +924,19 @@ function start() {
   });
 
   heartbeatLib.startHeartbeat();
+
+  try {
+    const telegramBot = require('./lib/telegramBot.js');
+    telegramBot.startTelegramBot();
+  } catch (e) {
+    logger.warn('Telegram bot init error:', e.message);
+  }
+  try {
+    const discordBot = require('./lib/discordBot.js');
+    discordBot.startDiscordBot();
+  } catch (e) {
+    logger.warn('Discord bot init error:', e.message);
+  }
 
   try {
     const enabledList = skillsLib.listSkills().filter(s => s.enabled).map(s => s.id);

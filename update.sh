@@ -12,8 +12,8 @@ echo "[install] Stopping Docker containers..."
 docker compose down
 
 echo "[install] Pulling latest from repository..."
-git pull
-#gh repo sync
+# git pull
+gh repo sync
 
 echo "[install] Rebuilding and starting Docker..."
 docker compose up -d --build
