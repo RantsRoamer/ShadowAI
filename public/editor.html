@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/editor.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/app" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <span class="nav-link active">EDITOR</span>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="editor-main">
+    <!-- File tree sidebar -->
+    <aside class="editor-sidebar">
+      <div class="sidebar-header">FILES</div>
+      <div id="fileTree" class="file-tree"></div>
+    </aside>
+
+    <!-- Editor + AI panel -->
+    <div class="editor-area">
+
+      <!-- Toolbar -->
+      <div class="editor-toolbar">
+        <span id="editorPath" class="editor-path">(no file open — click a file in the tree)</span>
+        <div class="editor-toolbar-right">
+          <select id="agentSelect" class="agent-select" title="AI model for assist">
+            <option value="">Main Brain</option>
+          </select>
+          <span id="saveStatus" class="save-status"></span>
+          <button type="button" id="saveBtn" class="btn btn-small" disabled>SAVE</button>
+        </div>
+      </div>
+
+      <!-- CodeMirror -->
+      <div class="editor-wrap">
+        <textarea id="codeEditor"></textarea>
+      </div>
+
+      <!-- AI assist panel -->
+      <div class="ai-panel">
+        <div class="ai-panel-header">AI ASSIST</div>
+        <div class="ai-input-row">
+          <textarea id="aiInstruction" rows="2" placeholder="Describe the change you want… e.g. 'Add error handling to the fetchUrl call' or 'Refactor into an async function'"></textarea>
+          <button type="button" id="aiAskBtn" class="btn">ASK</button>
+        </div>
+        <div id="aiResponse" class="ai-response" hidden></div>
+        <div class="ai-actions" id="aiActions" hidden>
+          <button type="button" id="applyBtn" class="btn btn-small">APPLY CODE TO EDITOR</button>
+          <span class="ai-apply-hint">Replaces editor content with AI suggestion — review and save when ready</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- CodeMirror core + language modes -->
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/python/python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/markdown/markdown.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/selection/active-line.min.js"></script>
+  <!-- Markdown renderer for AI response -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="/static/nav.js"></script>
+  <script src="/static/editor.js"></script>
+</body>
+</html>
