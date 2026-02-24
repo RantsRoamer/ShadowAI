@@ -43,6 +43,18 @@ docker compose up -d --build
 
 Open **http://localhost:9090**. The first time, set `ADMIN_PASSWORD` in the environment (see below) or change the password in **CONFIG** after logging in with `admin` / `admin`.
 
+### Install / update script (`install.sh`)
+
+To shut down the running containers, pull the latest code from the repo, and rebuild and restart:
+
+```bash
+cd ShadowAI
+chmod +x install.sh   # only needed once
+./install.sh
+```
+
+You can run `./install.sh` from the project root, or from any directory (the script changes into its own directory first). Your data (config, chats) in the Docker volume is preserved.
+
 ### Build and run with Docker only
 
 ```bash
