@@ -6,8 +6,9 @@ RUN apk add --no-cache python3
 WORKDIR /app
 
 # Install dependencies first (layer-cached — only rebuilds when package.json changes)
+# Use npm install so optionalDependencies (Telegram/Discord bots) are installed even if lock file was not updated.
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 # Copy source (config.json and data/ are excluded via .dockerignore)
 COPY . .
