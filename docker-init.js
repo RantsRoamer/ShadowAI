@@ -2,6 +2,8 @@
  * docker-init.js
  * Applies environment variable overrides to config.json at container startup.
  * Runs once via docker-entrypoint.sh before the main server starts.
+ * Only applies an env var when the current config value is missing or empty,
+ * so UI saves are not overwritten on container restart.
  *
  * Supported env vars:
  *   OLLAMA_URL        - Ollama server URL  (e.g. http://host.docker.internal:11434)
@@ -30,7 +32,16 @@ if (!fs.existsSync(CONFIG_PATH)) {
 const config  = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
 let   changed = false;
 
-function apply(obj, key, value) {
+function applyIfEmpty(obj, key, value) {
+  if (value === undefined || value === '') return;
+  const cur = obj[key];
+  if (cur === undefined || cur === null || cur === '') {
+    obj[key] = value;
+    changed   = true;
+  }
+}
+
+function applyAlways(obj, key, value) {
   if (value !== undefined && obj[key] !== value) {
     obj[key] = value;
     changed   = true;
@@ -44,41 +55,35 @@ const {
   PORT, HOST
 } = process.env;
 
-if (OLLAMA_URL) {
-  config.ollama = config.ollama || {};
-  apply(config.ollama, 'mainUrl', OLLAMA_URL);
-}
-if (OLLAMA_MODEL) {
-  config.ollama = config.ollama || {};
-  apply(config.ollama, 'mainModel', OLLAMA_MODEL);
-}
-if (PORT) {
+config.ollama = config.ollama || {};
+applyIfEmpty(config.ollama, 'mainUrl', OLLAMA_URL);
+applyIfEmpty(config.ollama, 'mainModel', OLLAMA_MODEL);
+
+if (PORT !== undefined && PORT !== '') {
   config.server = config.server || {};
-  apply(config.server, 'port', parseInt(PORT, 10));
+  applyAlways(config.server, 'port', parseInt(PORT, 10));
 }
-if (HOST) {
+if (HOST !== undefined && HOST !== '') {
   config.server = config.server || {};
-  apply(config.server, 'host', HOST);
+  applyAlways(config.server, 'host', HOST);
 }
-if (ADMIN_USER) {
-  config.auth = config.auth || {};
-  apply(config.auth, 'username', ADMIN_USER);
-}
-if (ADMIN_PASSWORD) {
+config.auth = config.auth || {};
+applyIfEmpty(config.auth, 'username', ADMIN_USER);
+if (ADMIN_PASSWORD !== undefined && ADMIN_PASSWORD !== '') {
   const bcrypt = require('bcryptjs');
-  config.auth = config.auth || {};
   config.auth.passwordHash = bcrypt.hashSync(ADMIN_PASSWORD, 12);
   changed = true;
   console.log('[docker-init] Admin password set from ADMIN_PASSWORD env var');
 }
-if (SEARXNG_URL) {
+if (SEARXNG_URL !== undefined && SEARXNG_URL !== '') {
   config.searxng = config.searxng || {};
-  apply(config.searxng, 'url', SEARXNG_URL);
-  apply(config.searxng, 'enabled', SEARXNG_ENABLED !== 'false');
+  applyAlways(config.searxng, 'url', SEARXNG_URL);
+  applyAlways(config.searxng, 'enabled', SEARXNG_ENABLED !== 'false');
 }
 
 if (changed) {
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+  const configPath = fs.realpathSync ? fs.realpathSync(CONFIG_PATH) : CONFIG_PATH;
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
   console.log('[docker-init] Applied environment variable overrides to config.json');
 } else {
   console.log('[docker-init] No env var overrides to apply');
