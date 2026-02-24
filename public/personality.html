@@ -14,6 +14,13 @@
     .personality-section h2 { margin-bottom: 10px; }
     .personality-section textarea { min-height: 140px; }
     .form-actions .btn { margin-right: 10px; }
+    .sm-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 4px; }
+    .sm-table th, .sm-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+    .sm-table th { background: var(--green-dim); color: var(--green-bright); font-weight: 600; }
+    .sm-table td:last-child { width: 60px; text-align: center; }
+    .sm-del-btn { background: none; border: none; color: var(--red); cursor: pointer; font-size: 13px; padding: 2px 6px; }
+    .sm-del-btn:hover { background: rgba(255,68,102,0.12); border-radius: 2px; }
+    .sm-add-row input { padding: 6px 10px; font-size: 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; color: var(--text-bright); box-sizing: border-box; }
   </style>
 </head>
 <body>
@@ -26,6 +33,7 @@
       <a href="/skills" class="nav-link">SKILLS</a>
       <span class="nav-link active">PERSONALITY</span>
       <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
       <a href="/config" class="nav-link">CONFIG</a>
       <a href="/editor" class="nav-link">EDITOR</a>
       <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
@@ -62,6 +70,24 @@
         <div class="form-actions" style="margin-top:10px;">
           <button type="button" id="saveMemory" class="btn btn-small">Save memory</button>
           <span id="memoryStatus" class="status"></span>
+        </div>
+      </section>
+
+      <section class="section personality-section">
+        <h2>Structured Memory (data/memory.json)</h2>
+        <p class="section-desc">Key-value facts the AI stores and retrieves via <code>get_memory</code> / <code>set_memory</code> tools.</p>
+        <table class="sm-table">
+          <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
+          <tbody id="smBody"></tbody>
+        </table>
+        <div class="sm-add-row" style="display:flex;gap:8px;margin-top:8px;">
+          <input type="text" id="smNewKey" placeholder="Key" style="flex:1;" />
+          <input type="text" id="smNewValue" placeholder="Value" style="flex:2;" />
+          <button type="button" id="smAddBtn" class="btn btn-small">Add</button>
+        </div>
+        <div class="form-actions" style="margin-top:10px;">
+          <button type="button" id="saveStructuredMemory" class="btn btn-small">Save structured memory</button>
+          <span id="smStatus" class="status"></span>
         </div>
       </section>
     </div>

@@ -21,6 +21,7 @@
       <a href="/skills" class="nav-link">SKILLS</a>
       <a href="/personality" class="nav-link">PERSONALITY</a>
       <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
       <a href="/config" class="nav-link">CONFIG</a>
       <span class="nav-link active">EDITOR</span>
       <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
@@ -37,6 +38,9 @@
     <!-- Editor + AI panel -->
     <div class="editor-area">
 
+      <!-- Tab bar -->
+      <div id="editorTabs" class="editor-tabs"></div>
+
       <!-- Toolbar -->
       <div class="editor-toolbar">
         <span id="editorPath" class="editor-path">(no file open — click a file in the tree)</span>
@@ -45,6 +49,7 @@
             <option value="">Main Brain</option>
           </select>
           <span id="saveStatus" class="save-status"></span>
+          <button type="button" id="sendToChatBtn" class="btn btn-small">SEND TO CHAT</button>
           <button type="button" id="saveBtn" class="btn btn-small" disabled>SAVE</button>
         </div>
       </div>

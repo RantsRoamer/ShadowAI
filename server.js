@@ -144,6 +144,7 @@ app.get('/config',      (req, res) => res.sendFile(path.join(PUBLIC, 'config.htm
 app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.html')));
 app.get('/personality', (req, res) => res.sendFile(path.join(PUBLIC, 'personality.html')));
 app.get('/heartbeat',   (req, res) => res.sendFile(path.join(PUBLIC, 'heartbeat.html')));
+app.get('/agents',      (req, res) => res.sendFile(path.join(PUBLIC, 'agents.html')));
 app.get('/debug',       (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html')));
 app.get('/editor',      (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
 
@@ -215,6 +216,28 @@ app.put('/api/behavior', (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     logger.error('PUT /api/behavior:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Structured memory
+// ---------------------------------------------------------------------------
+app.get('/api/structured-memory', (req, res) => {
+  try {
+    res.json(structuredMemory.readAll());
+  } catch (e) {
+    logger.error('GET /api/structured-memory:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/structured-memory', (req, res) => {
+  try {
+    structuredMemory.writeAll(req.body || {});
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('PUT /api/structured-memory:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -779,10 +802,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                 const result = await skillsLib.runSkill(name, args);
                 content = typeof result === 'object' ? JSON.stringify(result) : String(result);
               }
+              res.write(`data: ${JSON.stringify({ toolResult: { name, args, result: String(content).slice(0, 500) } })}\n\n`);
               messagesForOllama.push({ role: 'tool', tool_name: name, content });
             } catch (err) {
               logger.warn(`Tool "${name}" error:`, err.message);
-              messagesForOllama.push({ role: 'tool', tool_name: name, content: String(err.message) });
+              const errContent = String(err.message);
+              res.write(`data: ${JSON.stringify({ toolResult: { name, args, result: errContent.slice(0, 500), error: true } })}\n\n`);
+              messagesForOllama.push({ role: 'tool', tool_name: name, content: errContent });
             }
           }
         }
@@ -956,6 +982,45 @@ app.post('/api/editor/assist', chatLimiter, async (req, res) => {
     res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
   }
   res.end();
+});
+
+// ---------------------------------------------------------------------------
+// Prompt library
+// ---------------------------------------------------------------------------
+const PROMPTS_PATH = path.join(__dirname, 'data', 'prompts.json');
+
+function readPrompts() {
+  const fs = require('fs');
+  try {
+    if (fs.existsSync(PROMPTS_PATH)) return JSON.parse(fs.readFileSync(PROMPTS_PATH, 'utf8'));
+  } catch (_) {}
+  return [];
+}
+
+function writePrompts(arr) {
+  const fs = require('fs');
+  const dir = path.dirname(PROMPTS_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(PROMPTS_PATH, JSON.stringify(arr, null, 2), 'utf8');
+}
+
+app.get('/api/prompts', (req, res) => {
+  res.json(readPrompts());
+});
+
+app.post('/api/prompts', (req, res) => {
+  const { title, content } = req.body || {};
+  if (!title || !content) return res.status(400).json({ error: 'title and content required' });
+  const prompts = readPrompts();
+  const id = crypto.randomUUID();
+  prompts.push({ id, title: String(title).trim().slice(0, 120), content: String(content) });
+  writePrompts(prompts);
+  res.json({ ok: true, id });
+});
+
+app.delete('/api/prompts/:id', (req, res) => {
+  writePrompts(readPrompts().filter(p => p.id !== req.params.id));
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------

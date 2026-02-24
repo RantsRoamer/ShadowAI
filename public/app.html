@@ -25,6 +25,7 @@
       <a href="/skills" class="nav-link">SKILLS</a>
       <a href="/personality" class="nav-link">PERSONALITY</a>
       <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
       <a href="/config" class="nav-link">CONFIG</a>
       <a href="/editor" class="nav-link">EDITOR</a>
       <button type="button" id="clearChatBtn" class="btn btn-small" title="Clear conversation">CLEAR</button>
@@ -60,6 +61,7 @@
       </div>
       <div class="input-row">
         <textarea id="userInput" rows="2" placeholder="Tell me something ...."></textarea>
+        <button type="button" id="promptsBtn" class="btn btn-small" title="Prompt library">PROMPTS</button>
         <button type="button" id="stopBtn" class="btn btn-stop" title="Stop generation" style="display:none;">STOP</button>
         <button type="button" id="sendBtn" class="btn send-btn">SEND</button>
       </div>
@@ -72,6 +74,20 @@
     </div>
     </div>
   </main>
+
+  <!-- Prompts modal -->
+  <div id="promptsModal" class="prompts-modal-overlay" hidden>
+    <div class="prompts-modal">
+      <div class="prompts-modal-header">
+        <span class="prompts-modal-title">PROMPT LIBRARY</span>
+        <button type="button" id="promptsCloseBtn" class="btn btn-small">×</button>
+      </div>
+      <div class="prompts-modal-actions">
+        <button type="button" id="savePromptBtn" class="btn btn-small">Save current input as prompt</button>
+      </div>
+      <div id="promptsList" class="prompts-list"></div>
+    </div>
+  </div>
 
   <script src="/static/nav.js"></script>
   <script src="/static/app.js"></script>

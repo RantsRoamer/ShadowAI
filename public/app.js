@@ -186,9 +186,9 @@
         customInstructionsToggle.closest('.custom-instructions-wrap')?.setAttribute('data-expanded', 'false');
       }
       messagesEl.innerHTML = '';
-      list.forEach(msg => {
+      list.forEach((msg, idx) => {
         const isError = msg.role === 'assistant' && msg.content && msg.content.startsWith('Error');
-        const div = addMessage(msg.role, msg.content || '', isError);
+        const div = addMessage(msg.role, msg.content || '', isError, idx);
         if (msg.role === 'assistant' && msg.content) addCreateSkillButton(div, msg.content);
       });
       ensureRegenerateButton();
@@ -232,20 +232,103 @@
     });
   }
 
-  function addMessage(role, content, isError = false) {
+  function addMessage(role, content, isError = false, explicitIndex) {
     const div = document.createElement('div');
     div.className = 'msg ' + (role === 'user' ? 'user' : isError ? 'error' : 'assistant');
     div.dataset.raw = content;
+    const msgIndex = explicitIndex !== undefined ? explicitIndex : history.length; // index in history[]
+    div.dataset.index = msgIndex;
     const meta = role === 'user' ? 'You' : (isError ? 'Error' : 'ShadowAI');
-    const actions = '<div class="msg-actions"><button type="button" class="msg-copy" title="Copy">Copy</button></div>';
+    const editBtn = role === 'user' ? '<button type="button" class="msg-edit" title="Edit message">Edit</button>' : '';
+    const actions = '<div class="msg-actions"><button type="button" class="msg-copy" title="Copy">Copy</button>' + editBtn + '</div>';
     div.innerHTML = '<div class="meta">' + escapeHtml(meta) + '</div><div class="msg-body">' + formatContent(content) + '</div>' + actions;
     const copyBtn = div.querySelector('.msg-copy');
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(content || '').then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); }).catch(() => {});
     });
+    const editBtnEl = div.querySelector('.msg-edit');
+    if (editBtnEl) {
+      editBtnEl.addEventListener('click', () => startEditMessage(div));
+    }
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return div;
+  }
+
+  function startEditMessage(div) {
+    const msgBody = div.querySelector('.msg-body');
+    const actions = div.querySelector('.msg-actions');
+    if (!msgBody || div.querySelector('.msg-edit-area')) return; // already editing
+    const rawContent = div.dataset.raw || '';
+
+    const textarea = document.createElement('textarea');
+    textarea.className = 'msg-edit-area';
+    textarea.value = rawContent;
+    msgBody.replaceWith(textarea);
+    textarea.focus();
+    textarea.select();
+
+    // Replace action buttons with confirm/cancel
+    const origActions = actions.innerHTML;
+    actions.innerHTML =
+      '<button type="button" class="msg-edit-confirm msg-copy">Confirm</button>' +
+      '<button type="button" class="msg-edit-cancel msg-copy">Cancel</button>';
+
+    actions.querySelector('.msg-edit-confirm').addEventListener('click', () => confirmEdit(div, textarea.value, origActions));
+    actions.querySelector('.msg-edit-cancel').addEventListener('click', () => cancelEdit(div, rawContent, origActions));
+  }
+
+  function cancelEdit(div, originalContent, origActionsHTML) {
+    const textarea = div.querySelector('.msg-edit-area');
+    if (!textarea) return;
+    const body = document.createElement('div');
+    body.className = 'msg-body';
+    body.innerHTML = formatContent(originalContent);
+    textarea.replaceWith(body);
+    div.querySelector('.msg-actions').innerHTML = origActionsHTML;
+    // Re-attach event listeners
+    const copyBtn = div.querySelector('.msg-copy');
+    if (copyBtn) copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(originalContent || '').then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); }).catch(() => {});
+    });
+    const editBtnEl = div.querySelector('.msg-edit');
+    if (editBtnEl) editBtnEl.addEventListener('click', () => startEditMessage(div));
+  }
+
+  function confirmEdit(div, newContent, origActionsHTML) {
+    const trimmed = newContent.trim();
+    if (!trimmed) { cancelEdit(div, div.dataset.raw || '', origActionsHTML); return; }
+
+    const index = parseInt(div.dataset.index, 10);
+
+    // Restore the div's body
+    const textarea = div.querySelector('.msg-edit-area');
+    const body = document.createElement('div');
+    body.className = 'msg-body';
+    body.innerHTML = formatContent(trimmed);
+    textarea.replaceWith(body);
+    div.dataset.raw = trimmed;
+    div.querySelector('.msg-actions').innerHTML = origActionsHTML;
+    const copyBtn = div.querySelector('.msg-copy');
+    if (copyBtn) copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(trimmed || '').then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); }).catch(() => {});
+    });
+    const editBtnEl = div.querySelector('.msg-edit');
+    if (editBtnEl) editBtnEl.addEventListener('click', () => startEditMessage(div));
+
+    // Update history: replace message at index and truncate everything after
+    history[index] = { role: 'user', content: trimmed };
+    history = history.slice(0, index + 1);
+
+    // Remove all DOM messages after this one
+    const allMsgs = Array.from(messagesEl.querySelectorAll('.msg, .typing-indicator'));
+    const thisIdx = allMsgs.indexOf(div);
+    if (thisIdx >= 0) {
+      allMsgs.slice(thisIdx + 1).forEach(el => el.remove());
+    }
+
+    ensureRegenerateButton();
+    sendMessageOnly();
   }
 
   function ensureRegenerateButton() {
@@ -382,6 +465,32 @@
       const decoder = new TextDecoder();
       let msgDiv = null;
       let contentEl = null;
+      const pendingToolBlocks = [];
+
+      function addToolCallBlock(name, args, result, isError) {
+        const block = document.createElement('div');
+        block.className = 'tool-call-block';
+        const argsStr = args && typeof args === 'object' && Object.keys(args).length
+          ? JSON.stringify(args, null, 2)
+          : '';
+        block.innerHTML =
+          '<div class="tool-call-summary">' +
+          '<span class="tool-call-toggle">▶</span>' +
+          '<span class="tool-call-badge">' + escapeHtml(name) + '</span>' +
+          '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (isError ? '⚠ error' : escapeHtml(String(result || '').slice(0, 80))) + '</span>' +
+          '</div>' +
+          '<div class="tool-call-details" hidden>' +
+          (argsStr ? '<div class="tool-call-label">ARGS</div><pre style="margin:0 0 6px;">' + escapeHtml(argsStr) + '</pre>' : '') +
+          '<div class="tool-call-label">RESULT</div><pre style="margin:0;">' + escapeHtml(String(result || '')) + '</pre>' +
+          '</div>';
+        block.querySelector('.tool-call-summary').addEventListener('click', () => {
+          const details = block.querySelector('.tool-call-details');
+          const toggle = block.querySelector('.tool-call-toggle');
+          details.hidden = !details.hidden;
+          toggle.textContent = details.hidden ? '▶' : '▼';
+        });
+        return block;
+      }
 
       while (true) {
         const { done, value } = await reader.read();
@@ -395,12 +504,22 @@
               if (data.toolCall) {
                 updateTypingStatus(data.toolCall);
               }
+              if (data.toolResult) {
+                const block = addToolCallBlock(data.toolResult.name, data.toolResult.args, data.toolResult.result, data.toolResult.error);
+                pendingToolBlocks.push(block);
+                // Attach to typing indicator while waiting for response
+                const typingContent = typingEl.querySelector('.typing-content');
+                if (typingContent) typingContent.after(block);
+              }
               if (data.content) {
                 if (!msgDiv) {
                   typingEl.remove();
                   msgDiv = addMessage('assistant', '');
                   msgDiv.dataset.raw = '';
                   contentEl = msgDiv.querySelector('.msg-body');
+                  // Move any pending tool blocks into the message, before msg-body
+                  pendingToolBlocks.forEach(b => msgDiv.insertBefore(b, contentEl));
+                  pendingToolBlocks.length = 0;
                 }
                 full += data.content;
                 msgDiv.dataset.raw = full;
@@ -613,6 +732,64 @@
     });
   }
 
+  // ---------- Prompt library ----------
+  const promptsModal = document.getElementById('promptsModal');
+  const promptsBtn = document.getElementById('promptsBtn');
+  const promptsCloseBtn = document.getElementById('promptsCloseBtn');
+  const savePromptBtn = document.getElementById('savePromptBtn');
+  const promptsList = document.getElementById('promptsList');
+
+  function renderPrompts(prompts) {
+    if (!prompts.length) {
+      promptsList.innerHTML = '<div class="prompts-empty">No saved prompts yet. Type something and click "Save current input as prompt".</div>';
+      return;
+    }
+    promptsList.innerHTML = '';
+    prompts.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'prompt-item';
+      div.innerHTML = '<span class="prompt-item-title">' + escapeHtml(p.title) + '</span><button type="button" class="prompt-item-del" title="Delete">×</button>';
+      div.querySelector('.prompt-item-title').addEventListener('click', () => {
+        userInput.value = p.content;
+        promptsModal.hidden = true;
+      });
+      div.querySelector('.prompt-item-del').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await fetch('/api/prompts/' + encodeURIComponent(p.id), { method: 'DELETE' });
+        loadPrompts();
+      });
+      promptsList.appendChild(div);
+    });
+  }
+
+  async function loadPrompts() {
+    try {
+      const res = await fetch('/api/prompts');
+      if (!res.ok) return;
+      renderPrompts(await res.json());
+    } catch (_) {}
+  }
+
+  promptsBtn.addEventListener('click', () => {
+    promptsModal.hidden = false;
+    loadPrompts();
+  });
+  promptsCloseBtn.addEventListener('click', () => { promptsModal.hidden = true; });
+  promptsModal.addEventListener('click', (e) => { if (e.target === promptsModal) promptsModal.hidden = true; });
+
+  savePromptBtn.addEventListener('click', async () => {
+    const content = userInput.value.trim();
+    if (!content) return;
+    const title = prompt('Prompt title:', content.slice(0, 60));
+    if (!title) return;
+    await fetch('/api/prompts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, content })
+    });
+    loadPrompts();
+  });
+
   async function send() {
     const text = userInput.value.trim();
     if (!text) return;
@@ -657,6 +834,16 @@
     addMessage('assistant', 'Conversation cleared. Starting from scratch.');
   });
   newChatBtn.addEventListener('click', createNewChat);
+  // Check for pending editor → chat transfer
+  const _editorPending = sessionStorage.getItem('shadowai_editor_to_chat');
+  if (_editorPending) {
+    try {
+      const { prompt } = JSON.parse(_editorPending);
+      userInput.value = prompt;
+    } catch (_) {}
+    sessionStorage.removeItem('shadowai_editor_to_chat');
+  }
+
   loadConfig();
   loadChats().then(() => loadChatHistory(currentChatId));
 })();

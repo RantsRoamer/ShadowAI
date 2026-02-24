@@ -16,13 +16,16 @@
   });
 
   // ---------- State ----------
-  let currentPath = null;
-  let savedContent = '';
+  let currentPath = null;   // active tab path
+  let savedContent = '';    // saved content for active tab
   let aiLastCode = null;
+  let openFiles = [];       // [{path, content, savedContent, dirty}]
 
   // ---------- DOM refs ----------
   const editorPath    = document.getElementById('editorPath');
+  const editorTabs    = document.getElementById('editorTabs');
   const saveBtn       = document.getElementById('saveBtn');
+  const sendToChatBtn = document.getElementById('sendToChatBtn');
   const saveStatus    = document.getElementById('saveStatus');
   const fileTreeEl    = document.getElementById('fileTree');
   const agentSelect   = document.getElementById('agentSelect');
@@ -129,10 +132,86 @@
     }
   }
 
+  // ---------- Tab management ----------
+  function renderTabs() {
+    editorTabs.innerHTML = '';
+    openFiles.forEach(f => {
+      const tab = document.createElement('div');
+      tab.className = 'editor-tab' + (f.path === currentPath ? ' active' : '');
+      tab.dataset.path = f.path;
+      const name = f.path.split('/').pop();
+      tab.innerHTML =
+        '<span class="tab-name" title="' + escHtml(f.path) + '">' + escHtml(name) + '</span>' +
+        '<span class="tab-dirty"' + (f.dirty ? '' : ' hidden') + '>●</span>' +
+        '<button type="button" class="tab-close" title="Close">×</button>';
+      tab.querySelector('.tab-name').addEventListener('click', () => switchToTab(f.path));
+      tab.querySelector('.tab-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeTab(f.path);
+      });
+      editorTabs.appendChild(tab);
+    });
+  }
+
+  function switchToTab(filePath) {
+    const f = openFiles.find(x => x.path === filePath);
+    if (!f) return;
+    // Save current CM value back to old tab
+    const prev = openFiles.find(x => x.path === currentPath);
+    if (prev) {
+      const val = cm.getValue();
+      prev.content = val;
+      prev.dirty = val !== prev.savedContent;
+    }
+    currentPath = filePath;
+    savedContent = f.savedContent;
+    cm.setValue(f.content);
+    cm.setOption('mode', modeForPath(filePath));
+    cm.clearHistory();
+    editorPath.textContent = filePath;
+    saveBtn.disabled = false;
+    setStatus(f.dirty ? 'warning' : '', f.dirty ? 'Unsaved changes' : '');
+    document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tree-file').forEach(li => {
+      const label = li.querySelector('.tree-label');
+      if (label && li.dataset && filePath.endsWith(label.textContent)) li.classList.add('active');
+    });
+    renderTabs();
+  }
+
+  function closeTab(filePath) {
+    const f = openFiles.find(x => x.path === filePath);
+    if (f && f.dirty) {
+      if (!confirm('Close "' + filePath + '" with unsaved changes?')) return;
+    }
+    openFiles = openFiles.filter(x => x.path !== filePath);
+    if (currentPath === filePath) {
+      if (openFiles.length > 0) {
+        switchToTab(openFiles[openFiles.length - 1].path);
+      } else {
+        currentPath = null;
+        savedContent = '';
+        cm.setValue('');
+        editorPath.textContent = '(no file open — click a file in the tree)';
+        saveBtn.disabled = true;
+        setStatus('', '');
+      }
+    }
+    renderTabs();
+  }
+
   // ---------- Open file ----------
   async function openFile(filePath, liEl) {
-    document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
-    if (liEl) liEl.classList.add('active');
+    // If already open, just switch to it
+    const existing = openFiles.find(x => x.path === filePath);
+    if (existing) {
+      switchToTab(filePath);
+      if (liEl) {
+        document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
+        liEl.classList.add('active');
+      }
+      return;
+    }
 
     try {
       const r = await fetch('/api/file?path=' + encodeURIComponent(filePath));
@@ -142,6 +221,16 @@
         return;
       }
       const { content } = await r.json();
+
+      // Save current CM value back to current tab before opening new one
+      const prev = openFiles.find(x => x.path === currentPath);
+      if (prev) {
+        const val = cm.getValue();
+        prev.content = val;
+        prev.dirty = val !== prev.savedContent;
+      }
+
+      openFiles.push({ path: filePath, content, savedContent: content, dirty: false });
       currentPath  = filePath;
       savedContent = content;
       cm.setValue(content);
@@ -150,6 +239,10 @@
       editorPath.textContent = filePath;
       saveBtn.disabled = false;
       setStatus('', '');
+      renderTabs();
+
+      document.querySelectorAll('.tree-file.active').forEach(el => el.classList.remove('active'));
+      if (liEl) liEl.classList.add('active');
     } catch (e) {
       setStatus('error', 'Load error: ' + e.message);
     }
@@ -181,6 +274,9 @@
         setStatus('error', 'Save failed: ' + (error || r.statusText));
       } else {
         savedContent = content;
+        const f = openFiles.find(x => x.path === currentPath);
+        if (f) { f.savedContent = content; f.content = content; f.dirty = false; }
+        renderTabs();
         setStatus('ok', 'Saved');
         setTimeout(() => { if (saveStatus.textContent === 'Saved') setStatus('', ''); }, 2500);
       }
@@ -194,7 +290,15 @@
   // Track unsaved changes
   cm.on('change', () => {
     if (!currentPath) return;
-    if (cm.getValue() !== savedContent) {
+    const val = cm.getValue();
+    const isDirty = val !== savedContent;
+    const f = openFiles.find(x => x.path === currentPath);
+    if (f && f.dirty !== isDirty) {
+      f.dirty = isDirty;
+      f.content = val;
+      renderTabs();
+    }
+    if (isDirty) {
       setStatus('warning', 'Unsaved changes');
     } else {
       setStatus('', '');
@@ -285,6 +389,8 @@
       cm.setValue(aiLastCode);
       aiActions.hidden = true;
       setStatus('warning', 'Unsaved changes');
+      const f = openFiles.find(x => x.path === currentPath);
+      if (f) { f.content = aiLastCode; f.dirty = true; renderTabs(); }
     }
   });
 
@@ -313,6 +419,16 @@
     };
     return map[ext] || null;
   }
+
+  // ---------- Send to Chat ----------
+  sendToChatBtn.addEventListener('click', () => {
+    const selected = cm.getSelection();
+    const code = selected || cm.getValue();
+    const file = currentPath || 'untitled';
+    const prompt = '```\n' + code + '\n```\n\nReview this code.';
+    sessionStorage.setItem('shadowai_editor_to_chat', JSON.stringify({ prompt, file }));
+    window.location.href = '/app';
+  });
 
   // ---------- Init ----------
   loadAgents();

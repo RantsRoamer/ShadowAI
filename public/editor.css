@@ -89,6 +89,55 @@ body {
 .tree-error { display: block; padding: 6px 14px; font-size: 11px; color: var(--red); }
 
 /* -------------------------------------------------------------------------
+   Editor tab bar
+   ------------------------------------------------------------------------- */
+.editor-tabs {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 0;
+}
+.editor-tabs:empty { display: none; }
+.editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px 5px 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  flex-shrink: 0;
+  user-select: none;
+  background: var(--bg-dark);
+}
+.editor-tab:hover { color: var(--text-bright); background: var(--bg-input); }
+.editor-tab.active {
+  color: var(--green-bright);
+  background: var(--bg-panel);
+  border-bottom: 2px solid var(--green-bright);
+}
+.tab-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+.tab-dirty { color: #f0c060; font-size: 13px; line-height: 1; }
+.tab-close {
+  flex-shrink: 0;
+  padding: 0 3px;
+  font-size: 14px;
+  line-height: 1;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 2px;
+}
+.tab-close:hover { color: var(--red); background: rgba(255,68,102,0.15); }
+
+/* -------------------------------------------------------------------------
    Editor area
    ------------------------------------------------------------------------- */
 .editor-area {
