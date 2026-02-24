@@ -35,7 +35,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
       fontSrc: ["'self'", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
       connectSrc: ["'self'"],
       imgSrc: ["'self'", "data:"],
@@ -184,6 +184,7 @@ app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.htm
 app.get('/personality', (req, res) => res.sendFile(path.join(PUBLIC, 'personality.html')));
 app.get('/heartbeat',   (req, res) => res.sendFile(path.join(PUBLIC, 'heartbeat.html')));
 app.get('/debug',       (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html')));
+app.get('/editor',      (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
 
 // ---------------------------------------------------------------------------
 // Personality & memory
@@ -811,6 +812,54 @@ app.put('/api/file', (req, res) => {
     logger.warn('PUT /api/file:', e.message);
     res.status(400).json({ error: e.message });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Editor AI assist (streaming)
+// ---------------------------------------------------------------------------
+app.post('/api/editor/assist', chatLimiter, async (req, res) => {
+  const { path: filePath, content, instruction, agentId } = req.body || {};
+  if (!instruction || typeof instruction !== 'string') {
+    return res.status(400).json({ error: 'instruction required' });
+  }
+
+  const config = getConfig();
+  let baseUrl = config.ollama.mainUrl;
+  let model   = config.ollama.mainModel;
+  if (agentId && config.ollama.agents) {
+    const agent = config.ollama.agents.find(a => a.id === agentId && a.enabled);
+    if (agent) { baseUrl = agent.url || baseUrl; model = agent.model; }
+  }
+
+  const ollamaOptions = {};
+  if (config.ollama.temperature != null && config.ollama.temperature !== '') ollamaOptions.temperature = Number(config.ollama.temperature);
+
+  const fileHint = filePath ? `File: ${filePath}\n` : '';
+  const codeBlock = content
+    ? `\`\`\`\n${content}\n\`\`\``
+    : '(no file open)';
+
+  const systemPrompt = 'You are a senior software engineer. The user will show you code and ask you to help. When you modify or rewrite code, always output the complete updated file inside a single fenced code block so it can be applied directly. Be concise. Do not repeat the unchanged parts with ellipsis—always output the full file content inside the code block.';
+  const userMessage  = `${fileHint}${codeBlock}\n\n${instruction}`;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  try {
+    for await (const chunk of ollamaChatStream(baseUrl, model, [
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: userMessage }
+    ], ollamaOptions)) {
+      res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+    }
+    res.write('data: {"done":true}\n\n');
+  } catch (e) {
+    logger.error('POST /api/editor/assist:', e.message);
+    res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
+  }
+  res.end();
 });
 
 // ---------------------------------------------------------------------------
