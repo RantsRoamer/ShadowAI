@@ -106,7 +106,7 @@ Send photos, get analysis (receipts, objects, scenes).
 
 ### 9. **Scheduled tasks & webhooks** (low–medium effort)
 
-Cron, webhooks, “morning briefing,” recurring reminders.
+Cron, webhooks, recurring reminders.
 
 - **Heartbeat** — You already have this; extend with more triggers: “every day at 8am,” “every 15 minutes,” or “when webhook GET /api/heartbeat/trigger/:id” is called.
 - **Cron-style schedules** — Store cron expressions in config or DB; a single scheduler loop runs them and invokes the same “run a prompt and optionally send result” logic as Heartbeat.
