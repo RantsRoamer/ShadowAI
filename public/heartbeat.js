@@ -82,6 +82,12 @@
             <input type="text" class="job-prompt" value="${escapeHtml(j.prompt || '')}" placeholder="What should the AI do?" />
           </div>
         </div>
+        <div class="row">
+          <div class="form-group" style="flex:1;">
+            <label>Webhook URL (optional)</label>
+            <input type="text" class="job-webhook" value="${escapeHtml(j.webhookUrl || '')}" placeholder="https://example.com/webhook" />
+          </div>
+        </div>
         <div class="row-end">
           <label><input type="checkbox" class="job-enabled" ${j.enabled !== false ? 'checked' : ''} /> Enabled</label>
           <div>
@@ -150,7 +156,8 @@
         args: card.querySelector('.job-type')?.value === 'skill' ? args : undefined,
         prompt: card.querySelector('.job-type')?.value === 'prompt' ? (card.querySelector('.job-prompt')?.value?.trim() || '') : undefined,
         emailResult: card.querySelector('.job-emailResult')?.checked === true || undefined,
-        emailSubject: (card.querySelector('.job-emailSubject')?.value?.trim() || undefined)
+        emailSubject: (card.querySelector('.job-emailSubject')?.value?.trim() || undefined),
+        webhookUrl: card.querySelector('.job-webhook')?.value?.trim() || undefined
       };
     });
   }

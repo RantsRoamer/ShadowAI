@@ -7,8 +7,6 @@
   const mainModelEl = document.getElementById('mainModel');
   const mainModelList = document.getElementById('mainModelList');
   const fetchMainModelsBtn = document.getElementById('fetchMainModels');
-  const agentsList = document.getElementById('agentsList');
-  const addAgentBtn = document.getElementById('addAgent');
   const saveBtn = document.getElementById('saveBtn');
   const statusEl = document.getElementById('status');
 
@@ -40,7 +38,6 @@
     mainModelEl.value = c.ollama?.mainModel ?? 'llama3.2';
     document.getElementById('ollamaTemperature').value = c.ollama?.temperature ?? 0.7;
     document.getElementById('ollamaNumPredict').value = c.ollama?.num_predict ?? 2048;
-    renderAgents(c.ollama?.agents ?? []);
     document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
     document.getElementById('searxngEnabled').checked = c.searxng?.enabled === true;
     const e = c.email || {};
@@ -68,94 +65,9 @@
     document.getElementById('emailPassGroup').style.display = useAuth ? 'block' : 'none';
   }
 
-  function renderAgents(agents) {
-    agentsList.innerHTML = '';
-    (agents.length ? agents : [{ id: 'coding', name: 'Coding Agent', url: '', model: 'codellama', enabled: true }]).forEach((a, i) => {
-      const div = document.createElement('div');
-      div.className = 'agent-block';
-      div.innerHTML = `
-        <div class="row">
-          <div class="form-group">
-            <label>ID</label>
-            <input type="text" class="agent-id" value="${escapeAttr(a.id)}" placeholder="coding" />
-          </div>
-          <div class="form-group">
-            <label>Name</label>
-            <input type="text" class="agent-name" value="${escapeAttr(a.name)}" placeholder="Coding Agent" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="form-group">
-            <label>Ollama URL (empty = main)</label>
-            <input type="text" class="agent-url" value="${escapeAttr(a.url || '')}" placeholder="http://localhost:11434" />
-          </div>
-        </div>
-        <div class="row">
-          <div class="form-group agent-model-group">
-            <label>Model</label>
-            <div class="input-with-btn">
-              <input type="text" class="agent-model" value="${escapeAttr(a.model)}" placeholder="codellama" />
-              <button type="button" class="btn btn-small agent-fetch-models">Fetch models</button>
-            </div>
-            <select class="model-list agent-model-list" style="display:none;"></select>
-          </div>
-        </div>
-        <div class="row-end">
-          <label><input type="checkbox" class="agent-enabled" ${a.enabled !== false ? 'checked' : ''} /> Enabled</label>
-          <span class="remove-agent" data-index="${i}">Remove</span>
-        </div>
-      `;
-      div.querySelector('.remove-agent').addEventListener('click', () => {
-        div.remove();
-      });
-      div.querySelector('.agent-fetch-models').addEventListener('click', async () => {
-        const urlInput = div.querySelector('.agent-url');
-        const modelInput = div.querySelector('.agent-model');
-        const modelSelect = div.querySelector('.agent-model-list');
-        const url = urlInput.value.trim() || mainUrlEl.value.trim() || 'http://localhost:11434';
-        const btn = div.querySelector('.agent-fetch-models');
-        btn.disabled = true;
-        try {
-          const res = await fetch('/api/ollama/models?url=' + encodeURIComponent(url));
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || res.statusText);
-          modelSelect.style.display = 'block';
-          modelSelect.innerHTML = '<option value="">Select or type below</option>' +
-            (data.models || []).map(m => '<option value="' + escapeAttr(m) + '">' + escapeAttr(m) + '</option>').join('');
-          modelSelect.onchange = () => {
-            if (modelSelect.value) modelInput.value = modelSelect.value;
-          };
-          setStatus('Loaded ' + (data.models?.length || 0) + ' models for agent');
-        } catch (e) {
-          setStatus(e.message, true);
-        }
-        btn.disabled = false;
-      });
-      agentsList.appendChild(div);
-    });
-  }
-
   function escapeAttr(s) {
     if (s == null) return '';
     return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  addAgentBtn.addEventListener('click', () => {
-    const blocks = agentsList.querySelectorAll('.agent-block');
-    const agents = getAgentsFromDom();
-    agents.push({ id: 'agent', name: 'New Agent', url: '', model: '', enabled: true });
-    renderAgents(agents);
-  });
-
-  function getAgentsFromDom() {
-    const blocks = agentsList.querySelectorAll('.agent-block');
-    return Array.from(blocks).map(block => ({
-      id: block.querySelector('.agent-id').value.trim() || 'agent',
-      name: block.querySelector('.agent-name').value.trim() || 'Agent',
-      url: block.querySelector('.agent-url').value.trim() || '',
-      model: block.querySelector('.agent-model').value.trim() || '',
-      enabled: block.querySelector('.agent-enabled').checked
-    }));
   }
 
   function getEmailFromDom() {
@@ -247,8 +159,7 @@
         mainUrl: mainUrlEl.value.trim() || 'http://localhost:11434',
         mainModel: mainModelEl.value.trim() || 'llama3.2',
         temperature: parseFloat(document.getElementById('ollamaTemperature').value) || 0.7,
-        num_predict: parseInt(document.getElementById('ollamaNumPredict').value, 10) || 2048,
-        agents: getAgentsFromDom()
+        num_predict: parseInt(document.getElementById('ollamaNumPredict').value, 10) || 2048
       },
       searxng: {
         url: document.getElementById('searxngUrl').value.trim() || '',
@@ -276,7 +187,6 @@
         mainModelEl.value = c.ollama?.mainModel ?? 'llama3.2';
         document.getElementById('ollamaTemperature').value = c.ollama?.temperature ?? 0.7;
         document.getElementById('ollamaNumPredict').value = c.ollama?.num_predict ?? 2048;
-        renderAgents(c.ollama?.agents ?? []);
         document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
         document.getElementById('searxngEnabled').checked = c.searxng?.enabled === true;
         const e = c.email || {};

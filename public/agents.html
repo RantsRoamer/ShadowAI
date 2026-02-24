@@ -3,20 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ShadowAI — Heartbeat</title>
+  <title>ShadowAI — Agents</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css" />
   <link rel="stylesheet" href="/static/config.css" />
-  <link rel="stylesheet" href="/static/skills.css" />
-  <style>
-    .heartbeat-card { margin-bottom: 14px; }
-    .heartbeat-card .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-    .heartbeat-card .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
-    .heartbeat-card .schedule-preset { font-size: 12px; }
-    .cron-hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
-  </style>
 </head>
 <body>
   <header class="app-header">
@@ -27,30 +19,32 @@
       <a href="/app" class="nav-link">CHAT</a>
       <a href="/skills" class="nav-link">SKILLS</a>
       <a href="/personality" class="nav-link">PERSONALITY</a>
-      <span class="nav-link active">HEARTBEAT</span>
-      <a href="/agents" class="nav-link">AGENTS</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <span class="nav-link active">AGENTS</span>
       <a href="/config" class="nav-link">CONFIG</a>
       <a href="/editor" class="nav-link">EDITOR</a>
       <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
     </nav>
   </header>
 
-  <main class="config-main skills-main">
+  <main class="config-main">
     <div class="config-card">
-      <h1>HEARTBEAT</h1>
-      <p class="config-note">Schedule the AI or a skill to run at set times. Cron format: minute hour day month weekday (e.g. <code>*/5 * * * *</code> = every 5 min, <code>0 9 * * *</code> = daily at 09:00).</p>
+      <h1>AGENTS</h1>
+      <p class="config-note">Configure additional Ollama models for specialized tasks (e.g. a dedicated coding model). Each agent can use the same or a different Ollama server. Agents are selectable in Chat and the Editor.</p>
 
-      <div id="heartbeatList"></div>
-      <button type="button" id="addJob" class="btn btn-small">+ Add job</button>
+      <section class="section">
+        <div id="agentsList"></div>
+        <button type="button" id="addAgent" class="btn btn-small">+ Add agent</button>
+      </section>
 
-      <div class="form-actions" style="margin-top:16px;">
-        <button type="button" id="saveBtn" class="btn">Save all</button>
+      <div class="form-actions">
+        <button type="button" id="saveBtn" class="btn">Save agents</button>
         <span id="status" class="status"></span>
       </div>
     </div>
   </main>
 
   <script src="/static/nav.js"></script>
-  <script src="/static/heartbeat.js"></script>
+  <script src="/static/agents.js"></script>
 </body>
 </html>
