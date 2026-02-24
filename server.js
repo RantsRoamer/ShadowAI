@@ -21,6 +21,7 @@ const emailLib = require('./lib/email.js');
 const logger = require('./lib/logger.js');
 const systemPrompt = require('./lib/systemPrompt.js');
 const chatRunner = require('./lib/chatRunner.js');
+const { executeSchedulerTool, getSchedulerToolDefinitions } = require('./lib/toolHandlers.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -657,7 +658,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           }
         }
       } : null;
-      const tools = [appendMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : []), ...skillTools];
+      const tools = [appendMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : []), ...skillTools, ...getSchedulerToolDefinitions()];
 
       if (tools.length > 0) {
         let messagesForOllama = [...fullMessages];
@@ -733,6 +734,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                     content = 'Error: ' + err.message;
                   }
                 }
+              } else if (['create_skill', 'add_heartbeat_job', 'update_skill', 'update_heartbeat_job', 'list_heartbeat_jobs'].includes(name)) {
+                content = await executeSchedulerTool(name, args);
               } else {
                 const result = await skillsLib.runSkill(name, args);
                 content = typeof result === 'object' ? JSON.stringify(result) : String(result);

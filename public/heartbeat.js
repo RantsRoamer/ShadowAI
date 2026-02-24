@@ -8,6 +8,7 @@
     { label: 'Every 5 min', cron: '*/5 * * * *' },
     { label: 'Every 15 min', cron: '*/15 * * * *' },
     { label: 'Every hour', cron: '0 * * * *' },
+    { label: 'Daily 07:00', cron: '0 7 * * *' },
     { label: 'Daily 09:00', cron: '0 9 * * *' },
     { label: 'Daily 00:00', cron: '0 0 * * *' }
   ];
@@ -71,6 +72,10 @@
           <div class="form-group job-skill-fields" style="max-width:200px; ${j.type !== 'skill' ? 'display:none' : ''}">
             <label>Args (JSON)</label>
             <input type="text" class="job-args" value="${escapeHtml(argsStr)}" placeholder='{}' />
+          </div>
+          <div class="form-group job-skill-fields" style="max-width:180px; ${j.type !== 'skill' ? 'display:none' : ''}">
+            <label><input type="checkbox" class="job-emailResult" ${j.emailResult ? 'checked' : ''} /> Email result</label>
+            <input type="text" class="job-emailSubject" value="${escapeHtml(j.emailSubject || '')}" placeholder="Email subject" style="margin-top:4px;" />
           </div>
           <div class="form-group job-prompt-fields" style="flex:1; ${j.type !== 'prompt' ? 'display:none' : ''}">
             <label>Prompt</label>
@@ -143,7 +148,9 @@
         enabled: card.querySelector('.job-enabled')?.checked !== false,
         skillId: card.querySelector('.job-skillId')?.value?.trim() || '',
         args: card.querySelector('.job-type')?.value === 'skill' ? args : undefined,
-        prompt: card.querySelector('.job-type')?.value === 'prompt' ? (card.querySelector('.job-prompt')?.value?.trim() || '') : undefined
+        prompt: card.querySelector('.job-type')?.value === 'prompt' ? (card.querySelector('.job-prompt')?.value?.trim() || '') : undefined,
+        emailResult: card.querySelector('.job-emailResult')?.checked === true || undefined,
+        emailSubject: (card.querySelector('.job-emailSubject')?.value?.trim() || undefined)
       };
     });
   }
