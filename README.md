@@ -12,9 +12,11 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 - **Password protected** — default login `admin` / `admin` (change in Config)
 - **Multi-model** — Main Brain model + optional agents (e.g. Coding Agent) from same or different Ollama URLs
 - **Config via UI** — Server bind address (default `0.0.0.0`), port (default `9090`), auth, Ollama URLs and models
+- **Personality, memory & AI behavior** — `personality.md`, `memory.md`, and `AIBEHAVIOR.md` (who you are / how the AI should help) are injected into every chat (web, CLI, Telegram, Discord).
 - **Run code** — In chat: `/run js <code>` or `/run py <code>`
 - **Self-update** — Read/write project files: `/read path`, `/write path` + content, `/list [path]` (allowed extensions: .js, .json, .html, .css, .md, .txt, .ts, .py, etc.)
 - **Skills/plugins** — Ask the AI to build a skill; it creates `skills/<id>/skill.json` + `run.js`. Enable/disable and run from **SKILLS** with no server reload. Run in chat: `/skill <id> [JSON args]`
+- **Heartbeat scheduler** — Cron-style jobs that run skills or prompts every X minutes/hours/days; jobs remember `lastRunAt` so missed runs while offline are caught up once on restart, and skill results can optionally be emailed.
 
 ## Requirements
 
@@ -103,6 +105,15 @@ Config, chat history, and personality data are stored in the `/app/data` volume 
 - **Agents**: Add agents (e.g. Coding Agent) with their own URL and model. Select the agent in the chat header to use it for that conversation.
 - **Channels**: API key for the channel API (CLI/bots), and optional Telegram and Discord bots. **Restart the server** after changing channel settings.
 
+## Personality, memory & AI behavior
+
+Open **PERSONALITY** in the nav to edit:
+
+- **Personality** (`data/personality.md`): how the AI should generally behave (tone, style, constraints). Included in every system prompt.
+- **Memory** (`data/memory.md`): free-form notes and facts the AI should remember long-term. The `append_memory` tool adds timestamped entries when you say “remember X”. Included in every system prompt so the AI can answer “who am I?” etc.
+- **Structured memory** (`data/memory.json`): key–value / graph-like facts (e.g. `user:timezone`, `project:shadowai:status`). Exposed to the model via the `get_memory(key)` / `set_memory(key, value)` tools and injected into the system prompt as a short “recent facts” block that is shared across chats and channels.
+- **AI Behavior** (`data/AIBEHAVIOR.md`): who you are and how the AI should help you (role, projects, important dates like your wedding). This is injected into every chat (web, CLI, Telegram, Discord) so the assistant always has your context.
+
 ## Multi-channel messaging
 
 Use the same AI from the **CLI**, **Telegram**, and **Discord**. Configure in **CONFIG → Channels** and restart the server for changes to take effect.
@@ -143,6 +154,19 @@ echo "Summarize the last three messages" | node scripts/cli.js
 3. Install the optional dependency: `npm install discord.js`
 4. Invite the bot to your server (OAuth2 → URL Generator, scopes: bot, permissions: Send Messages, Read Message History, etc.). Each user gets their own conversation history.
 5. **Restrict who can use the bot:** set **Allowed Discord user IDs** to a comma-separated list of Discord user IDs (e.g. `123456789012345678`). Leave empty to allow everyone. Enable Developer Mode in Discord (User Settings → App Settings) then right-click a user → Copy user ID.
+6. The bot supports typing indicators while it’s generating a reply, and a `/reset` (slash command or text) to clear that user’s conversation.
+
+Channel conversations (CLI, Telegram, Discord) are stored per synthetic user id (e.g. `channel_cli`, `telegram_<userId>`, `discord_<userId>`) and appear in the web UI chat list so you can inspect or continue them from the browser. CLEAR in the web UI, or `/reset` in Discord, will clear that channel conversation.
+
+## Heartbeat (scheduled tasks)
+
+Open **HEARTBEAT** to schedule the AI or a skill to run at set times:
+
+- **Jobs**: each job has an id, name, cron schedule (minute hour day month weekday), type (`skill` or `prompt`), and optional JSON args when calling a skill.
+- **Scheduler**: runs every **30 seconds**, evaluates cron for each job, and runs due jobs. `lastRunAt` is persisted per job so if the server was offline during a scheduled time, the job runs once on restart to catch up.
+- **Skill jobs + email**: for `type: skill`, you can enable **Email result**. When on, the skill’s return value (string or `{ subject, text }`) is emailed to the configured default address using the **Notifications** email config.
+- **Presets**: quick cron presets like “Every 5 min”, “Daily 07:00”, etc.
+- **Run now**: test a job immediately with **Run now** before relying on the schedule.
 
 ## Skills / plugins
 
