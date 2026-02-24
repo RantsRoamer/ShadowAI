@@ -244,6 +244,29 @@
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.statusText);
+      if (data.config) {
+        const c = data.config;
+        hostEl.value = c.server?.host ?? '0.0.0.0';
+        portEl.value = c.server?.port ?? 9090;
+        usernameEl.value = c.auth?.username ?? 'admin';
+        mainUrlEl.value = c.ollama?.mainUrl ?? 'http://localhost:11434';
+        mainModelEl.value = c.ollama?.mainModel ?? 'llama3.2';
+        document.getElementById('ollamaTemperature').value = c.ollama?.temperature ?? 0.7;
+        document.getElementById('ollamaNumPredict').value = c.ollama?.num_predict ?? 2048;
+        renderAgents(c.ollama?.agents ?? []);
+        document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
+        document.getElementById('searxngEnabled').checked = c.searxng?.enabled === true;
+        const e = c.email || {};
+        document.getElementById('emailHost').value = e.host ?? '';
+        document.getElementById('emailPort').value = e.port ?? 25;
+        document.getElementById('emailSecure').checked = e.secure === true;
+        document.getElementById('emailUseAuth').checked = !!(e.auth && e.auth.user);
+        document.getElementById('emailUser').value = e.auth?.user ?? '';
+        document.getElementById('emailFrom').value = e.from ?? '';
+        document.getElementById('emailDefaultTo').value = e.defaultTo ?? '';
+        document.getElementById('emailEnabled').checked = e.enabled === true;
+        toggleEmailAuth();
+      }
       setStatus('Saved. Restart server to apply port/host changes.');
     } catch (e) {
       setStatus(e.message, true);

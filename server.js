@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { getConfig, reloadConfig, updateConfig, saveConfig } = require('./lib/config.js');
+const { getConfig, reloadConfig, updateConfig, saveConfig, replaceConfig } = require('./lib/config.js');
 const { ollamaChatStream, ollamaChatWithTools, listModels } = require('./lib/ollama.js');
 const { authMiddleware, checkAuth } = require('./lib/auth.js');
 const { runCode } = require('./lib/runCode.js');
@@ -357,37 +357,64 @@ app.get('/api/config', (req, res) => {
 app.put('/api/config', (req, res) => {
   try {
     const updates = req.body || {};
-    if (updates.server) updateConfig({ server: updates.server });
+    const current = getConfig();
+
+    const config = {
+      server: updates.server ? { ...current.server, ...updates.server } : current.server,
+      auth: current.auth,
+      ollama: current.ollama,
+      heartbeat: current.heartbeat,
+      skills: current.skills,
+      searxng: current.searxng,
+      email: current.email,
+      sessionSecret: current.sessionSecret
+    };
+
     if (updates.auth) {
       const authUpdates = { ...updates.auth };
-      // Hash any new plaintext password before storing
-      if (authUpdates.passwordHash && !authUpdates.passwordHash.startsWith('$2')) {
+      if (authUpdates.passwordHash && !String(authUpdates.passwordHash).startsWith('$2')) {
         authUpdates.passwordHash = bcrypt.hashSync(authUpdates.passwordHash, 12);
       }
-      const next = { ...getConfig().auth, ...authUpdates };
-      if (updates.auth.passwordHash === '') delete next.passwordHash;
-      updateConfig({ auth: next });
+      config.auth = { ...current.auth, ...authUpdates };
+      if (updates.auth.passwordHash === '') delete config.auth.passwordHash;
     }
-    if (updates.ollama) updateConfig({ ollama: updates.ollama });
-    if (updates.heartbeat) {
-      updateConfig({ heartbeat: updates.heartbeat });
-      heartbeatLib.startHeartbeat();
+
+    if (updates.ollama) {
+      const prev = current.ollama || {};
+      const next = updates.ollama;
+      config.ollama = {
+        ...prev,
+        ...next,
+        agents: Array.isArray(next.agents) ? next.agents : (Array.isArray(prev.agents) ? prev.agents : [])
+      };
     }
-    if (updates.searxng) updateConfig({ searxng: updates.searxng });
-    if (updates.email) updateConfig({ email: updates.email });
-    reloadConfig();
-    // Return config with sensitive fields stripped
-    const c = getConfig();
+
+    if (updates.heartbeat && Array.isArray(updates.heartbeat)) config.heartbeat = updates.heartbeat;
+    if (updates.skills && updates.skills.enabledIds !== undefined) config.skills = { ...(current.skills || {}), enabledIds: updates.skills.enabledIds };
+    if (updates.searxng) config.searxng = { ...(current.searxng || {}), ...updates.searxng };
+    if (updates.email) {
+      config.email = { ...(current.email || {}), ...updates.email };
+      if (updates.email.auth) {
+        config.email.auth = { ...(current.email && current.email.auth) || {}, ...updates.email.auth };
+        if (config.email.auth.pass === '' || config.email.auth.pass === undefined) delete config.email.auth.pass;
+        if (!config.email.auth.user) config.email.auth = undefined;
+      }
+    }
+
+    replaceConfig(config);
+
+    if (config.heartbeat && config.heartbeat.length > 0) heartbeatLib.startHeartbeat();
+
     res.json({
       ok: true,
       config: {
-        server: c.server,
-        auth: { username: c.auth.username },
-        ollama: c.ollama,
-        heartbeat: c.heartbeat || [],
-        searxng: c.searxng || {},
+        server: config.server,
+        auth: { username: config.auth.username },
+        ollama: config.ollama,
+        heartbeat: config.heartbeat || [],
+        searxng: config.searxng || {},
         email: (() => {
-          const e = c.email || {};
+          const e = config.email || {};
           const safe = { ...e };
           if (safe.auth) safe.auth = { user: safe.auth.user || '' };
           return safe;
