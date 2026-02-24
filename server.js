@@ -474,8 +474,10 @@ app.post('/api/heartbeat/run/:id', async (req, res) => {
 // ---------------------------------------------------------------------------
 app.get('/api/chats', (req, res) => {
   const user = req.session && req.session.user;
-  if (!user) return res.json({ chats: [], currentChatId: null });
-  res.json(chatStore.listChats(user));
+  if (!user) return res.json({ chats: [], currentChatId: null, channelChats: [] });
+  const data = chatStore.listChats(user);
+  const channelChats = chatStore.listAllChannelChats();
+  res.json({ chats: data.chats, currentChatId: data.currentChatId, channelChats });
 });
 
 app.post('/api/chats', (req, res) => {
@@ -510,7 +512,9 @@ app.patch('/api/chats/:id', (req, res) => {
 app.get('/api/chat/history', (req, res) => {
   const user = req.session && req.session.user;
   const chatId = req.query.chatId || undefined;
-  const data = user ? chatStore.readChat(user, chatId) : { messages: [], title: null, customInstructions: '' };
+  const channelOwner = (req.query.username || '').trim();
+  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
+  const data = effectiveUser ? chatStore.readChat(effectiveUser, chatId) : { messages: [], title: null, customInstructions: '' };
   res.json({ messages: data.messages, title: data.title, customInstructions: data.customInstructions });
 });
 
@@ -525,7 +529,9 @@ app.put('/api/chat/history', (req, res) => {
   const chatId = req.body?.chatId;
   if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
   const user = req.session && req.session.user;
-  if (user) chatStore.writeChat(user, messages, chatId);
+  const channelOwner = (req.body?.username || '').trim();
+  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
+  if (effectiveUser) chatStore.writeChat(effectiveUser, messages, chatId);
   res.json({ ok: true });
 });
 
@@ -533,11 +539,13 @@ app.put('/api/chat/history', (req, res) => {
 // Main chat endpoint (streaming + tool calls)
 // ---------------------------------------------------------------------------
 app.post('/api/chat', chatLimiter, async (req, res) => {
-  const { messages, agentId, stream: wantStream, chatId: bodyChatId, customInstructions } = req.body || {};
+  const { messages, agentId, stream: wantStream, chatId: bodyChatId, customInstructions, channelChatOwner } = req.body || {};
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' });
   }
   const user = req.session && req.session.user;
+  const channelOwner = (channelChatOwner || '').trim();
+  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
   const config = getConfig();
   let baseUrl = config.ollama.mainUrl;
   let model = config.ollama.mainModel;
@@ -723,14 +731,14 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
         }
       }
-      req.session.chatHistory = messages.concat([{ role: 'assistant', content: assistantContent }]);
       const newHistory = messages.concat([{ role: 'assistant', content: assistantContent }]);
-      if (user) {
-        const usedId = chatStore.writeChat(user, newHistory, bodyChatId);
+      if (effectiveUser) {
+        const usedId = chatStore.writeChat(effectiveUser, newHistory, bodyChatId);
         res.write('data: ' + JSON.stringify({ done: true, chatId: usedId }) + '\n\n');
       } else {
         res.write('data: {"done":true}\n\n');
       }
+      if (req.session && effectiveUser === user) req.session.chatHistory = newHistory;
     } catch (e) {
       logger.error('POST /api/chat stream error:', e.message);
       res.write(`data: ${JSON.stringify({ error: e.message })}\n\n`);
@@ -744,8 +752,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     const out = await ollamaChatJson(baseUrl, model, fullMessages, ollamaOptions);
     const assistantContent = out.message?.content || '';
     const newHistory = messages.concat([{ role: 'assistant', content: assistantContent }]);
-    if (req.session) req.session.chatHistory = newHistory;
-    const usedChatId = user ? chatStore.writeChat(user, newHistory, bodyChatId) : null;
+    if (req.session && effectiveUser === user) req.session.chatHistory = newHistory;
+    const usedChatId = effectiveUser ? chatStore.writeChat(effectiveUser, newHistory, bodyChatId) : null;
     res.json({ message: out.message, chatId: usedChatId });
   } catch (e) {
     logger.error('POST /api/chat non-stream error:', e.message);

@@ -16,6 +16,7 @@
 
   let history = [];
   let currentChatId = null;
+  let currentChannelOwner = null;
   let chatListData = [];
   let abortController = null;
   let customInstructionsSaveTimeout = null;
@@ -25,10 +26,20 @@
       const res = await fetch('/api/chats');
       if (!res.ok) return;
       const data = await res.json();
-      const chats = data.chats || [];
-      chatListData = chats;
-      currentChatId = data.currentChatId || (chats[0] && chats[0].id) || null;
-      renderChatList(chats);
+      const myChats = data.chats || [];
+      const channelChats = data.channelChats || [];
+      const unified = myChats.map(c => ({ ...c, channelOwner: null, channelLabel: null }));
+      channelChats.forEach(cc => {
+        (cc.chats || []).forEach(c => {
+          unified.push({ ...c, channelOwner: cc.username, channelLabel: cc.label });
+        });
+      });
+      unified.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      chatListData = unified;
+      if (currentChannelOwner == null) {
+        currentChatId = data.currentChatId || (myChats[0] && myChats[0].id) || null;
+      }
+      renderChatList(unified);
       return currentChatId;
     } catch (_) {
       return null;
@@ -39,7 +50,9 @@
     const q = (sidebarSearchEl.value || '').trim().toLowerCase();
     chatListEl.querySelectorAll('li').forEach(li => {
       const title = (li.dataset.title || '').toLowerCase();
-      li.style.display = !q || title.includes(q) ? '' : 'none';
+      const label = (li.dataset.channelLabel || '').toLowerCase();
+      const match = !q || title.includes(q) || label.includes(q);
+      li.style.display = match ? '' : 'none';
     });
   }
 
@@ -48,13 +61,22 @@
     chats.forEach(c => {
       const li = document.createElement('li');
       li.dataset.chatId = c.id;
-      li.dataset.title = c.title || 'New chat';
-      li.classList.toggle('active', c.id === currentChatId);
+      li.dataset.channelOwner = c.channelOwner || '';
+      li.dataset.channelLabel = c.channelLabel || '';
       const title = (c.title || 'New chat').trim() || 'New chat';
-      li.innerHTML = '<span class="chat-title">' + escapeHtml(title) + '</span><button type="button" class="chat-edit" title="Rename">✎</button><button type="button" class="chat-delete" title="Delete chat">×</button>';
-      li.querySelector('.chat-title').addEventListener('click', () => switchChat(c.id));
-      li.querySelector('.chat-edit').addEventListener('click', (e) => { e.stopPropagation(); startRenameChat(li, c.id, title); });
-      li.querySelector('.chat-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteChat(c.id); });
+      li.dataset.title = (c.channelLabel ? c.channelLabel + ': ' : '') + title;
+      const isChannel = !!c.channelOwner;
+      const displayTitle = (c.channelLabel ? c.channelLabel + ': ' : '') + title;
+      li.classList.toggle('active', c.id === currentChatId && (c.channelOwner || null) === currentChannelOwner);
+      if (isChannel) {
+        li.innerHTML = '<span class="chat-title">' + escapeHtml(displayTitle) + '</span>';
+        li.querySelector('.chat-title').addEventListener('click', () => switchChat(c.id, c.channelOwner));
+      } else {
+        li.innerHTML = '<span class="chat-title">' + escapeHtml(title) + '</span><button type="button" class="chat-edit" title="Rename">✎</button><button type="button" class="chat-delete" title="Delete chat">×</button>';
+        li.querySelector('.chat-title').addEventListener('click', () => switchChat(c.id, null));
+        li.querySelector('.chat-edit').addEventListener('click', (e) => { e.stopPropagation(); startRenameChat(li, c.id, title); });
+        li.querySelector('.chat-delete').addEventListener('click', (e) => { e.stopPropagation(); deleteChat(c.id); });
+      }
       chatListEl.appendChild(li);
     });
     filterChatListBySearch();
@@ -88,9 +110,12 @@
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
   }
 
-  function switchChat(chatId) {
+  function switchChat(chatId, channelOwner) {
     currentChatId = chatId;
-    document.querySelectorAll('.chat-list li').forEach(li => li.classList.toggle('active', li.dataset.chatId === chatId));
+    currentChannelOwner = channelOwner || null;
+    document.querySelectorAll('.chat-list li').forEach(li => {
+      li.classList.toggle('active', li.dataset.chatId === chatId && (li.dataset.channelOwner || null) === currentChannelOwner);
+    });
     loadChatHistory(chatId);
   }
 
@@ -103,7 +128,7 @@
   }
 
   function saveCustomInstructionsImmediate() {
-    if (!currentChatId) return;
+    if (!currentChatId || currentChannelOwner) return;
     const value = (customInstructionsEl.value || '').trim();
     fetch('/api/chats/' + encodeURIComponent(currentChatId), {
       method: 'PATCH',
@@ -130,9 +155,12 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Create failed');
       currentChatId = data.id;
+      currentChannelOwner = null;
       customInstructionsEl.value = '';
       await loadChats();
-      document.querySelectorAll('.chat-list li').forEach(li => li.classList.toggle('active', li.dataset.chatId === data.id));
+      document.querySelectorAll('.chat-list li').forEach(li => {
+        li.classList.toggle('active', li.dataset.chatId === data.id && !li.dataset.channelOwner);
+      });
       history = [];
       messagesEl.innerHTML = '';
     } catch (_) {}
@@ -140,7 +168,8 @@
 
   async function loadChatHistory(chatId) {
     try {
-      const url = chatId ? '/api/chat/history?chatId=' + encodeURIComponent(chatId) : '/api/chat/history';
+      let url = chatId ? '/api/chat/history?chatId=' + encodeURIComponent(chatId) : '/api/chat/history';
+      if (currentChannelOwner) url += '&username=' + encodeURIComponent(currentChannelOwner);
       const res = await fetch(url);
       if (!res.ok) return;
       const data = await res.json();
@@ -168,10 +197,12 @@
   }
 
   function saveChatHistory() {
+    const body = { messages: history, chatId: currentChatId };
+    if (currentChannelOwner) body.username = currentChannelOwner;
     fetch('/api/chat/history', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: history, chatId: currentChatId })
+      body: JSON.stringify(body)
     }).catch(() => {});
   }
 
@@ -327,10 +358,12 @@
     let full = '';
 
     try {
+      const body = { messages: history, agentId, stream: true, chatId: currentChatId, customInstructions };
+      if (currentChannelOwner) body.channelChatOwner = currentChannelOwner;
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, agentId, stream: true, chatId: currentChatId, customInstructions }),
+        body: JSON.stringify(body),
         signal: abortController.signal
       });
       if (!res.ok) {
