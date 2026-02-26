@@ -535,6 +535,10 @@
                 if (!msgDiv) { typingEl.remove(); msgDiv = addMessage('assistant', '', true); contentEl = msgDiv.querySelector('.msg-body'); }
                 contentEl.innerHTML = (contentEl.innerHTML || '') + '<br><span class="error">' + escapeHtml(data.error) + '</span>';
               }
+              if (data.tokenStats) {
+                const el = document.getElementById('tokenStats');
+                if (el) el.textContent = `↑${data.tokenStats.promptTokens.toLocaleString()} ↓${data.tokenStats.evalTokens.toLocaleString()} tokens`;
+              }
               if (data.done) {
                 if (data.chatId) currentChatId = data.chatId;
                 break;

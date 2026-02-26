@@ -21,11 +21,13 @@
       </select>
     </div>
     <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
       <span class="nav-link active">CHAT</span>
       <a href="/skills" class="nav-link">SKILLS</a>
       <a href="/personality" class="nav-link">PERSONALITY</a>
       <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
       <a href="/agents" class="nav-link">AGENTS</a>
+      <a href="/pipelines" class="nav-link">PIPELINES</a>
       <a href="/config" class="nav-link">CONFIG</a>
       <a href="/editor" class="nav-link">EDITOR</a>
       <button type="button" id="clearChatBtn" class="btn btn-small" title="Clear conversation">CLEAR</button>
@@ -70,6 +72,7 @@
         <span>File: <code>/read path</code> · <code>/write path</code> · <code>/list [path]</code></span>
         <span>Skill: <code>/skill &lt;id&gt; [JSON]</code></span>
         <span>Clear: <code>/reset</code></span>
+        <span id="tokenStats" class="token-stats"></span>
       </div>
     </div>
     </div>
