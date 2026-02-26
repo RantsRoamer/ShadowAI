@@ -23,6 +23,7 @@ const logger = require('./lib/logger.js');
 const systemPrompt = require('./lib/systemPrompt.js');
 const chatRunner = require('./lib/chatRunner.js');
 const { executeSchedulerTool, getSchedulerToolDefinitions } = require('./lib/toolHandlers.js');
+const pipelineRunner = require('./lib/pipelineRunner.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -108,7 +109,7 @@ function buildSystemPrompt(customInstructions = '') {
 // Routes — public
 // ---------------------------------------------------------------------------
 app.get('/', (req, res) => {
-  if (req.session && req.session.user) return res.redirect('/app');
+  if (req.session && req.session.user) return res.redirect('/dashboard');
   res.redirect('/login');
 });
 
@@ -139,12 +140,14 @@ app.post('/api/logout', (req, res) => {
 // ---------------------------------------------------------------------------
 // Routes — protected pages
 // ---------------------------------------------------------------------------
+app.get('/dashboard',   (req, res) => res.sendFile(path.join(PUBLIC, 'dashboard.html')));
 app.get('/app',         (req, res) => res.sendFile(path.join(PUBLIC, 'app.html')));
 app.get('/config',      (req, res) => res.sendFile(path.join(PUBLIC, 'config.html')));
 app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.html')));
 app.get('/personality', (req, res) => res.sendFile(path.join(PUBLIC, 'personality.html')));
 app.get('/heartbeat',   (req, res) => res.sendFile(path.join(PUBLIC, 'heartbeat.html')));
 app.get('/agents',      (req, res) => res.sendFile(path.join(PUBLIC, 'agents.html')));
+app.get('/pipelines',   (req, res) => res.sendFile(path.join(PUBLIC, 'pipelines.html')));
 app.get('/debug',       (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html')));
 app.get('/editor',      (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
 
@@ -347,6 +350,7 @@ app.get('/api/config', (req, res) => {
     auth: { username: c.auth.username },
     ollama: c.ollama,
     heartbeat: c.heartbeat || [],
+    webhooks: c.webhooks || [],
     searxng: c.searxng || { url: '', enabled: false },
     email: (() => {
       const e = c.email || {};
@@ -392,6 +396,7 @@ app.put('/api/config', (req, res) => {
       };
     }
     if (updates.heartbeat && Array.isArray(updates.heartbeat)) config.heartbeat = updates.heartbeat;
+    if (updates.webhooks && Array.isArray(updates.webhooks)) config.webhooks = updates.webhooks;
     if (updates.skills && updates.skills.enabledIds !== undefined) config.skills = { ...(config.skills || {}), enabledIds: updates.skills.enabledIds };
     if (updates.searxng && typeof updates.searxng === 'object') config.searxng = { ...(config.searxng || {}), ...updates.searxng };
     if (updates.email && typeof updates.email === 'object') {
@@ -426,6 +431,7 @@ app.put('/api/config', (req, res) => {
         auth: { username: config.auth.username },
         ollama: config.ollama,
         heartbeat: config.heartbeat || [],
+        webhooks: config.webhooks || [],
         searxng: config.searxng || {},
         email: (() => {
           const e = config.email || {};
@@ -514,6 +520,45 @@ app.post('/api/heartbeat/run/:id', async (req, res) => {
     res.json({ ok: true, result });
   } catch (e) {
     logger.error('POST /api/heartbeat/run/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Webhook receiver (inbound — no session auth, rate-limited)
+// ---------------------------------------------------------------------------
+app.post('/api/webhook/receive/:id', runLimiter, async (req, res) => {
+  const id = req.params.id;
+  const webhooks = getConfig().webhooks || [];
+  const webhook = webhooks.find(w => w.id === id);
+  if (!webhook || !webhook.enabled) return res.status(404).json({ error: 'Webhook not found or disabled' });
+  if (webhook.secret) {
+    const provided = (req.headers['x-webhook-secret'] || '').trim();
+    if (!provided || provided !== webhook.secret) return res.status(401).json({ error: 'Invalid webhook secret' });
+  }
+  try {
+    const bodyStr = JSON.stringify(req.body || {});
+    const context = { body: bodyStr, ...(typeof req.body === 'object' && req.body !== null ? req.body : {}) };
+    function subVars(str) {
+      return String(str || '').replace(/\{\{(\w+)\}\}/g, (_, k) => context[k] != null ? String(context[k]) : '');
+    }
+    let result;
+    if (webhook.action === 'skill' && webhook.skillId) {
+      result = await skillsLib.runSkill(webhook.skillId, req.body || {});
+    } else if (webhook.action === 'prompt' && webhook.prompt) {
+      const cfg = getConfig();
+      const data = await require('./lib/ollama.js').ollamaChatJson(
+        cfg.ollama.mainUrl, cfg.ollama.mainModel,
+        [{ role: 'user', content: subVars(webhook.prompt) }]
+      );
+      result = data?.message?.content || '';
+    } else {
+      result = 'No action configured';
+    }
+    logger.info('[Webhook] received', id, '(', webhook.name, ')');
+    res.json({ ok: true, result });
+  } catch (e) {
+    logger.error('[Webhook] receive error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -622,6 +667,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
     let assistantContent = '';
+    let tokenStats = null;
     try {
       skillsLib.ensureEnabledSkillsLoaded();
       const enabledSkills = skillsLib.listSkills().filter(s => s.enabled && s.loaded);
@@ -726,6 +772,9 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           const toolCalls = msg.tool_calls || [];
           if (toolCalls.length === 0) {
             finalContent = msg.content || '';
+            if (data.eval_count != null || data.prompt_eval_count != null) {
+              tokenStats = { promptTokens: data.prompt_eval_count || 0, evalTokens: data.eval_count || 0 };
+            }
             break;
           }
           messagesForOllama.push({
@@ -820,12 +869,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         assistantContent = finalContent || '';
         if (finalContent) res.write(`data: ${JSON.stringify({ content: finalContent })}\n\n`);
       } else {
-        for await (const chunk of ollamaChatStream(baseUrl, model, fullMessages, ollamaOptions)) {
+        for await (const chunk of ollamaChatStream(baseUrl, model, fullMessages, ollamaOptions, (meta) => { tokenStats = meta; })) {
           assistantContent += chunk;
           res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
         }
       }
       const newHistory = messages.concat([{ role: 'assistant', content: assistantContent }]);
+      if (tokenStats) res.write(`data: ${JSON.stringify({ tokenStats })}\n\n`);
       if (effectiveUser) {
         const usedId = chatStore.writeChat(effectiveUser, newHistory, bodyChatId);
         res.write('data: ' + JSON.stringify({ done: true, chatId: usedId }) + '\n\n');
@@ -1029,6 +1079,162 @@ app.delete('/api/prompts/:id', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Pipelines
+// ---------------------------------------------------------------------------
+app.get('/api/pipelines', (req, res) => {
+  try {
+    res.json(pipelineRunner.readPipelines());
+  } catch (e) {
+    logger.error('GET /api/pipelines:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/pipelines', (req, res) => {
+  try {
+    const pipelines = pipelineRunner.readPipelines();
+    const pipeline = { id: 'pipe_' + crypto.randomBytes(6).toString('hex'), name: 'New pipeline', enabled: true, lastRunAt: null, nodes: [], connections: [], ...(req.body || {}) };
+    pipelines.push(pipeline);
+    pipelineRunner.writePipelines(pipelines);
+    res.json({ ok: true, pipeline });
+  } catch (e) {
+    logger.error('POST /api/pipelines:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/pipelines/:id', (req, res) => {
+  try {
+    const pipelines = pipelineRunner.readPipelines();
+    const idx = pipelines.findIndex(p => p.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Pipeline not found' });
+    pipelines[idx] = { ...pipelines[idx], ...(req.body || {}), id: req.params.id };
+    pipelineRunner.writePipelines(pipelines);
+    res.json({ ok: true, pipeline: pipelines[idx] });
+  } catch (e) {
+    logger.error('PUT /api/pipelines/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/pipelines/:id', (req, res) => {
+  try {
+    const pipelines = pipelineRunner.readPipelines();
+    const filtered = pipelines.filter(p => p.id !== req.params.id);
+    if (filtered.length === pipelines.length) return res.status(404).json({ error: 'Pipeline not found' });
+    pipelineRunner.writePipelines(filtered);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /api/pipelines/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/pipelines/:id/run', runLimiter, async (req, res) => {
+  try {
+    const pipelines = pipelineRunner.readPipelines();
+    const pipeline = pipelines.find(p => p.id === req.params.id);
+    if (!pipeline) return res.status(404).json({ error: 'Pipeline not found' });
+    const context = await pipelineRunner.runPipeline(pipeline);
+    const now = new Date().toISOString();
+    const idx = pipelines.findIndex(p => p.id === req.params.id);
+    if (idx !== -1) { pipelines[idx] = { ...pipelines[idx], lastRunAt: now }; pipelineRunner.writePipelines(pipelines); }
+    res.json({ ok: true, context });
+  } catch (e) {
+    logger.error('POST /api/pipelines/:id/run:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Dashboard
+// ---------------------------------------------------------------------------
+app.get('/api/dashboard', async (req, res) => {
+  const fs = require('fs');
+  try {
+    const user = req.session && req.session.user;
+    const config = getConfig();
+
+    // Chats
+    let chatsTotal = 0;
+    let recentChats = [];
+    if (user) {
+      try {
+        const { chats } = chatStore.listChats(user);
+        chatsTotal = chats.length;
+        recentChats = chats
+          .slice()
+          .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+          .slice(0, 5)
+          .map(c => ({
+            id: c.id,
+            title: c.title,
+            updatedAt: c.updatedAt,
+            messageCount: (() => {
+              try { const d = chatStore.getChat(user, c.id); return d ? d.messages.length : 0; } catch (_) { return 0; }
+            })()
+          }));
+      } catch (_) {}
+    }
+
+    // Heartbeat
+    const heartbeatJobs = config.heartbeat || [];
+    const cronParser = require('cron-parser');
+    const jobsInfo = heartbeatJobs.map(j => {
+      let nextRunAt = null;
+      if (j.enabled !== false && j.schedule) {
+        try {
+          const interval = cronParser.parseExpression(j.schedule, { currentDate: new Date(), utc: false });
+          nextRunAt = interval.next().toDate().toISOString();
+        } catch (_) {}
+      }
+      return { name: j.name, schedule: j.schedule, lastRunAt: j.lastRunAt || null, nextRunAt, enabled: j.enabled !== false };
+    });
+
+    // Webhooks
+    const webhookList = config.webhooks || [];
+
+    // Pipelines
+    const PIPELINES_PATH = path.join(__dirname, 'data', 'pipelines.json');
+    let pipelines = [];
+    try { if (fs.existsSync(PIPELINES_PATH)) pipelines = JSON.parse(fs.readFileSync(PIPELINES_PATH, 'utf8')); } catch (_) {}
+
+    // Skills
+    skillsLib.ensureEnabledSkillsLoaded();
+    const allSkills = skillsLib.listSkills();
+
+    // Memory
+    const DATA_DIR = path.join(__dirname, 'data');
+    const MEMORY_PATH = path.join(DATA_DIR, 'memory.md');
+    let freeformLines = 0;
+    try { if (fs.existsSync(MEMORY_PATH)) freeformLines = fs.readFileSync(MEMORY_PATH, 'utf8').split('\n').filter(l => l.trim()).length; } catch (_) {}
+    const smData = structuredMemory.readAll();
+    const structuredKeys = Object.keys(smData.facts || {}).length;
+
+    // Ollama
+    let ollamaConnected = false;
+    try { await listModels(config.ollama.mainUrl); ollamaConnected = true; } catch (_) {}
+
+    res.json({
+      chats: { total: chatsTotal, recent: recentChats },
+      heartbeat: {
+        total: heartbeatJobs.length,
+        enabled: heartbeatJobs.filter(j => j.enabled !== false).length,
+        jobs: jobsInfo
+      },
+      webhooks: { total: webhookList.length, enabled: webhookList.filter(w => w.enabled !== false).length },
+      pipelines: { total: pipelines.length, enabled: pipelines.filter(p => p.enabled !== false).length },
+      skills: { total: allSkills.length, enabled: allSkills.filter(s => s.enabled).length },
+      memory: { freeformLines, structuredKeys },
+      ollama: { connected: ollamaConnected, url: config.ollama.mainUrl, model: config.ollama.mainModel }
+    });
+  } catch (e) {
+    logger.error('GET /api/dashboard:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Startup helpers
 // ---------------------------------------------------------------------------
 
@@ -1065,6 +1271,7 @@ function start() {
   });
 
   heartbeatLib.startHeartbeat();
+  pipelineRunner.startScheduler();
 
   try {
     const telegramBot = require('./lib/telegramBot.js');

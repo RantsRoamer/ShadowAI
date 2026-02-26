@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Pipelines</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/pipelines.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/dashboard" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
+      <span class="nav-link active">PIPELINES</span>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <a href="/editor" class="nav-link">EDITOR</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <div class="pipelines-layout">
+    <!-- Left sidebar: pipeline list -->
+    <aside class="pipelines-sidebar">
+      <p class="pipelines-sidebar-title">PIPELINES</p>
+      <ul id="pipelineList" class="pipeline-list"></ul>
+      <button type="button" id="newPipelineBtn" class="btn btn-small" style="margin-top:10px;">+ New pipeline</button>
+    </aside>
+
+    <!-- Main canvas area -->
+    <div class="pipelines-canvas-wrap" id="canvasWrap">
+      <!-- Empty state shown when no pipeline selected -->
+      <div class="pipelines-empty" id="emptyState">
+        <span>Select or create a pipeline</span>
+        <button type="button" class="btn" id="emptyNewBtn">+ New pipeline</button>
+      </div>
+
+      <!-- Editor shown when pipeline is selected -->
+      <div id="pipelineEditor" style="display:none; flex:1; flex-direction:column; height:100%;">
+        <!-- Toolbar -->
+        <div class="pipelines-toolbar">
+          <input type="text" id="pipelineNameInput" class="pipeline-name-input" placeholder="Pipeline name" />
+          <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="pipelineEnabled" checked /> Enabled
+          </label>
+          <button type="button" class="btn add-node-btn" id="addTriggerBtn">+ Trigger</button>
+          <button type="button" class="btn add-node-btn" id="addSkillBtn">+ Skill</button>
+          <button type="button" class="btn add-node-btn" id="addPromptBtn">+ AI Prompt</button>
+          <button type="button" class="btn add-node-btn" id="addEmailBtn">+ Email</button>
+          <button type="button" class="btn add-node-btn" id="addWebhookOutBtn">+ Webhook</button>
+          <button type="button" class="btn add-node-btn" id="runNowBtn" style="margin-left:auto;">▶ Run now</button>
+          <button type="button" class="btn add-node-btn" id="savePipelineBtn">Save</button>
+          <span id="pipelineSaveStatus" style="font-size:11px;color:var(--text-dim);"></span>
+        </div>
+
+        <!-- Canvas + config panel side by side -->
+        <div style="display:flex;flex:1;overflow:hidden;">
+          <div class="pipeline-canvas-container" id="canvasContainer">
+            <div id="pipelineCanvas">
+              <canvas id="connectionLayer"></canvas>
+            </div>
+          </div>
+          <!-- Node config panel -->
+          <div class="node-config-panel" id="nodeConfigPanel">
+            <h3>NODE CONFIG</h3>
+            <div id="nodeConfigContent"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/pipelines.js"></script>
+</body>
+</html>

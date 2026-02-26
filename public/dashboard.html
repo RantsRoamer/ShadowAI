@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/dashboard.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/dashboard" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <span class="nav-link active">DASHBOARD</span>
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
+      <a href="/pipelines" class="nav-link">PIPELINES</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <a href="/editor" class="nav-link">EDITOR</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="dashboard-main">
+    <h1 class="dashboard-title">DASHBOARD</h1>
+
+    <!-- Stats cards row -->
+    <div class="dashboard-grid" id="statsGrid">
+      <div class="dash-card" id="cardOllama">
+        <p class="dash-card-title">OLLAMA</p>
+        <p class="dash-card-value" id="ollamaStatus">—</p>
+        <p class="dash-card-sub" id="ollamaModel">—</p>
+      </div>
+      <div class="dash-card">
+        <p class="dash-card-title">CHATS</p>
+        <p class="dash-card-value" id="chatsTotal">—</p>
+        <p class="dash-card-sub">conversations</p>
+      </div>
+      <div class="dash-card">
+        <p class="dash-card-title">SKILLS</p>
+        <p class="dash-card-value" id="skillsValue">—</p>
+        <p class="dash-card-sub" id="skillsSub">—</p>
+      </div>
+      <div class="dash-card">
+        <p class="dash-card-title">MEMORY</p>
+        <p class="dash-card-value" id="memoryValue">—</p>
+        <p class="dash-card-sub" id="memorySub">—</p>
+      </div>
+    </div>
+
+    <div class="dash-row">
+      <!-- Recent chats -->
+      <div class="dashboard-section">
+        <h2>RECENT CHATS</h2>
+        <ul class="dash-list" id="recentChats">
+          <li><span class="dash-empty">Loading...</span></li>
+        </ul>
+      </div>
+
+      <!-- Scheduled jobs -->
+      <div class="dashboard-section">
+        <h2>SCHEDULED JOBS</h2>
+        <ul class="dash-list" id="scheduledJobs">
+          <li><span class="dash-empty">Loading...</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="dashboard-section">
+      <h2>QUICK ACTIONS</h2>
+      <div class="quick-actions">
+        <a href="/app" class="btn">New Chat</a>
+        <a href="/editor" class="btn">Editor</a>
+        <a href="/skills" class="btn">Skills</a>
+        <a href="/pipelines" class="btn">Pipelines</a>
+        <a href="/heartbeat" class="btn">Heartbeat</a>
+        <a href="/personality" class="btn">Memory</a>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

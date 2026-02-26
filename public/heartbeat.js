@@ -3,6 +3,12 @@
   const addJobBtn = document.getElementById('addJob');
   const saveBtn = document.getElementById('saveBtn');
   const statusEl = document.getElementById('status');
+  const webhookListEl = document.getElementById('webhookList');
+  const addWebhookBtn = document.getElementById('addWebhook');
+  const saveWebhooksBtn = document.getElementById('saveWebhooksBtn');
+  const webhookStatusEl = document.getElementById('webhookStatus');
+
+  let webhooks = [];
 
   const PRESETS = [
     { label: 'Every 5 min', cron: '*/5 * * * *' },
@@ -191,13 +197,135 @@
     }
   });
 
+  // ---------------------------------------------------------------------------
+  // Webhook management
+  // ---------------------------------------------------------------------------
+  function whId() {
+    return 'wh_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  function setWebhookStatus(msg, isError) {
+    webhookStatusEl.textContent = msg;
+    webhookStatusEl.style.color = isError ? 'var(--red)' : 'var(--text-dim)';
+  }
+
+  function getServerOrigin() {
+    return window.location.origin;
+  }
+
+  function renderWebhooks() {
+    if (webhooks.length === 0) {
+      webhookListEl.innerHTML = '<p class="skill-empty">No inbound webhooks. Add one to allow external systems to trigger AI actions.</p>';
+      return;
+    }
+    webhookListEl.innerHTML = webhooks.map((w, i) => `
+      <div class="skill-card heartbeat-card" data-wh-index="${i}">
+        <div class="row">
+          <div class="form-group" style="max-width:200px;">
+            <label>Name</label>
+            <input type="text" class="wh-name" value="${escapeHtml(w.name || '')}" placeholder="My webhook" />
+          </div>
+          <div class="form-group" style="max-width:100px;">
+            <label>Action</label>
+            <select class="wh-action">
+              <option value="prompt" ${w.action !== 'skill' ? 'selected' : ''}>AI Prompt</option>
+              <option value="skill" ${w.action === 'skill' ? 'selected' : ''}>Skill</option>
+            </select>
+          </div>
+          <div class="form-group wh-prompt-fields" style="flex:1; ${w.action === 'skill' ? 'display:none' : ''}">
+            <label>Prompt (use <code>{{body}}</code> for request body)</label>
+            <input type="text" class="wh-prompt" value="${escapeHtml(w.prompt || '')}" placeholder="Summarize this event: {{body}}" />
+          </div>
+          <div class="form-group wh-skill-fields" style="flex:1; ${w.action !== 'skill' ? 'display:none' : ''}">
+            <label>Skill ID</label>
+            <input type="text" class="wh-skillId" value="${escapeHtml(w.skillId || '')}" placeholder="my-skill" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group" style="flex:1;">
+            <label>Secret (optional — sent as <code>x-webhook-secret</code> header)</label>
+            <input type="text" class="wh-secret" value="${escapeHtml(w.secret || '')}" placeholder="optional secret" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group" style="flex:1;">
+            <label>Receiver URL</label>
+            <code style="font-size:11px;color:var(--green-bright);word-break:break-all;">POST ${escapeHtml(getServerOrigin())}/api/webhook/receive/${escapeHtml(w.id)}</code>
+          </div>
+        </div>
+        <div class="row-end">
+          <label><input type="checkbox" class="wh-enabled" ${w.enabled !== false ? 'checked' : ''} /> Enabled</label>
+          <span class="remove-agent wh-delete">Delete</span>
+        </div>
+      </div>
+    `).join('');
+
+    webhookListEl.querySelectorAll('.wh-action').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const card = sel.closest('.heartbeat-card');
+        card.querySelectorAll('.wh-prompt-fields').forEach(el => el.style.display = sel.value === 'skill' ? 'none' : '');
+        card.querySelectorAll('.wh-skill-fields').forEach(el => el.style.display = sel.value === 'skill' ? '' : 'none');
+      });
+    });
+    webhookListEl.querySelectorAll('.wh-delete').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const card = btn.closest('.heartbeat-card');
+        const idx = parseInt(card.dataset.whIndex, 10);
+        webhooks.splice(idx, 1);
+        renderWebhooks();
+      });
+    });
+  }
+
+  function getWebhooksFromDom() {
+    const cards = webhookListEl.querySelectorAll('.heartbeat-card');
+    return Array.from(cards).map((card, i) => {
+      const w = webhooks[i] || {};
+      return {
+        id: w.id || whId(),
+        name: card.querySelector('.wh-name')?.value?.trim() || 'Unnamed',
+        action: card.querySelector('.wh-action')?.value || 'prompt',
+        prompt: card.querySelector('.wh-prompt')?.value?.trim() || '',
+        skillId: card.querySelector('.wh-skillId')?.value?.trim() || '',
+        secret: card.querySelector('.wh-secret')?.value?.trim() || '',
+        enabled: card.querySelector('.wh-enabled')?.checked !== false
+      };
+    });
+  }
+
+  addWebhookBtn.addEventListener('click', () => {
+    webhooks.push({ id: whId(), name: 'New webhook', action: 'prompt', prompt: 'Summarize this event: {{body}}', skillId: '', secret: '', enabled: true });
+    renderWebhooks();
+  });
+
+  saveWebhooksBtn.addEventListener('click', async () => {
+    webhooks = getWebhooksFromDom();
+    setWebhookStatus('Saving...');
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ webhooks })
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setWebhookStatus('Saved.');
+    } catch (e) {
+      setWebhookStatus(e.message, true);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Load
+  // ---------------------------------------------------------------------------
   async function load() {
     try {
       const res = await fetch('/api/config');
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();
       jobs = (data.heartbeat || []).map(j => ({ ...j }));
+      webhooks = (data.webhooks || []).map(w => ({ ...w }));
       render();
+      renderWebhooks();
     } catch (e) {
       heartbeatList.innerHTML = '<p class="skill-empty">' + escapeHtml(e.message) + '</p>';
     }
