@@ -75,10 +75,11 @@ const runLimiter = rateLimit({
 });
 
 // ---------------------------------------------------------------------------
-// Body parsing
+// Body parsing (large limit for project import: PDFs/images sent as base64)
 // ---------------------------------------------------------------------------
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+const JSON_LIMIT = '50mb';
+app.use(bodyParser.json({ limit: JSON_LIMIT }));
+app.use(bodyParser.urlencoded({ extended: true, limit: JSON_LIMIT }));
 
 // ---------------------------------------------------------------------------
 // Session — secret generated once and persisted in config
