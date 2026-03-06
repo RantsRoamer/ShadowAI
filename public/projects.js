@@ -7,8 +7,30 @@
   const reportScheduleCustom = document.getElementById('reportScheduleCustom');
   const reportProjectChecks = document.getElementById('reportProjectChecks');
   const reportSaveBtn = document.getElementById('reportSaveBtn');
+  const reportSendNowBtn = document.getElementById('reportSendNowBtn');
   const reportStatus = document.getElementById('reportStatus');
   const reportLastRun = document.getElementById('reportLastRun');
+  const reportPromptInput = document.getElementById('reportPromptInput');
+  const reportPromptSaveBtn = document.getElementById('reportPromptSaveBtn');
+  const reportPromptStatus = document.getElementById('reportPromptStatus');
+
+  function switchTab(tabId) {
+    document.querySelectorAll('.projects-tab').forEach(t => {
+      t.classList.toggle('active', t.getAttribute('data-tab') === tabId);
+      t.setAttribute('aria-selected', t.getAttribute('data-tab') === tabId ? 'true' : 'false');
+    });
+    document.querySelectorAll('.projects-panel').forEach(p => {
+      const isActive = p.id === tabId + '-panel';
+      p.classList.toggle('active', isActive);
+      if (p.hidden !== undefined) p.hidden = !isActive;
+    });
+  }
+
+  document.querySelectorAll('.projects-tab').forEach(btn => {
+    btn.addEventListener('click', function () {
+      switchTab(this.getAttribute('data-tab'));
+    });
+  });
 
   function loadProjects() {
     projectList.innerHTML = '<li class="project-list-loading">Loading…</li>';
@@ -78,6 +100,7 @@
     } else {
       reportLastRun.textContent = '';
     }
+    if (reportPromptInput) reportPromptInput.value = reportConfig.reportPrompt || '';
   }
 
   if (reportSchedule) {
@@ -113,6 +136,77 @@
         })
         .catch(err => {
           reportStatus.textContent = 'Failed: ' + err.message;
+        });
+    });
+  }
+
+  if (reportSendNowBtn) {
+    reportSendNowBtn.addEventListener('click', function () {
+      const toEmail = reportToEmail.value.trim();
+      const projectIds = Array.from(reportProjectChecks.querySelectorAll('.report-project-check:checked')).map(cb => cb.getAttribute('data-id'));
+      if (!toEmail) {
+        reportStatus.textContent = 'Enter an email address.';
+        return;
+      }
+      if (projectIds.length === 0) {
+        reportStatus.textContent = 'Select at least one project.';
+        return;
+      }
+      reportStatus.textContent = 'Sending…';
+      reportStatus.classList.remove('saved');
+      reportSendNowBtn.disabled = true;
+      fetch('/api/projects/report-config/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toEmail, projectIds })
+      })
+        .then(r => r.json().then(data => ({ ok: r.ok, data })))
+        .then(({ ok, data }) => {
+          reportSendNowBtn.disabled = false;
+          if (ok && data.ok) {
+            reportStatus.textContent = 'Sent.';
+            reportStatus.classList.add('saved');
+            setTimeout(() => { reportStatus.textContent = ''; reportStatus.classList.remove('saved'); }, 3000);
+            return fetch('/api/projects/report-config').then(r => r.ok ? r.json() : null);
+          }
+          reportStatus.textContent = data.error || 'Send failed.';
+          return null;
+        })
+        .then(function (reportConfig) {
+          if (reportConfig && reportConfig.lastRunAt && reportLastRun) {
+            const d = new Date(reportConfig.lastRunAt);
+            reportLastRun.textContent = 'Last sent: ' + d.toLocaleString();
+          }
+        })
+        .catch(() => {
+          reportSendNowBtn.disabled = false;
+          reportStatus.textContent = 'Request failed.';
+        });
+    });
+  }
+
+  if (reportPromptSaveBtn && reportPromptInput) {
+    reportPromptSaveBtn.addEventListener('click', function () {
+      const reportPrompt = reportPromptInput.value.trim();
+      if (reportPromptStatus) reportPromptStatus.textContent = '';
+      fetch('/api/projects/report-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportPrompt: reportPrompt })
+      })
+        .then(r => r.ok ? r.json() : Promise.reject(new Error(r.statusText)))
+        .then(() => {
+          if (reportPromptStatus) {
+            reportPromptStatus.textContent = 'Saved.';
+            reportPromptStatus.classList.add('saved');
+            setTimeout(function () {
+              reportPromptStatus.textContent = '';
+              reportPromptStatus.classList.remove('saved');
+            }, 3000);
+          }
+        })
+        .catch(err => {
+          if (reportPromptStatus) reportPromptStatus.textContent = 'Failed: ' + err.message;
         });
     });
   }

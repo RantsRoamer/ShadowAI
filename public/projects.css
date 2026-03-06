@@ -25,6 +25,46 @@
   margin-top: 8px;
 }
 
+.projects-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.projects-tab {
+  padding: 8px 16px;
+  font-size: 12px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.projects-tab:hover {
+  color: var(--text-bright);
+}
+
+.projects-tab.active {
+  color: var(--green-bright);
+  border-bottom-color: var(--green-bright);
+}
+
+.projects-panel {
+  display: none;
+}
+
+.projects-panel.active {
+  display: block;
+}
+
+.projects-panel-head {
+  margin-bottom: 16px;
+}
+
 .project-list {
   list-style: none;
   padding: 0;
@@ -192,4 +232,33 @@
   font-size: 11px;
   color: var(--text-dim);
   margin: 8px 0 0 0;
+}
+
+.projects-prompt-form {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px 20px;
+}
+
+.projects-prompt-textarea {
+  width: 100%;
+  max-width: 640px;
+  min-height: 160px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-bright);
+  resize: vertical;
+  display: block;
+  margin-bottom: 14px;
+}
+
+.projects-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }

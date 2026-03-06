@@ -249,6 +249,7 @@ app.get('/api/projects/report-config', (req, res) => {
       schedule: report.schedule || '0 8 * * *',
       toEmail: report.toEmail || '',
       projectIds: Array.isArray(report.projectIds) ? report.projectIds : [],
+      reportPrompt: report.reportPrompt || '',
       lastRunAt: report.lastRunAt || null
     });
   } catch (e) {
@@ -266,13 +267,31 @@ app.put('/api/projects/report-config', (req, res) => {
       enabled: body.enabled !== undefined ? !!body.enabled : current.enabled,
       schedule: (body.schedule != null && String(body.schedule).trim()) ? String(body.schedule).trim() : (current.schedule || '0 8 * * *'),
       toEmail: body.toEmail != null ? String(body.toEmail).trim() : (current.toEmail || ''),
-      projectIds: Array.isArray(body.projectIds) ? body.projectIds : (current.projectIds || [])
+      projectIds: Array.isArray(body.projectIds) ? body.projectIds : (current.projectIds || []),
+      reportPrompt: body.reportPrompt !== undefined ? String(body.reportPrompt) : (current.reportPrompt || '')
     };
     updateConfig({ projectReport: updates });
     res.json(updates);
   } catch (e) {
     logger.error('PUT /api/projects/report-config:', e.message);
     res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/projects/report-config/send', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const toEmail = body.toEmail != null ? String(body.toEmail).trim() : '';
+    const projectIds = Array.isArray(body.projectIds) ? body.projectIds : [];
+    const projectReport = require('./lib/projectReport.js');
+    const result = await projectReport.sendReportNow({ toEmail, projectIds });
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, error: result.error || 'Send failed' });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/projects/report-config/send:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 

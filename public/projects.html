@@ -35,13 +35,23 @@
     <div class="projects-head">
       <h1 class="projects-title">PROJECTS</h1>
       <p class="projects-desc">Project-specific chats with isolated memory. Add notes, import PDFs and images; the AI answers only from this project’s context.</p>
-      <button type="button" id="newProjectBtn" class="btn">+ New project</button>
+      <nav class="projects-tabs" role="tablist">
+        <button type="button" class="projects-tab active" data-tab="projects" role="tab" aria-selected="true">Projects</button>
+        <button type="button" class="projects-tab" data-tab="report" role="tab" aria-selected="false">Email report</button>
+        <button type="button" class="projects-tab" data-tab="prompt" role="tab" aria-selected="false">Report format</button>
+      </nav>
     </div>
-    <ul id="projectList" class="project-list">
+
+    <section id="projects-panel" class="projects-panel active" role="tabpanel">
+      <div class="projects-panel-head">
+        <button type="button" id="newProjectBtn" class="btn">+ New project</button>
+      </div>
+      <ul id="projectList" class="project-list">
       <li class="project-list-loading">Loading…</li>
     </ul>
+    </section>
 
-    <section class="projects-report-section">
+    <section id="report-panel" class="projects-panel projects-report-section" role="tabpanel" hidden>
       <h2 class="projects-report-title">Scheduled email report</h2>
       <p class="projects-report-desc">Receive one combined email on a schedule with summary, status and notes from the projects you select. Configure email in Config.</p>
       <div class="projects-report-form">
@@ -73,9 +83,22 @@
         </div>
         <div class="projects-report-actions">
           <button type="button" id="reportSaveBtn" class="btn">Save report settings</button>
+          <button type="button" id="reportSendNowBtn" class="btn">Send now</button>
           <span id="reportStatus" class="projects-report-status"></span>
         </div>
         <p id="reportLastRun" class="projects-report-meta"></p>
+      </div>
+    </section>
+
+    <section id="prompt-panel" class="projects-panel" role="tabpanel" hidden>
+      <h2 class="projects-report-title">Report format prompt</h2>
+      <p class="projects-report-desc">Describe what to include and how you want the email report formatted. The AI will use this when building the report from your selected projects’ memory and notes. Leave blank to use the default format.</p>
+      <div class="projects-prompt-form">
+        <textarea id="reportPromptInput" class="projects-prompt-textarea" placeholder="e.g. Write a brief executive summary for each project. Use bullet points for key items. End with a short overall status and any action items." rows="8"></textarea>
+        <div class="projects-prompt-actions">
+          <button type="button" id="reportPromptSaveBtn" class="btn">Save format prompt</button>
+          <span id="reportPromptStatus" class="projects-report-status"></span>
+        </div>
       </div>
     </section>
   </main>
