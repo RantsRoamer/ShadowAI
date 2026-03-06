@@ -267,8 +267,10 @@
       })
       .then(function (result) {
         if (btn) btn.disabled = false;
-        var ok = result && result.ok && result.data && result.data.ok;
+        // 200 = sent (legacy), 202 = accepted / send started in background (avoids timeout)
+        var ok = result && result.data && result.data.ok && (result.status === 200 || result.status === 202);
         if (ok) {
+          if (result.data && result.data.message) alert(result.data.message);
           loadReports();
         } else {
           var status = (result && result.status) ? result.status : '?';

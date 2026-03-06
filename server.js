@@ -316,15 +316,34 @@ app.delete('/api/projects/reports/:reportId', (req, res) => {
   }
 });
 
-app.post('/api/projects/reports/:reportId/send', async (req, res) => {
+app.post('/api/projects/reports/:reportId/send', (req, res) => {
   const reportId = req.params.reportId;
   try {
     const projectReport = require('./lib/projectReport.js');
-    const result = await projectReport.sendReportNow(reportId);
-    if (!result.ok) {
-      return res.status(400).json({ ok: false, error: result.error || 'Send failed.', code: 'REPORT_SEND_FAILED' });
+    const reports = projectReport.getReports();
+    const report = reports.find((r) => r.id === reportId);
+    if (!report) {
+      return res.status(404).json({ ok: false, error: 'Report not found.', code: 'REPORT_NOT_FOUND' });
     }
-    return res.json({ ok: true });
+    if (!report.toEmail || !String(report.toEmail).trim()) {
+      return res.status(400).json({ ok: false, error: 'Report has no email address.', code: 'REPORT_NO_EMAIL' });
+    }
+    if (!Array.isArray(report.projectIds) || report.projectIds.length === 0) {
+      return res.status(400).json({ ok: false, error: 'Report has no projects selected.', code: 'REPORT_NO_PROJECTS' });
+    }
+    const config = getConfig();
+    const emailCfg = config.email || {};
+    if (!emailCfg.host || !emailCfg.enabled || !emailCfg.from) {
+      return res.status(400).json({ ok: false, error: 'Email not configured or disabled in Config.', code: 'EMAIL_NOT_CONFIGURED' });
+    }
+    // Run send in background so the request doesn't time out during report generation
+    projectReport.sendReportNow(reportId).catch((e) => {
+      logger.error('[ProjectReport] Background send failed', reportId, ':', e && e.message ? e.message : String(e));
+    });
+    return res.status(202).json({
+      ok: true,
+      message: 'Report send started. The email will arrive in a few minutes.'
+    });
   } catch (e) {
     const msg = e && (e.message || String(e));
     logger.error('POST /api/projects/reports/:reportId/send', reportId, ':', msg);
