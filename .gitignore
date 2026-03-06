@@ -2,6 +2,7 @@ node_modules/
 config.json
 run/
 data/chats/
+data/projects/
 data/personality.md
 data/memory.md
 data/memory.json

@@ -24,6 +24,8 @@ const systemPrompt = require('./lib/systemPrompt.js');
 const chatRunner = require('./lib/chatRunner.js');
 const { executeSchedulerTool, getSchedulerToolDefinitions } = require('./lib/toolHandlers.js');
 const pipelineRunner = require('./lib/pipelineRunner.js');
+const projectStore = require('./lib/projectStore.js');
+const projectImport = require('./lib/projectImport.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -150,6 +152,8 @@ app.get('/agents',      (req, res) => res.sendFile(path.join(PUBLIC, 'agents.htm
 app.get('/pipelines',   (req, res) => res.sendFile(path.join(PUBLIC, 'pipelines.html')));
 app.get('/debug',       (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html')));
 app.get('/editor',      (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
+app.get('/projects',    (req, res) => res.sendFile(path.join(PUBLIC, 'projects.html')));
+app.get('/project',     (req, res) => res.sendFile(path.join(PUBLIC, 'project.html')));
 
 // ---------------------------------------------------------------------------
 // Personality & memory
@@ -219,6 +223,122 @@ app.put('/api/behavior', (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     logger.error('PUT /api/behavior:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Projects (isolated project-specific chats and memory)
+// ---------------------------------------------------------------------------
+app.get('/api/projects', (req, res) => {
+  try {
+    res.json(projectStore.listProjects());
+  } catch (e) {
+    logger.error('GET /api/projects:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/projects', (req, res) => {
+  try {
+    const name = (req.body && req.body.name != null) ? String(req.body.name).trim() : 'Untitled project';
+    const project = projectStore.createProject(name || 'Untitled project');
+    if (!project) return res.status(400).json({ error: 'Failed to create project' });
+    res.json(project);
+  } catch (e) {
+    logger.error('POST /api/projects:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/projects/:id', (req, res) => {
+  try {
+    const project = projectStore.getProject(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json(project);
+  } catch (e) {
+    logger.error('GET /api/projects/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/projects/:id', (req, res) => {
+  try {
+    const project = projectStore.updateProject(req.params.id, req.body || {});
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json(project);
+  } catch (e) {
+    logger.error('PUT /api/projects/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/projects/:id', (req, res) => {
+  try {
+    const ok = projectStore.deleteProject(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Project not found' });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /api/projects/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/projects/:id/memory', (req, res) => {
+  try {
+    const project = projectStore.getProject(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    res.json({ content: projectStore.readProjectMemory(req.params.id) });
+  } catch (e) {
+    logger.error('GET /api/projects/:id/memory:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/projects/:id/memory', (req, res) => {
+  try {
+    const project = projectStore.getProject(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    projectStore.writeProjectMemory(req.params.id, req.body?.content ?? '');
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('PUT /api/projects/:id/memory:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/projects/:id/import', async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const project = projectStore.getProject(projectId);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const type = (req.body && req.body.type) ? String(req.body.type).toLowerCase() : '';
+    const filename = (req.body && req.body.filename != null) ? String(req.body.filename).trim() : '';
+
+    if (type === 'text') {
+      const text = req.body?.text != null ? String(req.body.text) : '';
+      const result = projectImport.importText(projectId, text, req.body?.sectionTitle ? String(req.body.sectionTitle) : null);
+      if (!result.ok) return res.status(400).json({ error: result.error || 'Import failed' });
+      return res.json({ ok: true });
+    }
+    if (type === 'pdf') {
+      const content = req.body?.content;
+      if (content == null) return res.status(400).json({ error: 'content (base64) required for PDF' });
+      const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content, 'base64');
+      const result = await projectImport.importPdf(projectId, buffer, filename || 'document.pdf');
+      if (!result.ok) return res.status(400).json({ error: result.error || 'Import failed' });
+      return res.json({ ok: true, chars: result.chars });
+    }
+    if (type === 'image') {
+      const content = req.body?.content;
+      if (content == null) return res.status(400).json({ error: 'content (base64 or data URL) required for image' });
+      const result = await projectImport.importImage(projectId, content, filename || 'image');
+      if (!result.ok) return res.status(400).json({ error: result.error || 'Import failed' });
+      return res.json({ ok: true });
+    }
+    return res.status(400).json({ error: 'type must be text, pdf, or image' });
+  } catch (e) {
+    logger.error('POST /api/projects/:id/import:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -655,11 +775,16 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   const ollamaOptions = {};
   if (config.ollama.temperature != null && config.ollama.temperature !== '') ollamaOptions.temperature = Number(config.ollama.temperature);
   if (config.ollama.num_predict != null && config.ollama.num_predict !== '') ollamaOptions.num_predict = Number(config.ollama.num_predict);
-  const systemPrompt = {
+  const isProjectChat = channelOwner && channelOwner.startsWith('project_');
+  const projectId = isProjectChat ? channelOwner.slice(7) : null;
+  const systemContent = isProjectChat && projectId
+    ? systemPrompt.buildProjectSystemPrompt(projectId, typeof customInstructions === 'string' ? customInstructions : '')
+    : buildSystemPrompt(typeof customInstructions === 'string' ? customInstructions : '');
+  const systemPromptMsg = {
     role: 'system',
-    content: buildSystemPrompt(typeof customInstructions === 'string' ? customInstructions : '')
+    content: systemContent
   };
-  const fullMessages = [systemPrompt, ...messages];
+  const fullMessages = [systemPromptMsg, ...messages];
 
   if (wantStream !== false) {
     res.setHeader('Content-Type', 'text/event-stream');

@@ -17,6 +17,7 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 - **Self-update** — Read/write project files: `/read path`, `/write path` + content, `/list [path]` (allowed extensions: .js, .json, .html, .css, .md, .txt, .ts, .py, etc.)
 - **Skills/plugins** — Ask the AI to build a skill; it creates `skills/<id>/skill.json` + `run.js`. Enable/disable and run from **SKILLS** with no server reload. Run in chat: `/skill <id> [JSON args]`
 - **Heartbeat scheduler** — Cron-style jobs that run skills or prompts every X minutes/hours/days; jobs remember `lastRunAt` so missed runs while offline are caught up once on restart, and skill results can optionally be emailed.
+- **Projects** — Isolated project-specific chats. Each project has its own memory (markdown); you can add notes, paste text, or import PDFs and images (PDF text extraction and image description via Ollama vision). The AI answers only from that project’s context and is not aware of other projects.
 
 ## Requirements
 
@@ -113,6 +114,17 @@ Open **PERSONALITY** in the nav to edit:
 - **Memory** (`data/memory.md`): free-form notes and facts the AI should remember long-term. The `append_memory` tool adds timestamped entries when you say “remember X”. Included in every system prompt so the AI can answer “who am I?” etc.
 - **Structured memory** (`data/memory.json`): key–value / graph-like facts (e.g. `user:timezone`, `project:shadowai:status`). Exposed to the model via the `get_memory(key)` / `set_memory(key, value)` tools and injected into the system prompt as a short “recent facts” block that is shared across chats and channels.
 - **AI Behavior** (`data/AIBEHAVIOR.md`): who you are and how the AI should help you (role, projects, important dates like your wedding). This is injected into every chat (web, CLI, Telegram, Discord) so the assistant always has your context.
+
+## Projects
+
+Open **PROJECTS** to create and manage project-specific chats. Each project is isolated: the AI sees only that project’s memory and is not aware of other projects or global memory.
+
+- **Create a project** — Click “New project”, name it, then open it.
+- **Project memory** — Edit the memory text area (markdown). This is the only context the AI has for that project. Save with “Save memory”.
+- **Import** — Paste text and click “Import text”, or upload a **PDF** (text is extracted) or an **image** (Ollama vision describes it and the description is added to memory). PDF import requires the optional dependency: `npm install pdf-parse`. Image import uses the configured Ollama model (set a vision-capable model like `llava` in Config → Ollama if needed).
+- **Project chat** — Use the chat panel to ask questions about the project. Answers are based only on that project’s memory. You can clear the project chat with “Clear chat” without losing the project’s memory.
+
+Data is stored under `data/projects/<id>/` (project metadata and `memory.md`). Chat history for each project is stored like other synthetic users (e.g. `project_<id>`).
 
 ## Multi-channel messaging
 
