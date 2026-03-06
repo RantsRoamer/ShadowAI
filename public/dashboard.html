@@ -26,6 +26,7 @@
       <a href="/pipelines" class="nav-link">PIPELINES</a>
       <a href="/config" class="nav-link">CONFIG</a>
       <a href="/editor" class="nav-link">EDITOR</a>
+      <a href="/debug" class="nav-link">DEBUG</a>
       <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
     </nav>
   </header>
@@ -55,9 +56,14 @@
         <p class="dash-card-value" id="memoryValue">—</p>
         <p class="dash-card-sub" id="memorySub">—</p>
       </div>
+      <div class="dash-card dash-card-projects">
+        <p class="dash-card-title">PROJECTS</p>
+        <p class="dash-card-value" id="projectsValue">—</p>
+        <p class="dash-card-sub" id="projectsSub">—</p>
+      </div>
     </div>
 
-    <div class="dash-row">
+    <div class="dash-row dash-row-three">
       <!-- Recent chats -->
       <div class="dashboard-section">
         <h2>RECENT CHATS</h2>
@@ -73,6 +79,14 @@
           <li><span class="dash-empty">Loading...</span></li>
         </ul>
       </div>
+
+      <!-- Recent projects -->
+      <div class="dashboard-section">
+        <h2>RECENT PROJECTS</h2>
+        <ul class="dash-list" id="recentProjects">
+          <li><span class="dash-empty">Loading...</span></li>
+        </ul>
+      </div>
     </div>
 
     <!-- Quick actions -->
@@ -85,6 +99,7 @@
         <a href="/pipelines" class="btn">Pipelines</a>
         <a href="/heartbeat" class="btn">Heartbeat</a>
         <a href="/personality" class="btn">Memory</a>
+        <a href="/projects" class="btn">Projects</a>
       </div>
     </div>
   </main>

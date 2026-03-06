@@ -1434,12 +1434,17 @@ app.get('/api/dashboard', async (req, res) => {
     const smData = structuredMemory.readAll();
     const structuredKeys = Object.keys(smData.facts || {}).length;
 
+    // Projects
+    const projectsList = projectStore.listProjects();
+    const recentProjects = projectsList.slice(0, 5);
+
     // Ollama
     let ollamaConnected = false;
     try { await listModels(config.ollama.mainUrl); ollamaConnected = true; } catch (_) {}
 
     res.json({
       chats: { total: chatsTotal, recent: recentChats },
+      projects: { total: projectsList.length, recent: recentProjects },
       heartbeat: {
         total: heartbeatJobs.length,
         enabled: heartbeatJobs.filter(j => j.enabled !== false).length,

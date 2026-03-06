@@ -66,6 +66,14 @@
         memorySub.textContent = 'entries · ' + d.memory.structuredKeys + ' keys';
       }
 
+      // Projects
+      const projectsValue = document.getElementById('projectsValue');
+      const projectsSub = document.getElementById('projectsSub');
+      if (d.projects) {
+        projectsValue.textContent = d.projects.total;
+        projectsSub.textContent = d.projects.total === 1 ? 'project' : 'projects';
+      }
+
       // Recent chats
       const recentChats = document.getElementById('recentChats');
       if (d.chats && d.chats.recent && d.chats.recent.length > 0) {
@@ -91,6 +99,20 @@
         `).join('');
       } else {
         scheduledJobs.innerHTML = '<li><span class="dash-empty">No scheduled jobs.</span></li>';
+      }
+
+      // Recent projects
+      const recentProjects = document.getElementById('recentProjects');
+      if (d.projects && d.projects.recent && d.projects.recent.length > 0) {
+        recentProjects.innerHTML = d.projects.recent.map(p => `
+          <li>
+            <span class="dash-item-title">${escapeHtml(p.name || 'Untitled')}</span>
+            <span class="dash-item-meta">${relativeTime(p.updatedAt)}</span>
+            <a href="/project?id=${encodeURIComponent(p.id)}" class="dash-item-action">[Open]</a>
+          </li>
+        `).join('');
+      } else {
+        recentProjects.innerHTML = '<li><span class="dash-empty">No projects yet.</span></li>';
       }
     } catch (e) {
       document.querySelector('.dashboard-main').insertAdjacentHTML('afterbegin',
