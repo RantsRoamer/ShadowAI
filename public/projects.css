@@ -319,6 +319,44 @@
   flex-shrink: 0;
 }
 
+@media (max-width: 768px) {
+  .projects-main {
+    padding: 16px 12px 24px 12px;
+  }
+  .project-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .project-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .projects-report-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .projects-report-label {
+    flex: 0 0 auto;
+  }
+  .projects-report-input {
+    width: 100%;
+    max-width: 100%;
+  }
+  .projects-prompt-textarea {
+    max-width: 100%;
+  }
+  .report-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .report-card-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
 .report-form-wrap {
   margin-top: 24px;
   padding-top: 20px;

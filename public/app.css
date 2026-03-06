@@ -520,3 +520,47 @@
 }
 .msg-edit-confirm { color: var(--green-bright); }
 .msg-edit-cancel { color: var(--text-dim); }
+
+/* Mobile layout adjustments */
+@media (max-width: 768px) {
+  .app-main {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 56px);
+  }
+  .chat-sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    padding: 10px;
+  }
+  .new-chat-btn {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  .sidebar-search {
+    margin-bottom: 8px;
+  }
+  .chat-list {
+    max-height: 220px;
+  }
+  .chat-content {
+    max-width: 100%;
+    margin: 0;
+    padding: 12px;
+  }
+  .input-row {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .input-row textarea {
+    min-height: 64px;
+  }
+  .send-btn,
+  .btn-stop,
+  #promptsBtn {
+    min-width: 72px;
+  }
+}

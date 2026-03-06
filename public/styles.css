@@ -174,3 +174,31 @@ input:focus, textarea:focus, select:focus {
 }
 .header-nav .nav-link.active:hover { text-decoration: none; }
 .header-nav .btn-small { padding: 6px 12px; font-size: 12px; }
+
+/* Mobile-friendly header and nav */
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .header-left {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .header-nav {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .header-nav::-webkit-scrollbar {
+    height: 4px;
+  }
+  .header-nav::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 2px;
+  }
+  .agent-select {
+    max-width: 160px;
+  }
+}
