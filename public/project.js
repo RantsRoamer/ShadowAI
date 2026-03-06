@@ -352,22 +352,23 @@
     if (t === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
     if (t.startsWith('image/') || /\.(jpe?g|png|gif|webp|bmp)$/.test(name)) return 'image';
     if (t === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || name.endsWith('.docx')) return 'docx';
+    if (t === 'application/msword' || name.endsWith('.doc')) return 'doc';
     if (t.startsWith('text/') || name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.json') || name.endsWith('.csv')) return 'text';
     return null;
   }
 
   async function handleDroppedFile(file) {
     const type = getImportType(file);
-    if (!type) return { ok: false, error: 'Unsupported file type. Use PDF, Word (.docx), image, or text.' };
-    const filename = file.name || (type === 'pdf' ? 'document.pdf' : type === 'docx' ? 'document.docx' : type === 'image' ? 'image' : 'document.txt');
+    if (!type) return { ok: false, error: 'Unsupported file type. Use PDF, Word (.doc/.docx), image, or text.' };
+    const filename = file.name || (type === 'pdf' ? 'document.pdf' : type === 'docx' ? 'document.docx' : type === 'doc' ? 'document.doc' : type === 'image' ? 'image' : 'document.txt');
     let body;
     if (type === 'text') {
       const text = await readFileAsText(file);
       if (!text.trim()) return { ok: false, error: 'File is empty.' };
       body = { type: 'text', text, filename, summarize: true };
-    } else if (type === 'docx') {
+    } else if (type === 'docx' || type === 'doc') {
       const content = await readFileAsBase64(file);
-      body = { type: 'docx', content, filename, summarize: true };
+      body = { type, content, filename, summarize: true };
     } else {
       const content = await readFileAsBase64(file);
       body = { type, content, filename, summarize: true };
@@ -403,7 +404,7 @@
       const toProcess = files.filter(f => getImportType(f));
       const skipped = files.filter(f => !getImportType(f));
       skipped.forEach(file => {
-        history.push({ role: 'assistant', content: 'Skipped **' + escapeHtml(file.name) + '**: unsupported type. Use PDF, Word (.docx), image, or text.' });
+        history.push({ role: 'assistant', content: 'Skipped **' + escapeHtml(file.name) + '**: unsupported type. Use PDF, Word (.doc/.docx), image, or text.' });
         addMessage('assistant', 'Skipped **' + file.name + '**: unsupported type. Use PDF, image, or text.');
       });
       if (toProcess.length === 0) {
