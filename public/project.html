@@ -42,38 +42,39 @@
           <h2>Project</h2>
           <input type="text" id="projectNameInput" class="project-name-input" placeholder="Project name" />
           <button type="button" id="saveProjectNameBtn" class="btn btn-small">Save name</button>
-        </section>
-        <section class="project-section">
-          <h2>Memory</h2>
-          <p class="project-hint">Notes and imported content. The AI uses only this for project answers.</p>
-          <textarea id="projectMemory" class="project-memory-editor" rows="12" placeholder="Add notes or import PDFs/images below…"></textarea>
-          <button type="button" id="saveMemoryBtn" class="btn btn-small">Save memory</button>
-          <span id="memoryStatus" class="project-status"></span>
-        </section>
-        <section class="project-section">
-          <h2>Import</h2>
-          <p class="project-hint">Add text or upload a PDF/image to extract content into project memory.</p>
-          <textarea id="importText" class="project-import-text" rows="3" placeholder="Paste text and click Import text…"></textarea>
-          <button type="button" id="importTextBtn" class="btn btn-small">Import text</button>
-          <div class="project-file-import">
-            <input type="file" id="importFileInput" accept=".pdf,image/*" aria-label="Upload PDF or image" />
-            <button type="button" id="importFileBtn" class="btn btn-small">Import PDF / image</button>
-          </div>
-          <span id="importStatus" class="project-status"></span>
+          <span id="projectNameStatus" class="project-status"></span>
         </section>
       </aside>
-      <div class="project-chat-wrap" id="chatDropZone">
-        <div class="project-chat-drop-hint" id="chatDropHint" aria-hidden="true">Drop file to add to project memory (PDF, image, or text)</div>
-        <div class="project-chat-toolbar">
-          <input type="text" id="messageSearch" class="message-search" placeholder="Search in messages…" aria-label="Search messages" />
+      <div class="project-content-wrap">
+        <div class="project-tabs" role="tablist">
+          <button type="button" id="chatTab" class="project-tab active" role="tab" aria-selected="true" aria-controls="chatPanel">Chat</button>
+          <button type="button" id="memoryTab" class="project-tab" role="tab" aria-selected="false" aria-controls="memoryPanel">Memory</button>
         </div>
-        <div id="messages" class="messages"></div>
-        <div class="input-area">
-          <div class="input-row">
-            <textarea id="userInput" rows="2" placeholder="Ask about this project…"></textarea>
-            <button type="button" id="sendBtn" class="btn send-btn">SEND</button>
+        <div id="chatPanel" class="project-panel" role="tabpanel" aria-labelledby="chatTab">
+          <div class="project-chat-wrap" id="chatDropZone">
+            <div class="project-chat-drop-hint" id="chatDropHint" aria-hidden="true">Drop file to add to project memory (PDF, image, or text)</div>
+            <div class="project-chat-toolbar">
+              <input type="text" id="messageSearch" class="message-search" placeholder="Search in messages…" aria-label="Search messages" />
+            </div>
+            <div id="messages" class="messages"></div>
+            <div class="input-area">
+              <div class="input-row">
+                <textarea id="userInput" rows="2" placeholder="Ask about this project…"></textarea>
+                <button type="button" id="sendBtn" class="btn send-btn">SEND</button>
+              </div>
+              <div class="input-hint">Drop files here to add to memory. Answers use only this project’s memory.</div>
+            </div>
           </div>
-          <div class="input-hint">Answers use only this project’s memory. Add notes or import above, or drop files here.</div>
+        </div>
+        <div id="memoryPanel" class="project-panel hidden" role="tabpanel" aria-labelledby="memoryTab">
+          <div class="project-memory-panel">
+            <p class="project-hint">Notes and imported content. The AI uses only this to answer. Edit below and save. Add content by dropping files in the Chat tab.</p>
+            <textarea id="projectMemory" class="project-memory-editor" placeholder="Project memory (drop files in Chat to add content)…"></textarea>
+            <div class="project-memory-actions">
+              <button type="button" id="saveMemoryBtn" class="btn btn-small">Save memory</button>
+              <span id="memoryStatus" class="project-status"></span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
