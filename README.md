@@ -69,6 +69,9 @@ cd ShadowAI
 docker build -t shadowai:latest .
 docker run -d --name shadowai -p 9090:9090 \
   -v shadowai-data:/app/data \
+  # (Linux) share host timezone with container so local time matches host
+  -v /etc/localtime:/etc/localtime:ro \
+  -v /etc/timezone:/etc/timezone:ro \
   -e OLLAMA_URL=http://host.docker.internal:11434 \
   -e OLLAMA_MODEL=llama3.2 \
   shadowai:latest
@@ -95,6 +98,7 @@ Configure via environment variables (applied at startup by `docker-init.js`):
 | `SEARXNG_ENABLED` | Set to `false` to disable web search even if `SEARXNG_URL` is set |
 | `PORT` | HTTP port (default: `9090`) |
 | `HOST` | Bind address (default: `0.0.0.0`) |
+| `TZ` | Optional container timezone (e.g. `America/New_York`). When set, Node and cron use this timezone; on Linux you can also mount `/etc/localtime` and `/etc/timezone` so the container inherits the host time directly. |
 
 Config, chat history, and personality data are stored in the `/app/data` volume so they persist across container restarts.
 
