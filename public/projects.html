@@ -40,6 +40,44 @@
     <ul id="projectList" class="project-list">
       <li class="project-list-loading">Loading…</li>
     </ul>
+
+    <section class="projects-report-section">
+      <h2 class="projects-report-title">Scheduled email report</h2>
+      <p class="projects-report-desc">Receive one combined email on a schedule with summary, status and notes from the projects you select. Configure email in Config.</p>
+      <div class="projects-report-form">
+        <label class="projects-report-row">
+          <input type="checkbox" id="reportEnabled" />
+          <span>Enable scheduled report</span>
+        </label>
+        <label class="projects-report-row">
+          <span class="projects-report-label">Send to email</span>
+          <input type="email" id="reportToEmail" class="projects-report-input" placeholder="you@example.com" />
+        </label>
+        <label class="projects-report-row">
+          <span class="projects-report-label">Schedule</span>
+          <select id="reportSchedule" class="projects-report-input">
+            <option value="0 8 * * *">Daily at 8:00</option>
+            <option value="0 9 * * *">Daily at 9:00</option>
+            <option value="0 7 * * *">Daily at 7:00</option>
+            <option value="0 18 * * *">Daily at 18:00</option>
+            <option value="0 8 * * 1">Weekly Monday 8:00</option>
+            <option value="0 9 * * 1">Weekly Monday 9:00</option>
+            <option value="0 8 * * 5">Weekly Friday 8:00</option>
+            <option value="custom">Custom (cron)</option>
+          </select>
+          <input type="text" id="reportScheduleCustom" class="projects-report-input projects-report-cron" placeholder="e.g. 0 8 * * *" style="display:none" title="Cron: min hr day month weekday" />
+        </label>
+        <div class="projects-report-row">
+          <span class="projects-report-label">Include projects</span>
+          <div id="reportProjectChecks" class="projects-report-checks"></div>
+        </div>
+        <div class="projects-report-actions">
+          <button type="button" id="reportSaveBtn" class="btn">Save report settings</button>
+          <span id="reportStatus" class="projects-report-status"></span>
+        </div>
+        <p id="reportLastRun" class="projects-report-meta"></p>
+      </div>
+    </section>
   </main>
 
   <script src="/static/nav.js"></script>
