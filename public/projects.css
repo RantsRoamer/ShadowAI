@@ -262,3 +262,80 @@
   align-items: center;
   gap: 12px;
 }
+
+.reports-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0 0;
+}
+
+.reports-loading,
+.reports-empty {
+  color: var(--text-dim);
+  padding: 16px 0;
+  font-size: 13px;
+}
+
+.report-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.report-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-card-name {
+  font-weight: 500;
+  color: var(--text-bright);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.report-card-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.report-card-last {
+  font-size: 11px;
+  color: var(--text-dim);
+  display: block;
+  margin-top: 2px;
+}
+
+.report-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.report-form-wrap {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.report-form-title {
+  font-size: 0.95rem;
+  color: var(--text-bright);
+  margin: 0 0 12px 0;
+}
+
+.projects-report-row-prompt .projects-report-label {
+  align-self: flex-start;
+  padding-top: 6px;
+}
+
+.projects-report-row-prompt .projects-prompt-textarea {
+  margin-bottom: 0;
+}

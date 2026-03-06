@@ -34,11 +34,10 @@
   <main class="projects-main">
     <div class="projects-head">
       <h1 class="projects-title">PROJECTS</h1>
-      <p class="projects-desc">Project-specific chats with isolated memory. Add notes, import PDFs and images; the AI answers only from this project’s context.</p>
+      <p class="projects-desc">Project-specific chats with isolated memory. Add notes, import PDFs and images; the AI answers only from this project's context.</p>
       <nav class="projects-tabs" role="tablist">
         <button type="button" class="projects-tab active" data-tab="projects" role="tab" aria-selected="true">Projects</button>
-        <button type="button" class="projects-tab" data-tab="report" role="tab" aria-selected="false">Email report</button>
-        <button type="button" class="projects-tab" data-tab="prompt" role="tab" aria-selected="false">Report format</button>
+        <button type="button" class="projects-tab" data-tab="reports" role="tab" aria-selected="false">Email reports</button>
       </nav>
     </div>
 
@@ -47,57 +46,59 @@
         <button type="button" id="newProjectBtn" class="btn">+ New project</button>
       </div>
       <ul id="projectList" class="project-list">
-      <li class="project-list-loading">Loading…</li>
-    </ul>
+        <li class="project-list-loading">Loading…</li>
+      </ul>
     </section>
 
-    <section id="report-panel" class="projects-panel projects-report-section" role="tabpanel" hidden>
-      <h2 class="projects-report-title">Scheduled email report</h2>
-      <p class="projects-report-desc">Receive one combined email on a schedule with summary, status and notes from the projects you select. Configure email in Config.</p>
-      <div class="projects-report-form">
-        <label class="projects-report-row">
-          <input type="checkbox" id="reportEnabled" />
-          <span>Enable scheduled report</span>
-        </label>
-        <label class="projects-report-row">
-          <span class="projects-report-label">Send to email</span>
-          <input type="email" id="reportToEmail" class="projects-report-input" placeholder="you@example.com" />
-        </label>
-        <label class="projects-report-row">
-          <span class="projects-report-label">Schedule</span>
-          <select id="reportSchedule" class="projects-report-input">
-            <option value="0 8 * * *">Daily at 8:00</option>
-            <option value="0 9 * * *">Daily at 9:00</option>
-            <option value="0 7 * * *">Daily at 7:00</option>
-            <option value="0 18 * * *">Daily at 18:00</option>
-            <option value="0 8 * * 1">Weekly Monday 8:00</option>
-            <option value="0 9 * * 1">Weekly Monday 9:00</option>
-            <option value="0 8 * * 5">Weekly Friday 8:00</option>
-            <option value="custom">Custom (cron)</option>
-          </select>
-          <input type="text" id="reportScheduleCustom" class="projects-report-input projects-report-cron" placeholder="e.g. 0 8 * * *" style="display:none" title="Cron: min hr day month weekday" />
-        </label>
-        <div class="projects-report-row">
-          <span class="projects-report-label">Include projects</span>
-          <div id="reportProjectChecks" class="projects-report-checks"></div>
-        </div>
-        <div class="projects-report-actions">
-          <button type="button" id="reportSaveBtn" class="btn">Save report settings</button>
-          <button type="button" id="reportSendNowBtn" class="btn">Send now</button>
-          <span id="reportStatus" class="projects-report-status"></span>
-        </div>
-        <p id="reportLastRun" class="projects-report-meta"></p>
+    <section id="reports-panel" class="projects-panel" role="tabpanel" hidden>
+      <h2 class="projects-report-title">Scheduled email reports</h2>
+      <p class="projects-report-desc">Create multiple reports with different schedules, project selections, and format prompts. Each sends one combined email.</p>
+      <div class="projects-reports-list-wrap">
+        <button type="button" id="addReportBtn" class="btn">+ Add report</button>
+        <ul id="reportsList" class="reports-list"></ul>
       </div>
-    </section>
-
-    <section id="prompt-panel" class="projects-panel" role="tabpanel" hidden>
-      <h2 class="projects-report-title">Report format prompt</h2>
-      <p class="projects-report-desc">Describe what to include and how you want the email report formatted. The AI will use this when building the report from your selected projects’ memory and notes. Leave blank to use the default format.</p>
-      <div class="projects-prompt-form">
-        <textarea id="reportPromptInput" class="projects-prompt-textarea" placeholder="e.g. Write a brief executive summary for each project. Use bullet points for key items. End with a short overall status and any action items." rows="8"></textarea>
-        <div class="projects-prompt-actions">
-          <button type="button" id="reportPromptSaveBtn" class="btn">Save format prompt</button>
-          <span id="reportPromptStatus" class="projects-report-status"></span>
+      <div id="reportFormWrap" class="report-form-wrap" style="display:none">
+        <h3 id="reportFormTitle" class="report-form-title">New report</h3>
+        <div class="projects-report-form">
+          <label class="projects-report-row">
+            <span class="projects-report-label">Report name</span>
+            <input type="text" id="reportName" class="projects-report-input" placeholder="e.g. Daily summary" />
+          </label>
+          <label class="projects-report-row">
+            <input type="checkbox" id="reportEnabled" checked />
+            <span>Enable scheduled report</span>
+          </label>
+          <label class="projects-report-row">
+            <span class="projects-report-label">Send to email</span>
+            <input type="email" id="reportToEmail" class="projects-report-input" placeholder="you@example.com" />
+          </label>
+          <label class="projects-report-row">
+            <span class="projects-report-label">Schedule</span>
+            <select id="reportSchedule" class="projects-report-input">
+              <option value="0 8 * * *">Daily at 8:00</option>
+              <option value="0 9 * * *">Daily at 9:00</option>
+              <option value="0 7 * * *">Daily at 7:00</option>
+              <option value="0 18 * * *">Daily at 18:00</option>
+              <option value="0 8 * * 1">Weekly Monday 8:00</option>
+              <option value="0 9 * * 1">Weekly Monday 9:00</option>
+              <option value="0 8 * * 5">Weekly Friday 8:00</option>
+              <option value="custom">Custom (cron)</option>
+            </select>
+            <input type="text" id="reportScheduleCustom" class="projects-report-input projects-report-cron" placeholder="e.g. 0 8 * * *" style="display:none" title="Cron: min hr day month weekday" />
+          </label>
+          <div class="projects-report-row">
+            <span class="projects-report-label">Include projects</span>
+            <div id="reportProjectChecks" class="projects-report-checks"></div>
+          </div>
+          <label class="projects-report-row projects-report-row-prompt">
+            <span class="projects-report-label">Format prompt</span>
+            <textarea id="reportPromptInput" class="projects-prompt-textarea" placeholder="Describe what to include and how to format (e.g. bullet summary, action items). Leave blank for default." rows="4"></textarea>
+          </label>
+          <div class="projects-report-actions">
+            <button type="button" id="reportSaveBtn" class="btn">Save report</button>
+            <button type="button" id="reportCancelBtn" class="btn secondary">Cancel</button>
+            <span id="reportStatus" class="projects-report-status"></span>
+          </div>
         </div>
       </div>
     </section>

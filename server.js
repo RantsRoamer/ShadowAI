@@ -240,57 +240,90 @@ app.get('/api/projects', (req, res) => {
   }
 });
 
-app.get('/api/projects/report-config', (req, res) => {
+// Project reports (multiple: each has name, schedule, toEmail, projectIds, reportPrompt)
+app.get('/api/projects/reports', (req, res) => {
   try {
-    const config = getConfig();
-    const report = config.projectReport || {};
-    res.json({
-      enabled: !!report.enabled,
-      schedule: report.schedule || '0 8 * * *',
-      toEmail: report.toEmail || '',
-      projectIds: Array.isArray(report.projectIds) ? report.projectIds : [],
-      reportPrompt: report.reportPrompt || '',
-      lastRunAt: report.lastRunAt || null
-    });
-  } catch (e) {
-    logger.error('GET /api/projects/report-config:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.put('/api/projects/report-config', (req, res) => {
-  try {
-    const config = getConfig();
-    const body = req.body || {};
-    const current = config.projectReport || {};
-    const updates = {
-      enabled: body.enabled !== undefined ? !!body.enabled : current.enabled,
-      schedule: (body.schedule != null && String(body.schedule).trim()) ? String(body.schedule).trim() : (current.schedule || '0 8 * * *'),
-      toEmail: body.toEmail != null ? String(body.toEmail).trim() : (current.toEmail || ''),
-      projectIds: Array.isArray(body.projectIds) ? body.projectIds : (current.projectIds || []),
-      reportPrompt: body.reportPrompt !== undefined ? String(body.reportPrompt) : (current.reportPrompt || '')
-    };
-    updateConfig({ projectReport: updates });
-    res.json(updates);
-  } catch (e) {
-    logger.error('PUT /api/projects/report-config:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/projects/report-config/send', async (req, res) => {
-  try {
-    const body = req.body || {};
-    const toEmail = body.toEmail != null ? String(body.toEmail).trim() : '';
-    const projectIds = Array.isArray(body.projectIds) ? body.projectIds : [];
     const projectReport = require('./lib/projectReport.js');
-    const result = await projectReport.sendReportNow({ toEmail, projectIds });
-    if (!result.ok) {
-      return res.status(400).json({ ok: false, error: result.error || 'Send failed' });
-    }
+    res.json(projectReport.getReports());
+  } catch (e) {
+    logger.error('GET /api/projects/reports:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/projects/reports', (req, res) => {
+  try {
+    const projectReport = require('./lib/projectReport.js');
+    const body = req.body || {};
+    const reports = projectReport.getReports();
+    const newReport = projectReport.normalizeReport({
+      id: projectReport.newReportId(),
+      name: body.name,
+      enabled: body.enabled,
+      schedule: body.schedule,
+      toEmail: body.toEmail,
+      projectIds: Array.isArray(body.projectIds) ? body.projectIds : [],
+      reportPrompt: body.reportPrompt
+    });
+    reports.push(newReport);
+    projectReport.persistReports(reports);
+    res.status(201).json(newReport);
+  } catch (e) {
+    logger.error('POST /api/projects/reports:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/projects/reports/:reportId', (req, res) => {
+  try {
+    const projectReport = require('./lib/projectReport.js');
+    const report = projectReport.getReports().find((r) => r.id === req.params.reportId);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    res.json(report);
+  } catch (e) {
+    logger.error('GET /api/projects/reports/:reportId:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/projects/reports/:reportId', (req, res) => {
+  try {
+    const projectReport = require('./lib/projectReport.js');
+    const body = req.body || {};
+    const reports = projectReport.getReports();
+    const idx = reports.findIndex((r) => r.id === req.params.reportId);
+    if (idx === -1) return res.status(404).json({ error: 'Report not found' });
+    const updated = projectReport.normalizeReport({ ...reports[idx], ...body, id: reports[idx].id });
+    reports[idx] = updated;
+    projectReport.persistReports(reports);
+    res.json(updated);
+  } catch (e) {
+    logger.error('PUT /api/projects/reports/:reportId:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/projects/reports/:reportId', (req, res) => {
+  try {
+    const projectReport = require('./lib/projectReport.js');
+    const reports = projectReport.getReports().filter((r) => r.id !== req.params.reportId);
+    if (reports.length === projectReport.getReports().length) return res.status(404).json({ error: 'Report not found' });
+    projectReport.persistReports(reports);
     res.json({ ok: true });
   } catch (e) {
-    logger.error('POST /api/projects/report-config/send:', e.message);
+    logger.error('DELETE /api/projects/reports/:reportId:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/projects/reports/:reportId/send', async (req, res) => {
+  try {
+    const projectReport = require('./lib/projectReport.js');
+    const result = await projectReport.sendReportNow(req.params.reportId);
+    if (!result.ok) return res.status(400).json(result);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/projects/reports/:reportId/send:', e.message);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
