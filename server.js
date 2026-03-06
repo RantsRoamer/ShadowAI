@@ -609,6 +609,12 @@ app.post('/api/skills/create', (req, res) => {
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
+app.get('/api/app-name', (req, res) => {
+  const c = getConfig();
+  const name = (c.ui && c.ui.appName != null && String(c.ui.appName).trim()) ? String(c.ui.appName).trim() : 'SHADOW_AI';
+  res.json({ appName: name });
+});
+
 app.get('/api/config', (req, res) => {
   const c = getConfig();
   // Never expose credentials — strip passwordHash and email.auth.pass
@@ -627,7 +633,7 @@ app.get('/api/config', (req, res) => {
       return safe;
     })(),
     channels: c.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } },
-    ui: c.ui || { showToolCalls: true, promptLibrary: true }
+    ui: c.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' }
   });
 });
 
@@ -712,7 +718,7 @@ app.put('/api/config', (req, res) => {
           return safe;
         })(),
         channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } },
-        ui: config.ui || { showToolCalls: true, promptLibrary: true }
+        ui: config.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' }
       }
     });
   } catch (e) {

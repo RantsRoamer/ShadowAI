@@ -61,6 +61,7 @@
     document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
     document.getElementById('discordAllowedUserIds').value = Array.isArray(ch.discord?.allowedUserIds) ? ch.discord.allowedUserIds.join(', ') : (ch.discord?.allowedUserIds ?? '');
     const ui = c.ui || {};
+    document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
     document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
     document.getElementById('promptLibrary').checked = ui.promptLibrary !== false;
   }
@@ -174,6 +175,7 @@
       email: getEmailFromDom(),
       channels: getChannelsFromDom(),
       ui: {
+        appName: (document.getElementById('appName').value || '').trim() || 'SHADOW_AI',
         showToolCalls: document.getElementById('showToolCalls').checked,
         promptLibrary: document.getElementById('promptLibrary').checked
       }
@@ -217,6 +219,7 @@
         document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
         document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
         const ui = c.ui || {};
+        document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
         document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
         document.getElementById('promptLibrary').checked = ui.promptLibrary !== false;
       }

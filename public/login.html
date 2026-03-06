@@ -10,8 +10,7 @@
   <link rel="stylesheet" href="/static/styles.css" />
   <style>
     .login-card { position: relative; }
-    .login-card::before {
-      content: 'SHADOW_AI';
+    .login-app-name {
       position: absolute;
       top: -12px;
       left: 50%;
@@ -26,6 +25,7 @@
 <body>
   <div class="page">
     <div class="card login-card">
+      <span id="loginAppName" class="login-app-name">SHADOW_AI</span>
       <h1>SYSTEM ACCESS</h1>
       <form id="loginForm">
         <div class="form-group">

@@ -22,3 +22,16 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     errEl.style.display = 'block';
   }
 });
+
+// Show configured app name on login page
+fetch('/api/app-name')
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (d) {
+    if (!d || !d.appName) return;
+    const name = String(d.appName).trim();
+    if (!name) return;
+    const el = document.getElementById('loginAppName');
+    if (el) el.textContent = name;
+    document.title = name.replace(/_/g, ' ') + ' — Login';
+  })
+  .catch(function () {});
