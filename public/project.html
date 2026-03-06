@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Project</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="stylesheet" href="/static/project.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/projects" class="logo">SHADOW_AI</a>
+      <span class="project-header-name" id="projectHeaderName">—</span>
+    </div>
+    <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/projects" class="nav-link">PROJECTS</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
+      <a href="/pipelines" class="nav-link">PIPELINES</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <a href="/editor" class="nav-link">EDITOR</a>
+      <button type="button" id="clearProjectChatBtn" class="btn btn-small" title="Clear project chat">CLEAR CHAT</button>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="project-main">
+    <div class="project-layout">
+      <aside class="project-sidebar">
+        <section class="project-section">
+          <h2>Project</h2>
+          <input type="text" id="projectNameInput" class="project-name-input" placeholder="Project name" />
+          <button type="button" id="saveProjectNameBtn" class="btn btn-small">Save name</button>
+        </section>
+        <section class="project-section">
+          <h2>Memory</h2>
+          <p class="project-hint">Notes and imported content. The AI uses only this for project answers.</p>
+          <textarea id="projectMemory" class="project-memory-editor" rows="12" placeholder="Add notes or import PDFs/images below…"></textarea>
+          <button type="button" id="saveMemoryBtn" class="btn btn-small">Save memory</button>
+          <span id="memoryStatus" class="project-status"></span>
+        </section>
+        <section class="project-section">
+          <h2>Import</h2>
+          <p class="project-hint">Add text or upload a PDF/image to extract content into project memory.</p>
+          <textarea id="importText" class="project-import-text" rows="3" placeholder="Paste text and click Import text…"></textarea>
+          <button type="button" id="importTextBtn" class="btn btn-small">Import text</button>
+          <div class="project-file-import">
+            <input type="file" id="importFileInput" accept=".pdf,image/*" aria-label="Upload PDF or image" />
+            <button type="button" id="importFileBtn" class="btn btn-small">Import PDF / image</button>
+          </div>
+          <span id="importStatus" class="project-status"></span>
+        </section>
+      </aside>
+      <div class="project-chat-wrap">
+        <div class="project-chat-toolbar">
+          <input type="text" id="messageSearch" class="message-search" placeholder="Search in messages…" aria-label="Search messages" />
+        </div>
+        <div id="messages" class="messages"></div>
+        <div class="input-area">
+          <div class="input-row">
+            <textarea id="userInput" rows="2" placeholder="Ask about this project…"></textarea>
+            <button type="button" id="sendBtn" class="btn send-btn">SEND</button>
+          </div>
+          <div class="input-hint">Answers use only this project’s memory. Add notes or import documents above.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/project.js"></script>
+</body>
+</html>

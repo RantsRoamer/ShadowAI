@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Projects</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/projects.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/dashboard" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
+      <a href="/app" class="nav-link">CHAT</a>
+      <span class="nav-link active">PROJECTS</span>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
+      <a href="/pipelines" class="nav-link">PIPELINES</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <a href="/editor" class="nav-link">EDITOR</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="projects-main">
+    <div class="projects-head">
+      <h1 class="projects-title">PROJECTS</h1>
+      <p class="projects-desc">Project-specific chats with isolated memory. Add notes, import PDFs and images; the AI answers only from this project’s context.</p>
+      <button type="button" id="newProjectBtn" class="btn">+ New project</button>
+    </div>
+    <ul id="projectList" class="project-list">
+      <li class="project-list-loading">Loading…</li>
+    </ul>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/projects.js"></script>
+</body>
+</html>

@@ -1,0 +1,93 @@
+.projects-main {
+  padding: 24px 32px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.projects-head {
+  margin-bottom: 28px;
+}
+
+.projects-title {
+  font-size: 1.4rem;
+  color: var(--text-bright);
+  margin: 0 0 8px 0;
+}
+
+.projects-desc {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.projects-head .btn {
+  margin-top: 8px;
+}
+
+.project-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.project-list-loading {
+  color: var(--text-dim);
+  padding: 16px 0;
+}
+
+.project-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.project-card:hover {
+  border-color: var(--green-mid);
+}
+
+.project-card a {
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--text-bright);
+}
+
+.project-card a:hover {
+  color: var(--green-bright);
+  text-decoration: none;
+}
+
+.project-card-name {
+  font-weight: 500;
+  margin: 0 0 4px 0;
+}
+
+.project-card-meta {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.project-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.project-card-actions .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.project-list-empty {
+  color: var(--text-dim);
+  padding: 32px 0;
+  text-align: center;
+}
