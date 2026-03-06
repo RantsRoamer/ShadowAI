@@ -782,7 +782,7 @@ app.put('/api/chat/history', (req, res) => {
 // Main chat endpoint (streaming + tool calls)
 // ---------------------------------------------------------------------------
 app.post('/api/chat', chatLimiter, async (req, res) => {
-  const { messages, agentId, stream: wantStream, chatId: bodyChatId, customInstructions, channelChatOwner } = req.body || {};
+  const { messages, agentId, stream: wantStream, chatId: bodyChatId, customInstructions, channelChatOwner, projectId: bodyProjectId } = req.body || {};
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' });
   }
@@ -803,23 +803,31 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   if (config.ollama.temperature != null && config.ollama.temperature !== '') ollamaOptions.temperature = Number(config.ollama.temperature);
   if (config.ollama.num_predict != null && config.ollama.num_predict !== '') ollamaOptions.num_predict = Number(config.ollama.num_predict);
   const isProjectChat = channelOwner && channelOwner.startsWith('project_');
-  const projectId = isProjectChat ? channelOwner.slice(7) : null;
-  // Build system prompt fresh each request so project memory is always current (import/drop/tool updates visible immediately)
+  // Use explicit projectId from body (same as Memory tab) so we always read the correct project's memory
+  const projectId = (isProjectChat && (bodyProjectId || channelOwner.slice(7)))
+    ? String(bodyProjectId || channelOwner.slice(7)).trim()
+    : null;
+  if (isProjectChat && projectId) {
+    const memPath = projectStore.getProjectMemoryPath(projectId);
+    const projectMemoryRaw = projectStore.readProjectMemory(projectId);
+    logger.info('[Project chat] projectId=%s path=%s memoryLength=%d', projectId, memPath || 'none', projectMemoryRaw ? projectMemoryRaw.length : 0);
+    if (!projectMemoryRaw || !projectMemoryRaw.trim()) {
+      logger.warn('[Project chat] memory empty for projectId=%s (file may be missing or empty: %s)', projectId, memPath || '');
+    }
+  }
+  // Build system prompt; for project chat we keep it short and inject memory as first user message so model reliably sees it
+  const projectMemoryContent = isProjectChat && projectId ? projectStore.readProjectMemory(projectId).trim() : '';
   const systemContent = isProjectChat && projectId
-    ? systemPrompt.buildProjectSystemPrompt(projectId, typeof customInstructions === 'string' ? customInstructions : '')
+    ? systemPrompt.buildProjectSystemPrompt(projectId, typeof customInstructions === 'string' ? customInstructions : '', !projectMemoryContent)
     : buildSystemPrompt(typeof customInstructions === 'string' ? customInstructions : '');
   const systemPromptMsg = {
     role: 'system',
     content: systemContent
   };
   let fullMessages = [systemPromptMsg, ...messages];
-  // Inject project memory as first user message so the model reliably sees it (some models underuse system prompt)
-  if (isProjectChat && projectId) {
-    const projectMemoryContent = projectStore.readProjectMemory(projectId).trim();
-    if (projectMemoryContent) {
-      const memoryBlock = 'Use the project memory below to answer the user\'s questions. Do not respond to this block—only to the user message(s) that follow.\n\n--- PROJECT MEMORY ---\n' + projectMemoryContent + '\n--- END PROJECT MEMORY ---';
-      fullMessages = [systemPromptMsg, { role: 'user', content: memoryBlock }, ...messages];
-    }
+  if (isProjectChat && projectId && projectMemoryContent) {
+    const memoryBlock = 'PROJECT MEMORY (use this to answer the user\'s questions that follow):\n\n---\n' + projectMemoryContent + '\n---\n\nNow answer the user\'s question using only the memory above.';
+    fullMessages = [systemPromptMsg, { role: 'user', content: memoryBlock }, ...messages];
   }
 
   if (wantStream !== false) {
