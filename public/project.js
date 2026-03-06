@@ -218,6 +218,7 @@
           messages: history,
           stream: true,
           channelChatOwner: channelOwner,
+          projectId: projectId,
           chatId: currentChatId
         })
       });
