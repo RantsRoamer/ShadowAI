@@ -1,7 +1,10 @@
 FROM node:20-alpine
 
 # Python is needed for /run py code execution
-RUN apk add --no-cache python3
+# tzdata ensures the container can use a real timezone database. When you
+# mount /etc/localtime (and optionally /etc/timezone) from the host or set
+# TZ=... at runtime, the container's local time will match the host.
+RUN apk add --no-cache python3 tzdata
 
 WORKDIR /app
 

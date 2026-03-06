@@ -9,6 +9,10 @@ services:
     volumes:
       # Persistent data: chat histories, personality.md, memory.md, and config.json
       - shadowai-data:/app/data
+      # Use the host's timezone inside the container (Linux hosts).
+      # Comment these two lines out on Docker Desktop if /etc/localtime or /etc/timezone do not exist.
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     environment:
       # --- Ollama ---
       # Point to your Ollama instance.
