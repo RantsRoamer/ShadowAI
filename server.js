@@ -812,7 +812,15 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     role: 'system',
     content: systemContent
   };
-  const fullMessages = [systemPromptMsg, ...messages];
+  let fullMessages = [systemPromptMsg, ...messages];
+  // Inject project memory as first user message so the model reliably sees it (some models underuse system prompt)
+  if (isProjectChat && projectId) {
+    const projectMemoryContent = projectStore.readProjectMemory(projectId).trim();
+    if (projectMemoryContent) {
+      const memoryBlock = 'Use the project memory below to answer the user\'s questions. Do not respond to this block—only to the user message(s) that follow.\n\n--- PROJECT MEMORY ---\n' + projectMemoryContent + '\n--- END PROJECT MEMORY ---';
+      fullMessages = [systemPromptMsg, { role: 'user', content: memoryBlock }, ...messages];
+    }
+  }
 
   if (wantStream !== false) {
     res.setHeader('Content-Type', 'text/event-stream');
