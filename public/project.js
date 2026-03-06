@@ -9,14 +9,14 @@
   const projectHeaderName = document.getElementById('projectHeaderName');
   const projectNameInput = document.getElementById('projectNameInput');
   const saveProjectNameBtn = document.getElementById('saveProjectNameBtn');
+  const projectNameStatus = document.getElementById('projectNameStatus');
+  const chatTab = document.getElementById('chatTab');
+  const memoryTab = document.getElementById('memoryTab');
+  const chatPanel = document.getElementById('chatPanel');
+  const memoryPanel = document.getElementById('memoryPanel');
   const projectMemory = document.getElementById('projectMemory');
   const saveMemoryBtn = document.getElementById('saveMemoryBtn');
   const memoryStatus = document.getElementById('memoryStatus');
-  const importText = document.getElementById('importText');
-  const importTextBtn = document.getElementById('importTextBtn');
-  const importFileInput = document.getElementById('importFileInput');
-  const importFileBtn = document.getElementById('importFileBtn');
-  const importStatus = document.getElementById('importStatus');
   const messagesEl = document.getElementById('messages');
   const userInput = document.getElementById('userInput');
   const sendBtn = document.getElementById('sendBtn');
@@ -115,9 +115,28 @@
       .then(p => {
         projectData = p;
         projectHeaderName.textContent = p.name || 'Project';
-        showStatus(memoryStatus, 'Name saved.', 2000);
+        showStatus(projectNameStatus, 'Name saved.', 2000);
       })
-      .catch(() => showStatus(memoryStatus, 'Failed to save name.', 3000));
+      .catch(() => showStatus(projectNameStatus, 'Failed to save name.', 3000));
+  });
+
+  chatTab.addEventListener('click', () => {
+    chatTab.classList.add('active');
+    chatTab.setAttribute('aria-selected', 'true');
+    memoryTab.classList.remove('active');
+    memoryTab.setAttribute('aria-selected', 'false');
+    chatPanel.classList.remove('hidden');
+    memoryPanel.classList.add('hidden');
+  });
+
+  memoryTab.addEventListener('click', () => {
+    memoryTab.classList.add('active');
+    memoryTab.setAttribute('aria-selected', 'true');
+    chatTab.classList.remove('active');
+    chatTab.setAttribute('aria-selected', 'false');
+    memoryPanel.classList.remove('hidden');
+    chatPanel.classList.add('hidden');
+    loadMemory();
   });
 
   saveMemoryBtn.addEventListener('click', () => {
@@ -131,52 +150,6 @@
         else throw new Error();
       })
       .catch(() => showStatus(memoryStatus, 'Failed to save.', 3000));
-  });
-
-  importTextBtn.addEventListener('click', () => {
-    const text = (importText.value || '').trim();
-    if (!text) { showStatus(importStatus, 'Paste some text first.', 3000); return; }
-    fetch('/api/projects/' + encodeURIComponent(projectId) + '/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'text', text })
-    })
-      .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error))))
-      .then(() => {
-        showStatus(importStatus, 'Text imported. Reload memory to see it.', 3000);
-        loadMemory();
-        importText.value = '';
-      })
-      .catch(e => showStatus(importStatus, e.message || 'Import failed.', 4000));
-  });
-
-  importFileBtn.addEventListener('click', () => {
-    const file = importFileInput.files && importFileInput.files[0];
-    if (!file) { showStatus(importStatus, 'Choose a PDF or image file.', 3000); return; }
-    const type = file.type.startsWith('image/') ? 'image' : (file.type === 'application/pdf' ? 'pdf' : null);
-    if (!type) { showStatus(importStatus, 'Use a PDF or image file.', 3000); return; }
-    showStatus(importStatus, 'Importing…', 0);
-    const reader = new FileReader();
-    reader.onload = () => {
-      let content = reader.result;
-      if (typeof content === 'string' && content.startsWith('data:')) {
-        const base64 = content.replace(/^data:[^;]+;base64,/, '');
-        content = base64;
-      }
-      fetch('/api/projects/' + encodeURIComponent(projectId) + '/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, content, filename: file.name || (type === 'pdf' ? 'document.pdf' : 'image') })
-      })
-        .then(r => r.ok ? r.json() : r.json().then(j => Promise.reject(new Error(j.error))))
-        .then(() => {
-          showStatus(importStatus, type === 'pdf' ? 'PDF text imported.' : 'Image described and imported.', 3000);
-          loadMemory();
-          importFileInput.value = '';
-        })
-        .catch(e => showStatus(importStatus, e.message || 'Import failed.', 4000));
-    };
-    reader.readAsDataURL(file);
   });
 
   function setProcessing(processing) {
@@ -198,6 +171,27 @@
   function updateTypingText(text) {
     const el = document.querySelector('#project-typing .typing-text');
     if (el) el.textContent = text;
+  }
+
+  function addImportProcessingIndicator(label) {
+    removeImportProcessingIndicator();
+    const div = document.createElement('div');
+    div.className = 'typing-indicator';
+    div.id = 'project-import-typing';
+    div.innerHTML = '<div class="typing-meta">Import</div><div class="typing-content"><span class="typing-spinner"></span><span class="typing-text">' + escapeHtml(label || 'Adding to memory…') + '</span><span class="typing-dots"></span></div>';
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function updateImportProcessingText(text) {
+    const el = document.querySelector('#project-import-typing .typing-text');
+    if (el) el.textContent = text || 'Adding to memory…';
+  }
+
+  function removeImportProcessingIndicator() {
+    const el = document.getElementById('project-import-typing');
+    if (el) el.remove();
   }
 
   sendBtn.addEventListener('click', sendMessage);
@@ -292,18 +286,32 @@
   }
 
   clearProjectChatBtn.addEventListener('click', () => {
-    if (!confirm('Clear this project’s chat history?')) return;
-    fetch('/api/chat/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: channelOwner })
-    })
-      .then(() => {
+    if (!confirm('Clear this project’s chat history? Current project memory will be saved first, then only the conversation is cleared.')) return;
+    fetch('/api/projects/' + encodeURIComponent(projectId) + '/memory')
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('Could not load memory')))
+      .then(data =>
+        fetch('/api/projects/' + encodeURIComponent(projectId) + '/memory', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: data.content || '' })
+        })
+      )
+      .then(r => {
+        if (!r.ok) throw new Error('Save memory failed');
+        return fetch('/api/chat/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: channelOwner })
+        });
+      })
+      .then(r => {
+        if (!r.ok) throw new Error('Clear chat failed');
         history = [];
         currentChatId = null;
         messagesEl.innerHTML = '';
+        loadMemory();
       })
-      .catch(() => {});
+      .catch(e => alert(e.message || 'Something went wrong.'));
   });
 
   messageSearch.addEventListener('input', () => {
@@ -387,13 +395,22 @@
       chatDropZone.classList.remove('drag-over');
       const files = e.dataTransfer && e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
       if (files.length === 0) return;
-      for (const file of files) {
-        const type = getImportType(file);
-        if (!type) {
-          history.push({ role: 'assistant', content: 'Skipped **' + escapeHtml(file.name) + '**: unsupported type. Use PDF, image, or text.' });
-          addMessage('assistant', 'Skipped **' + file.name + '**: unsupported type. Use PDF, image, or text.');
-          continue;
-        }
+      const toProcess = files.filter(f => getImportType(f));
+      const skipped = files.filter(f => !getImportType(f));
+      skipped.forEach(file => {
+        history.push({ role: 'assistant', content: 'Skipped **' + escapeHtml(file.name) + '**: unsupported type. Use PDF, image, or text.' });
+        addMessage('assistant', 'Skipped **' + file.name + '**: unsupported type. Use PDF, image, or text.');
+      });
+      if (toProcess.length === 0) {
+        saveChatHistory();
+        return;
+      }
+      for (let i = 0; i < toProcess.length; i++) {
+        const file = toProcess[i];
+        const label = toProcess.length > 1
+          ? 'Adding to memory (' + (i + 1) + ' of ' + toProcess.length + '): ' + (file.name || 'file')
+          : 'Processing ' + (file.name || 'file') + '…';
+        addImportProcessingIndicator(label);
         try {
           const result = await handleDroppedFile(file);
           if (result.ok) {
@@ -410,6 +427,8 @@
           addMessage('assistant', 'Error adding **' + file.name + '**: ' + err.message);
         }
       }
+      removeImportProcessingIndicator();
+      loadMemory();
       saveChatHistory();
     });
   }
