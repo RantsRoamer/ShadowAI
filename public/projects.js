@@ -247,18 +247,30 @@
     const btn = card && card.querySelector('.report-send');
     if (btn) btn.disabled = true;
     fetch('/api/projects/reports/' + encodeURIComponent(reportId) + '/send', { method: 'POST' })
-      .then(r => r.json().then(data => ({ ok: r.ok, data })))
-      .then(({ ok, data }) => {
+      .then(function (r) {
+        const contentType = (r.headers.get('content-type') || '').toLowerCase();
+        if (contentType.indexOf('application/json') !== -1) {
+          return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; });
+        }
+        return r.text().then(function (text) {
+          return { ok: false, status: r.status, data: { error: text || 'Server returned non-JSON (status ' + r.status + ')' } };
+        });
+      })
+      .then(function (result) {
         if (btn) btn.disabled = false;
-        if (ok && data.ok) {
+        var ok = result.ok && result.data && result.data.ok;
+        if (ok) {
           loadReports();
         } else {
-          alert(data.error || 'Send failed.');
+          var err = (result.data && result.data.error) ? result.data.error : ('Request failed (HTTP ' + (result.status || '') + ').');
+          if (result.data && result.data.code) err += ' [Code: ' + result.data.code + ']';
+          alert(err);
         }
       })
-      .catch(() => {
+      .catch(function (err) {
         if (btn) btn.disabled = false;
-        alert('Request failed.');
+        var msg = (err && (err.message || String(err))) || 'Network or request error.';
+        alert('Send report request failed: ' + msg + '\n\nIf the report takes a long time to generate, it may still have been sent—check your inbox.');
       });
   }
 

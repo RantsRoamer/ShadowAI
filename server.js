@@ -317,14 +317,22 @@ app.delete('/api/projects/reports/:reportId', (req, res) => {
 });
 
 app.post('/api/projects/reports/:reportId/send', async (req, res) => {
+  const reportId = req.params.reportId;
   try {
     const projectReport = require('./lib/projectReport.js');
-    const result = await projectReport.sendReportNow(req.params.reportId);
-    if (!result.ok) return res.status(400).json(result);
-    res.json({ ok: true });
+    const result = await projectReport.sendReportNow(reportId);
+    if (!result.ok) {
+      return res.status(400).json({ ok: false, error: result.error || 'Send failed.', code: 'REPORT_SEND_FAILED' });
+    }
+    return res.json({ ok: true });
   } catch (e) {
-    logger.error('POST /api/projects/reports/:reportId/send:', e.message);
-    res.status(500).json({ ok: false, error: e.message });
+    const msg = e && (e.message || String(e));
+    logger.error('POST /api/projects/reports/:reportId/send', reportId, ':', msg);
+    return res.status(500).json({
+      ok: false,
+      error: msg || 'Server error while sending report.',
+      code: 'REPORT_SEND_ERROR'
+    });
   }
 });
 
