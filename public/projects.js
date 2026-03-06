@@ -248,29 +248,43 @@
     if (btn) btn.disabled = true;
     fetch('/api/projects/reports/' + encodeURIComponent(reportId) + '/send', { method: 'POST' })
       .then(function (r) {
+        const status = r.status;
         const contentType = (r.headers.get('content-type') || '').toLowerCase();
         if (contentType.indexOf('application/json') !== -1) {
-          return r.json().then(function (data) { return { ok: r.ok, status: r.status, data: data }; });
+          return r.text().then(function (body) {
+            var data;
+            try {
+              data = body ? JSON.parse(body) : {};
+            } catch (e) {
+              return { ok: false, status: status, data: { error: 'Invalid JSON from server (HTTP ' + status + '): ' + (e && e.message ? e.message : String(e)), code: 'PARSE_ERROR' } };
+            }
+            return { ok: r.ok, status: status, data: data };
+          });
         }
         return r.text().then(function (text) {
-          return { ok: false, status: r.status, data: { error: text || 'Server returned non-JSON (status ' + r.status + ')' } };
+          return { ok: false, status: status, data: { error: (text && text.trim()) ? text : 'Server returned non-JSON (HTTP ' + status + ')' } };
         });
       })
       .then(function (result) {
         if (btn) btn.disabled = false;
-        var ok = result.ok && result.data && result.data.ok;
+        var ok = result && result.ok && result.data && result.data.ok;
         if (ok) {
           loadReports();
         } else {
-          var err = (result.data && result.data.error) ? result.data.error : ('Request failed (HTTP ' + (result.status || '') + ').');
-          if (result.data && result.data.code) err += ' [Code: ' + result.data.code + ']';
-          alert(err);
+          var status = (result && result.status) ? result.status : '?';
+          var err = (result && result.data && result.data.error && String(result.data.error).trim()) ? result.data.error : 'No error message from server.';
+          var line = 'HTTP ' + status + ': ' + err;
+          if (result && result.data && result.data.code) line += ' [Code: ' + result.data.code + ']';
+          console.error('[Projects] Send report failed:', line, result);
+          alert(line);
         }
       })
       .catch(function (err) {
         if (btn) btn.disabled = false;
-        var msg = (err && (err.message || String(err))) || 'Network or request error.';
-        alert('Send report request failed: ' + msg + '\n\nIf the report takes a long time to generate, it may still have been sent—check your inbox.');
+        var msg = (err && (err.message || err.name || String(err))) || 'Unknown error';
+        if (err && err.message === '' && err.name) msg = err.name + ' (no message)';
+        console.error('[Projects] Send report request error:', err);
+        alert('Send report failed (network or client error): ' + msg + '\n\nIf the report takes a long time to generate, it may still have been sent—check your inbox.');
       });
   }
 
