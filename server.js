@@ -614,6 +614,7 @@ app.get('/api/config', (req, res) => {
   // Never expose credentials — strip passwordHash and email.auth.pass
   res.json({
     server: c.server,
+    timezone: c.timezone || '',
     auth: { username: c.auth.username },
     ollama: c.ollama,
     heartbeat: c.heartbeat || [],
@@ -677,6 +678,9 @@ app.put('/api/config', (req, res) => {
     if (updates.ui && typeof updates.ui === 'object') {
       config.ui = { ...(config.ui || {}), ...updates.ui };
     }
+    if (typeof updates.timezone === 'string') {
+      config.timezone = updates.timezone.trim();
+    }
     if (updates.channels && typeof updates.channels === 'object') {
       config.channels = {
         apiKey: updates.channels.apiKey !== undefined ? String(updates.channels.apiKey) : (config.channels && config.channels.apiKey) || '',
@@ -695,6 +699,7 @@ app.put('/api/config', (req, res) => {
       ok: true,
       config: {
         server: config.server,
+        timezone: config.timezone || '',
         auth: { username: config.auth.username },
         ollama: config.ollama,
         heartbeat: config.heartbeat || [],

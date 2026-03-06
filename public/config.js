@@ -1,6 +1,7 @@
 (function () {
   const hostEl = document.getElementById('host');
   const portEl = document.getElementById('port');
+  const timezoneEl = document.getElementById('timezone');
   const usernameEl = document.getElementById('username');
   const passwordEl = document.getElementById('password');
   const mainUrlEl = document.getElementById('mainUrl');
@@ -33,6 +34,7 @@
     const c = await res.json();
     hostEl.value = c.server?.host ?? '0.0.0.0';
     portEl.value = c.server?.port ?? 9090;
+    timezoneEl.value = c.timezone ?? '';
     usernameEl.value = c.auth?.username ?? 'admin';
     mainUrlEl.value = c.ollama?.mainUrl ?? 'http://localhost:11434';
     mainModelEl.value = c.ollama?.mainModel ?? 'llama3.2';
@@ -157,6 +159,7 @@
         host: hostEl.value.trim() || '0.0.0.0',
         port: Math.max(1, Math.min(65535, parseInt(portEl.value, 10) || 9090))
       },
+      timezone: timezoneEl.value.trim() || '',
       auth: auth,
       ollama: {
         mainUrl: mainUrlEl.value.trim() || 'http://localhost:11434',
@@ -189,6 +192,7 @@
         const c = data.config;
         hostEl.value = c.server?.host ?? '0.0.0.0';
         portEl.value = c.server?.port ?? 9090;
+        timezoneEl.value = c.timezone ?? '';
         usernameEl.value = c.auth?.username ?? 'admin';
         mainUrlEl.value = c.ollama?.mainUrl ?? 'http://localhost:11434';
         mainModelEl.value = c.ollama?.mainModel ?? 'llama3.2';
