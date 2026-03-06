@@ -363,7 +363,23 @@ app.post('/api/projects/:id/import', async (req, res) => {
       }
       return res.json({ ok: true });
     }
-    return res.status(400).json({ error: 'type must be text, pdf, or image' });
+    if (type === 'docx') {
+      const content = req.body?.content;
+      if (content == null) return res.status(400).json({ error: 'content (base64) required for Word document' });
+      const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content, 'base64');
+      result = await projectImport.importDocx(projectId, buffer, filename || 'document.docx');
+      if (!result.ok) return res.status(400).json({ error: result.error || 'Import failed' });
+      if (summarize && result.content) {
+        const summary = await projectImport.summarizeContent(result.content);
+        if (summary) {
+          const sectionTitle = filename ? `Summary: ${filename}` : 'Summary';
+          projectStore.appendProjectMemory(projectId, summary, sectionTitle);
+        }
+        return res.json({ ok: true, chars: result.chars, summary: summary || null });
+      }
+      return res.json({ ok: true, chars: result.chars });
+    }
+    return res.status(400).json({ error: 'type must be text, pdf, image, or docx' });
   } catch (e) {
     logger.error('POST /api/projects/:id/import:', e.message);
     res.status(500).json({ error: e.message });
