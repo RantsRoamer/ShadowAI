@@ -314,26 +314,52 @@ app.post('/api/projects/:id/import', async (req, res) => {
     if (!project) return res.status(404).json({ error: 'Project not found' });
     const type = (req.body && req.body.type) ? String(req.body.type).toLowerCase() : '';
     const filename = (req.body && req.body.filename != null) ? String(req.body.filename).trim() : '';
+    const summarize = !!(req.body && req.body.summarize);
 
+    let result;
     if (type === 'text') {
       const text = req.body?.text != null ? String(req.body.text) : '';
-      const result = projectImport.importText(projectId, text, req.body?.sectionTitle ? String(req.body.sectionTitle) : null);
+      result = projectImport.importText(projectId, text, req.body?.sectionTitle ? String(req.body.sectionTitle) : null);
       if (!result.ok) return res.status(400).json({ error: result.error || 'Import failed' });
+      if (summarize && result.content) {
+        const summary = await projectImport.summarizeContent(result.content);
+        if (summary) {
+          const sectionTitle = filename ? `Summary: ${filename}` : 'Summary';
+          projectStore.appendProjectMemory(projectId, summary, sectionTitle);
+        }
+        return res.json({ ok: true, summary: summary || null });
+      }
       return res.json({ ok: true });
     }
     if (type === 'pdf') {
       const content = req.body?.content;
       if (content == null) return res.status(400).json({ error: 'content (base64) required for PDF' });
       const buffer = Buffer.isBuffer(content) ? content : Buffer.from(content, 'base64');
-      const result = await projectImport.importPdf(projectId, buffer, filename || 'document.pdf');
+      result = await projectImport.importPdf(projectId, buffer, filename || 'document.pdf');
       if (!result.ok) return res.status(400).json({ error: result.error || 'Import failed' });
+      if (summarize && result.content) {
+        const summary = await projectImport.summarizeContent(result.content);
+        if (summary) {
+          const sectionTitle = filename ? `Summary: ${filename}` : 'Summary';
+          projectStore.appendProjectMemory(projectId, summary, sectionTitle);
+        }
+        return res.json({ ok: true, chars: result.chars, summary: summary || null });
+      }
       return res.json({ ok: true, chars: result.chars });
     }
     if (type === 'image') {
       const content = req.body?.content;
       if (content == null) return res.status(400).json({ error: 'content (base64 or data URL) required for image' });
-      const result = await projectImport.importImage(projectId, content, filename || 'image');
+      result = await projectImport.importImage(projectId, content, filename || 'image');
       if (!result.ok) return res.status(400).json({ error: result.error || 'Import failed' });
+      if (summarize && result.content) {
+        const summary = await projectImport.summarizeContent(result.content);
+        if (summary) {
+          const sectionTitle = filename ? `Summary: ${filename}` : 'Summary';
+          projectStore.appendProjectMemory(projectId, summary, sectionTitle);
+        }
+        return res.json({ ok: true, summary: summary || null });
+      }
       return res.json({ ok: true });
     }
     return res.status(400).json({ error: 'type must be text, pdf, or image' });
@@ -777,6 +803,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   if (config.ollama.num_predict != null && config.ollama.num_predict !== '') ollamaOptions.num_predict = Number(config.ollama.num_predict);
   const isProjectChat = channelOwner && channelOwner.startsWith('project_');
   const projectId = isProjectChat ? channelOwner.slice(7) : null;
+  // Build system prompt fresh each request so project memory is always current (import/drop/tool updates visible immediately)
   const systemContent = isProjectChat && projectId
     ? systemPrompt.buildProjectSystemPrompt(projectId, typeof customInstructions === 'string' ? customInstructions : '')
     : buildSystemPrompt(typeof customInstructions === 'string' ? customInstructions : '');
@@ -885,7 +912,24 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           }
         }
       };
-      const tools = [appendMemoryTool, getMemoryTool, setMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : []), ...skillTools, ...getSchedulerToolDefinitions()];
+      const appendProjectMemoryTool = (isProjectChat && projectId) ? {
+        type: 'function',
+        function: {
+          name: 'append_project_memory',
+          description: 'Save important information to this project\'s memory (project memory file). Use when the user shares facts, decisions, dates, contacts, or requirements they want remembered for this project.',
+          parameters: {
+            type: 'object',
+            required: ['text'],
+            properties: {
+              text: { type: 'string', description: 'The information to save (e.g. "Launch date: March 2025")' },
+              sectionTitle: { type: 'string', description: 'Optional section heading (e.g. "Key dates")' }
+            }
+          }
+        }
+      } : null;
+      const tools = isProjectChat && projectId
+        ? [appendProjectMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : [])]
+        : [appendMemoryTool, getMemoryTool, setMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : []), ...skillTools, ...getSchedulerToolDefinitions()];
 
       if (tools.length > 0) {
         let messagesForOllama = [...fullMessages];
@@ -924,6 +968,11 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                 const text = args.text != null ? String(args.text).trim() : '';
                 if (text) personalityLib.appendMemory(text);
                 content = text ? 'Saved to memory.' : 'No text provided.';
+              } else if (name === 'append_project_memory' && projectId) {
+                const text = args.text != null ? String(args.text).trim() : '';
+                const sectionTitle = args.sectionTitle != null ? String(args.sectionTitle).trim() : null;
+                if (text) projectStore.appendProjectMemory(projectId, text, sectionTitle || undefined);
+                content = text ? 'Saved to project memory.' : 'No text provided.';
               } else if (name === 'web_search') {
                 const query = args.query != null ? String(args.query).trim() : '';
                 if (!query) content = 'No query provided.';
