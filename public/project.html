@@ -62,7 +62,8 @@
           <span id="importStatus" class="project-status"></span>
         </section>
       </aside>
-      <div class="project-chat-wrap">
+      <div class="project-chat-wrap" id="chatDropZone">
+        <div class="project-chat-drop-hint" id="chatDropHint" aria-hidden="true">Drop file to add to project memory (PDF, image, or text)</div>
         <div class="project-chat-toolbar">
           <input type="text" id="messageSearch" class="message-search" placeholder="Search in messages…" aria-label="Search messages" />
         </div>
@@ -72,7 +73,7 @@
             <textarea id="userInput" rows="2" placeholder="Ask about this project…"></textarea>
             <button type="button" id="sendBtn" class="btn send-btn">SEND</button>
           </div>
-          <div class="input-hint">Answers use only this project’s memory. Add notes or import documents above.</div>
+          <div class="input-hint">Answers use only this project’s memory. Add notes or import above, or drop files here.</div>
         </div>
       </div>
     </div>

@@ -87,6 +87,30 @@
   flex-direction: column;
   min-width: 0;
   background: var(--bg-dark);
+  position: relative;
+}
+
+.project-chat-wrap.drag-over {
+  outline: 2px dashed var(--green-bright);
+  outline-offset: -4px;
+  background: var(--green-dim);
+}
+
+.project-chat-drop-hint {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--green-bright);
+  font-size: 14px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.project-chat-wrap.drag-over .project-chat-drop-hint {
+  display: flex;
 }
 
 .project-chat-wrap .messages {
