@@ -1069,9 +1069,27 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           }
         }
       } : null;
+      // Common tools (web search, URL fetch, email, skills, scheduler)
+      const commonTools = [
+        ...(webSearchTool ? [webSearchTool] : []),
+        fetchUrlTool,
+        ...(sendEmailTool ? [sendEmailTool] : []),
+        ...skillTools,
+        ...getSchedulerToolDefinitions()
+      ];
+      // For normal chats: allow global memory tools + skills
+      // For project chats: allow project-specific memory tool + skills (no global memory tools to keep isolation)
       const tools = isProjectChat && projectId
-        ? [appendProjectMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : [])]
-        : [appendMemoryTool, getMemoryTool, setMemoryTool, ...(webSearchTool ? [webSearchTool] : []), fetchUrlTool, ...(sendEmailTool ? [sendEmailTool] : []), ...skillTools, ...getSchedulerToolDefinitions()];
+        ? [
+            ...(appendProjectMemoryTool ? [appendProjectMemoryTool] : []),
+            ...commonTools
+          ]
+        : [
+            appendMemoryTool,
+            getMemoryTool,
+            setMemoryTool,
+            ...commonTools
+          ];
 
       if (tools.length > 0) {
         let messagesForOllama = [...fullMessages];
