@@ -116,14 +116,6 @@
   font-style: italic;
 }
 
-.quick-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 4px 0 2px;
-}
-.quick-actions .btn { padding: 8px 16px; font-size: 12px; }
-
 .dash-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
