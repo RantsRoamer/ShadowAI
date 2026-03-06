@@ -181,3 +181,46 @@
   color: var(--text-dim);
   margin-left: 8px;
 }
+
+/* Mobile-friendly layout for project page */
+@media (max-width: 768px) {
+  .project-main {
+    height: auto;
+    min-height: calc(100vh - 56px);
+  }
+  .project-layout {
+    flex-direction: column;
+  }
+  .project-sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 12px 10px 12px;
+  }
+  .project-content-wrap {
+    padding: 0 12px 12px 12px;
+  }
+  .project-tabs {
+    overflow-x: auto;
+  }
+  .project-tab {
+    flex: 1 0 auto;
+    text-align: center;
+    padding: 10px 12px;
+  }
+  .project-chat-wrap .messages {
+    padding: 10px 8px;
+  }
+  .project-chat-wrap .input-area {
+    padding: 10px 8px 12px 8px;
+  }
+  .project-memory-panel {
+    padding: 12px 0 0 0;
+  }
+  .project-memory-editor {
+    min-height: 160px;
+  }
+}*** End Patch```} />
+]}/>
+} */
