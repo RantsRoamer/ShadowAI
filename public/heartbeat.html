@@ -29,12 +29,17 @@
       <a href="/projects" class="nav-link">PROJECTS</a>
       <a href="/skills" class="nav-link">SKILLS</a>
       <a href="/rag" class="nav-link">KNOWLEDGE</a>
-      <a href="/config" class="nav-link">CONFIG</a>
-      <a href="/personality" class="nav-link">PERSONALITY</a>
-      <span class="nav-link active">HEARTBEAT</span>
-      <a href="/agents" class="nav-link">AGENTS</a>
-      <a href="/pipelines" class="nav-link">PIPELINES</a>
-      <a href="/users" class="nav-link">USERS</a>
+      <div class="nav-dropdown">
+        <span class="nav-link nav-dropdown-toggle has-active">SYSTEM</span>
+        <div class="nav-dropdown-menu">
+          <a href="/config" class="nav-link">CONFIG</a>
+          <a href="/personality" class="nav-link">PERSONALITY</a>
+          <span class="nav-link active">HEARTBEAT</span>
+          <a href="/agents" class="nav-link">AGENTS</a>
+          <a href="/pipelines" class="nav-link">PIPELINES</a>
+          <a href="/users" class="nav-link">USERS</a>
+        </div>
+      </div>
       <a href="/editor" class="nav-link">EDITOR</a>
       <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
     </nav>

@@ -175,6 +175,58 @@ input:focus, textarea:focus, select:focus {
 .header-nav .nav-link.active:hover { text-decoration: none; }
 .header-nav .btn-small { padding: 6px 12px; font-size: 12px; }
 
+/* Dropdown nav group (SYSTEM) */
+.nav-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.nav-dropdown-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+.nav-dropdown-toggle::after {
+  content: ' ▾';
+  font-size: 10px;
+}
+.nav-dropdown-toggle.has-active {
+  color: var(--green-bright);
+  font-weight: 500;
+}
+.nav-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  min-width: 150px;
+  z-index: 200;
+  flex-direction: column;
+  padding: 4px 0;
+}
+.nav-dropdown:hover .nav-dropdown-menu,
+.nav-dropdown.open .nav-dropdown-menu {
+  display: flex;
+}
+.nav-dropdown-menu .nav-link {
+  padding: 8px 16px;
+  display: block;
+  white-space: nowrap;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.nav-dropdown-menu a.nav-link:hover {
+  background: var(--green-dim);
+  text-decoration: none;
+}
+.nav-dropdown-menu .nav-link.active {
+  color: var(--green-bright);
+  cursor: default;
+  font-weight: 500;
+}
+
 /* Mobile-friendly header and nav */
 @media (max-width: 768px) {
   .app-header {
