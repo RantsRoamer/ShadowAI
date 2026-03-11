@@ -709,6 +709,54 @@
       onRunCommandDone();
       return true;
     }
+    if (trim.startsWith('/rag ')) {
+      const query = trim.slice(5).trim();
+      if (!query) {
+        addMessage('assistant', 'Usage: /rag &lt;query&gt; — runs a retrieval search against the knowledge index. You can also start a normal message with #rag to include retrieval context in the answer.', true);
+        return true;
+      }
+      const scope = currentChannelOwner && currentChannelOwner.indexOf('project_') === 0 ? 'project' : 'global';
+      const body = {
+        scope: scope,
+        query: query
+      };
+      if (scope === 'project' && currentProjectId) body.projectId = currentProjectId;
+      try {
+        const res = await fetch('/api/rag/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          addMessage('assistant', data.error || 'RAG query failed.', true);
+          return true;
+        }
+        const results = Array.isArray(data.results) ? data.results : [];
+        if (results.length === 0) {
+          addMessage('assistant', 'No RAG results found for: ' + query);
+          history.push({ role: 'assistant', content: 'No RAG results found for: ' + query });
+        } else {
+          const lines = [];
+          lines.push('RAG results for: ' + query);
+          lines.push('');
+          results.forEach(function (r, idx) {
+            lines.push((idx + 1) + '. (score ' + (typeof r.score === 'number' ? r.score.toFixed(3) : '—') + ')');
+            if (r.source) lines.push('   Source: ' + r.source);
+            lines.push('   ' + (r.text || '').trim());
+            lines.push('');
+          });
+          const text = lines.join('\n').trim();
+          addMessage('assistant', text);
+          history.push({ role: 'assistant', content: text });
+        }
+        saveChatHistory();
+        onRunCommandDone();
+      } catch (e) {
+        addMessage('assistant', e.message || 'RAG query failed.', true);
+      }
+      return true;
+    }
     if (trim === '/reset' || trim.startsWith('/reset ')) {
       clearChat();
       addMessage('assistant', 'Conversation cleared. Starting from scratch.');

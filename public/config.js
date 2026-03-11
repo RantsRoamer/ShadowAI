@@ -14,6 +14,11 @@
   const avatarFileInput = document.getElementById('aiAvatarFile');
   const avatarRemoveBtn = document.getElementById('aiAvatarRemove');
   const avatarStatusEl = document.getElementById('avatarStatus');
+  const ragEmbeddingModelEl = document.getElementById('ragEmbeddingModel');
+  const ragChunkSizeEl = document.getElementById('ragChunkSize');
+  const ragChunkOverlapEl = document.getElementById('ragChunkOverlap');
+  const ragCollectionNameEl = document.getElementById('ragCollectionName');
+  const ragTopKEl = document.getElementById('ragTopK');
 
   document.querySelectorAll('.config-tab').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -80,6 +85,12 @@
     document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
     document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
     document.getElementById('promptLibrary').checked = ui.promptLibrary !== false;
+    const rag = c.rag || {};
+    if (ragEmbeddingModelEl) ragEmbeddingModelEl.value = rag.embeddingModel ?? 'nomic-embed-text';
+    if (ragChunkSizeEl) ragChunkSizeEl.value = rag.chunkSize ?? 800;
+    if (ragChunkOverlapEl) ragChunkOverlapEl.value = rag.chunkOverlap ?? 200;
+    if (ragCollectionNameEl) ragCollectionNameEl.value = rag.collectionName ?? 'shadowai';
+    if (ragTopKEl) ragTopKEl.value = rag.topK ?? 8;
     refreshAvatarPreview();
   }
   function toggleEmailAuth() {
@@ -164,6 +175,16 @@
       setStatus(e.message, true);
     }
   });
+
+  function getRagFromDom() {
+    return {
+      embeddingModel: ragEmbeddingModelEl ? (ragEmbeddingModelEl.value || '').trim() || 'nomic-embed-text' : 'nomic-embed-text',
+      chunkSize: ragChunkSizeEl ? (parseInt(ragChunkSizeEl.value, 10) || 800) : 800,
+      chunkOverlap: ragChunkOverlapEl ? (parseInt(ragChunkOverlapEl.value, 10) || 200) : 200,
+      collectionName: ragCollectionNameEl ? (ragCollectionNameEl.value || '').trim() || 'shadowai' : 'shadowai',
+      topK: ragTopKEl ? (parseInt(ragTopKEl.value, 10) || 8) : 8
+    };
+  }
 
   if (avatarFileInput) {
     avatarFileInput.addEventListener('change', function () {
@@ -272,7 +293,8 @@
         appName: (document.getElementById('appName').value || '').trim() || 'SHADOW_AI',
         showToolCalls: document.getElementById('showToolCalls').checked,
         promptLibrary: document.getElementById('promptLibrary').checked
-      }
+      },
+      rag: getRagFromDom()
     };
 
     setStatus('Saving...');

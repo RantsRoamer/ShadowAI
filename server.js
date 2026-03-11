@@ -26,6 +26,7 @@ const { executeSchedulerTool, getSchedulerToolDefinitions } = require('./lib/too
 const pipelineRunner = require('./lib/pipelineRunner.js');
 const projectStore = require('./lib/projectStore.js');
 const projectImport = require('./lib/projectImport.js');
+const ragLib = require('./lib/rag.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -166,6 +167,7 @@ app.get('/dashboard',   (req, res) => res.sendFile(path.join(PUBLIC, 'dashboard.
 app.get('/app',         (req, res) => res.sendFile(path.join(PUBLIC, 'app.html')));
 app.get('/config',      (req, res) => res.sendFile(path.join(PUBLIC, 'config.html')));
 app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.html')));
+app.get('/rag',         (req, res) => res.sendFile(path.join(PUBLIC, 'rag.html')));
 app.get('/personality', (req, res) => res.sendFile(path.join(PUBLIC, 'personality.html')));
 app.get('/heartbeat',   (req, res) => res.sendFile(path.join(PUBLIC, 'heartbeat.html')));
 app.get('/agents',      (req, res) => res.sendFile(path.join(PUBLIC, 'agents.html')));
@@ -742,8 +744,104 @@ app.get('/api/config', (req, res) => {
       return safe;
     })(),
     channels: c.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } },
-    ui: c.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' }
+    ui: c.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' },
+    rag: c.rag || {
+      embeddingModel: 'nomic-embed-text',
+      chunkSize: 800,
+      chunkOverlap: 200,
+      collectionName: 'shadowai',
+      topK: 8
+    }
   });
+});
+
+// ---------------------------------------------------------------------------
+// RAG (Retrieval-Augmented Generation)
+// ---------------------------------------------------------------------------
+const multer = require('multer');
+const RAG_UPLOAD_DIR = path.join(__dirname, 'data', 'rag-uploads');
+const ragUpload = multer({ dest: RAG_UPLOAD_DIR });
+
+app.post('/api/rag/upload', ragUpload.single('file'), async (req, res) => {
+  try {
+    const scope = req.body && req.body.scope === 'project' ? 'project' : 'global';
+    const projectId = scope === 'project' ? (req.body.projectId || '').trim() : null;
+    if (scope === 'project' && !projectId) {
+      return res.status(400).json({ ok: false, error: 'projectId is required for project scope.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ ok: false, error: 'No file uploaded.' });
+    }
+    const fs = require('fs');
+    if (!fs.existsSync(RAG_UPLOAD_DIR)) fs.mkdirSync(RAG_UPLOAD_DIR, { recursive: true });
+    const fullPath = req.file.path;
+    const buffer = fs.readFileSync(fullPath);
+    let text;
+    try {
+      text = await ragLib.extractFileText(buffer, req.file.originalname, req.file.mimetype);
+    } finally {
+      try { fs.unlinkSync(fullPath); } catch (_) {}
+    }
+    if (!text || !text.trim()) {
+      return res.status(400).json({ ok: false, error: 'No text could be extracted from the file.' });
+    }
+    const result = await ragLib.indexText({
+      scope,
+      projectId,
+      docId: req.file.originalname || req.file.filename,
+      text,
+      source: req.file.originalname || 'uploaded'
+    });
+    if (!result.ok) {
+      return res.status(500).json({ ok: false, error: result.error || 'Failed to index document.' });
+    }
+    res.json({ ok: true, chunks: result.chunks || 0 });
+  } catch (e) {
+    logger.error('POST /api/rag/upload:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/rag/index-project-memory', async (req, res) => {
+  try {
+    const projectId = req.body && req.body.projectId ? String(req.body.projectId).trim() : '';
+    if (!projectId) return res.status(400).json({ ok: false, error: 'projectId is required.' });
+    const result = await ragLib.indexProjectMemory(projectId);
+    if (!result.ok) return res.status(400).json({ ok: false, error: result.error || 'Failed to index project memory.' });
+    res.json({ ok: true, chunks: result.chunks || 0 });
+  } catch (e) {
+    logger.error('POST /api/rag/index-project-memory:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/rag/collection', (req, res) => {
+  try {
+    const body = req.body || {};
+    const scope = body.scope === 'project' ? 'project' : 'global';
+    const projectId = scope === 'project' && body.projectId ? String(body.projectId).trim() : null;
+    ragLib.clearCollection(scope, projectId);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /api/rag/collection:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/rag/query', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const scope = body.scope === 'project' ? 'project' : 'global';
+    const projectId = scope === 'project' && body.projectId ? String(body.projectId).trim() : null;
+    const query = body.query != null ? String(body.query).trim() : '';
+    const topK = body.topK != null ? Number(body.topK) : undefined;
+    if (!query) return res.status(400).json({ ok: false, error: 'query is required.' });
+    const results = await ragLib.queryRag({ scope, projectId, query, topK });
+    res.json({ ok: true, results });
+  } catch (e) {
+    logger.error('POST /api/rag/query:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 app.put('/api/config', (req, res) => {
@@ -793,6 +891,9 @@ app.put('/api/config', (req, res) => {
     if (updates.ui && typeof updates.ui === 'object') {
       config.ui = { ...(config.ui || {}), ...updates.ui };
     }
+    if (updates.rag && typeof updates.rag === 'object') {
+      config.rag = { ...(config.rag || {}), ...updates.rag };
+    }
     if (typeof updates.timezone === 'string') {
       config.timezone = updates.timezone.trim();
     }
@@ -827,7 +928,14 @@ app.put('/api/config', (req, res) => {
           return safe;
         })(),
         channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } },
-        ui: config.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' }
+        ui: config.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' },
+        rag: config.rag || {
+          embeddingModel: 'nomic-embed-text',
+          chunkSize: 800,
+          chunkOverlap: 200,
+          collectionName: 'shadowai',
+          topK: 8
+        }
       }
     });
   } catch (e) {
@@ -1065,6 +1173,43 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     content: systemContent
   };
   let fullMessages = [systemPromptMsg, ...messages];
+
+  // RAG trigger: if the latest user message starts with #rag, run a retrieval
+  // query and inject the top-k chunks into context.
+  if (messages.length > 0) {
+    const last = messages[messages.length - 1];
+    if (last.role === 'user' && typeof last.content === 'string') {
+      const raw = last.content.trim();
+      if (raw.toLowerCase().startsWith('#rag')) {
+        const queryText = raw.replace(/^#rag\s*/i, '').trim() || raw;
+        try {
+          const scope = isProjectChat && projectId ? 'project' : 'global';
+          const results = await ragLib.queryRag({
+            scope,
+            projectId: scope === 'project' ? projectId : null,
+            query: queryText
+          });
+          if (results && results.length > 0) {
+            const lines = [];
+            lines.push('Retrieved knowledge (RAG) relevant to the user query below. Use this as factual context when answering. Do not repeat it verbatim unless helpful.');
+            lines.push('');
+            results.forEach((r, idx) => {
+              lines.push(`Chunk ${idx + 1} (score ${typeof r.score === 'number' ? r.score.toFixed(3) : '—'}):`);
+              if (r.source) lines.push(`Source: ${r.source}`);
+              lines.push(r.text || '');
+              lines.push('');
+            });
+            const ctx = lines.join('\n').trim();
+            const ctxMsg = { role: 'user', content: ctx };
+            const cleanedUser = { ...last, content: queryText };
+            fullMessages = [systemPromptMsg, ctxMsg, ...messages.slice(0, -1), cleanedUser];
+          }
+        } catch (e) {
+          logger.warn('RAG context build failed:', e.message);
+        }
+      }
+    }
+  }
   if (isProjectChat && projectId && projectMemoryContent) {
     const memoryBlock = 'PROJECT MEMORY (use this to answer the user\'s questions that follow):\n\n---\n' + projectMemoryContent + '\n---\n\nNow answer the user\'s question using only the memory above.';
     fullMessages = [systemPromptMsg, { role: 'user', content: memoryBlock }, ...messages];

@@ -20,6 +20,7 @@
       <a href="/app" class="nav-link">CHAT</a>
       <a href="/projects" class="nav-link">PROJECTS</a>
       <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/rag" class="nav-link">KNOWLEDGE</a>
       <a href="/personality" class="nav-link">PERSONALITY</a>
       <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
       <a href="/agents" class="nav-link">AGENTS</a>
@@ -226,6 +227,22 @@
                 <span id="avatarStatus" class="status"></span>
               </div>
             </div>
+          </div>
+          <div class="form-group">
+            <h2>Retrieval (RAG)</h2>
+            <p class="section-desc">Configure the built-in retrieval-augmented generation system. Uses Ollama embeddings and a local vector index in <code>data/vectors</code>.</p>
+            <label>Embedding model</label>
+            <input type="text" id="ragEmbeddingModel" placeholder="nomic-embed-text" />
+            <p class="section-desc">Ollama model name used for embeddings (must support embeddings).</p>
+            <label>Chunk size (characters)</label>
+            <input type="number" id="ragChunkSize" min="100" max="8000" step="100" placeholder="800" />
+            <label>Chunk overlap (characters)</label>
+            <input type="number" id="ragChunkOverlap" min="0" max="4000" step="50" placeholder="200" />
+            <label>Base collection name</label>
+            <input type="text" id="ragCollectionName" placeholder="shadowai" />
+            <p class="section-desc">Global collection uses this name; project collections add <code>_project_&lt;id&gt;</code>. Changing this creates a new index.</p>
+            <label>Top-K results</label>
+            <input type="number" id="ragTopK" min="1" max="50" step="1" placeholder="8" />
           </div>
         </section>
       </div>
