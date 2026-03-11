@@ -175,20 +175,27 @@ app.get('/static/ai-avatar', (req, res) => {
 // ---------------------------------------------------------------------------
 // Routes — protected pages
 // ---------------------------------------------------------------------------
+// Redirect non-admins away from admin-only pages
+function adminPageGuard(req, res, next) {
+  if (!req.currentUser || req.currentUser.role !== 'admin') return res.redirect('/dashboard');
+  next();
+}
+
 app.get('/dashboard',   (req, res) => res.sendFile(path.join(PUBLIC, 'dashboard.html')));
 app.get('/app',         (req, res) => res.sendFile(path.join(PUBLIC, 'app.html')));
-app.get('/config',      (req, res) => res.sendFile(path.join(PUBLIC, 'config.html')));
 app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.html')));
 app.get('/rag',         (req, res) => res.sendFile(path.join(PUBLIC, 'rag.html')));
-app.get('/personality', (req, res) => res.sendFile(path.join(PUBLIC, 'personality.html')));
-app.get('/heartbeat',   (req, res) => res.sendFile(path.join(PUBLIC, 'heartbeat.html')));
-app.get('/agents',      (req, res) => res.sendFile(path.join(PUBLIC, 'agents.html')));
-app.get('/pipelines',   (req, res) => res.sendFile(path.join(PUBLIC, 'pipelines.html')));
-app.get('/debug',       (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html')));
-app.get('/editor',      (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
 app.get('/projects',    (req, res) => res.sendFile(path.join(PUBLIC, 'projects.html')));
 app.get('/project',     (req, res) => res.sendFile(path.join(PUBLIC, 'project.html')));
-app.get('/users',       (req, res) => res.sendFile(path.join(PUBLIC, 'users.html')));
+// Admin-only pages
+app.get('/config',      adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'config.html')));
+app.get('/personality', adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'personality.html')));
+app.get('/heartbeat',   adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'heartbeat.html')));
+app.get('/agents',      adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'agents.html')));
+app.get('/pipelines',   adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'pipelines.html')));
+app.get('/editor',      adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
+app.get('/users',       adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'users.html')));
+app.get('/debug',       adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html')));
 
 // ---------------------------------------------------------------------------
 // Personality & memory
@@ -286,11 +293,17 @@ app.get('/api/projects', (req, res) => {
   }
 });
 
-// Project reports (multiple: each has name, schedule, toEmail, projectIds, reportPrompt)
+// Project reports (multiple: each has name, schedule, toEmail, projectIds, reportPrompt, createdBy)
 app.get('/api/projects/reports', (req, res) => {
   try {
     const projectReport = require('./lib/projectReport.js');
-    res.json(projectReport.getReports());
+    let reports = projectReport.getReports();
+    // Non-admins only see their own reports
+    if (!req.currentUser || req.currentUser.role !== 'admin') {
+      const me = req.currentUser ? req.currentUser.username : '';
+      reports = reports.filter((r) => r.createdBy === me);
+    }
+    res.json(reports);
   } catch (e) {
     logger.error('GET /api/projects/reports:', e.message);
     res.status(500).json({ error: e.message });
@@ -309,7 +322,8 @@ app.post('/api/projects/reports', (req, res) => {
       schedule: body.schedule,
       toEmail: body.toEmail,
       projectIds: Array.isArray(body.projectIds) ? body.projectIds : [],
-      reportPrompt: body.reportPrompt
+      reportPrompt: body.reportPrompt,
+      createdBy: req.currentUser ? req.currentUser.username : ''
     });
     reports.push(newReport);
     projectReport.persistReports(reports);
@@ -325,6 +339,10 @@ app.get('/api/projects/reports/:reportId', (req, res) => {
     const projectReport = require('./lib/projectReport.js');
     const report = projectReport.getReports().find((r) => r.id === req.params.reportId);
     if (!report) return res.status(404).json({ error: 'Report not found' });
+    const isAdmin = req.currentUser && req.currentUser.role === 'admin';
+    if (!isAdmin && report.createdBy !== (req.currentUser ? req.currentUser.username : '')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     res.json(report);
   } catch (e) {
     logger.error('GET /api/projects/reports/:reportId:', e.message);
@@ -339,7 +357,13 @@ app.put('/api/projects/reports/:reportId', (req, res) => {
     const reports = projectReport.getReports();
     const idx = reports.findIndex((r) => r.id === req.params.reportId);
     if (idx === -1) return res.status(404).json({ error: 'Report not found' });
+    const isAdmin = req.currentUser && req.currentUser.role === 'admin';
+    if (!isAdmin && reports[idx].createdBy !== (req.currentUser ? req.currentUser.username : '')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
     const updated = projectReport.normalizeReport({ ...reports[idx], ...body, id: reports[idx].id });
+    // Only admins may reassign createdBy
+    if (!isAdmin) updated.createdBy = reports[idx].createdBy;
     reports[idx] = updated;
     projectReport.persistReports(reports);
     res.json(updated);
@@ -352,9 +376,14 @@ app.put('/api/projects/reports/:reportId', (req, res) => {
 app.delete('/api/projects/reports/:reportId', (req, res) => {
   try {
     const projectReport = require('./lib/projectReport.js');
-    const reports = projectReport.getReports().filter((r) => r.id !== req.params.reportId);
-    if (reports.length === projectReport.getReports().length) return res.status(404).json({ error: 'Report not found' });
-    projectReport.persistReports(reports);
+    const all = projectReport.getReports();
+    const report = all.find((r) => r.id === req.params.reportId);
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+    const isAdmin = req.currentUser && req.currentUser.role === 'admin';
+    if (!isAdmin && report.createdBy !== (req.currentUser ? req.currentUser.username : '')) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    projectReport.persistReports(all.filter((r) => r.id !== req.params.reportId));
     res.json({ ok: true });
   } catch (e) {
     logger.error('DELETE /api/projects/reports/:reportId:', e.message);
@@ -370,6 +399,10 @@ app.post('/api/projects/reports/:reportId/send', (req, res) => {
     const report = reports.find((r) => r.id === reportId);
     if (!report) {
       return res.status(404).json({ ok: false, error: 'Report not found.', code: 'REPORT_NOT_FOUND' });
+    }
+    const isAdmin = req.currentUser && req.currentUser.role === 'admin';
+    if (!isAdmin && report.createdBy !== (req.currentUser ? req.currentUser.username : '')) {
+      return res.status(403).json({ ok: false, error: 'Access denied.', code: 'ACCESS_DENIED' });
     }
     if (!report.toEmail || !String(report.toEmail).trim()) {
       return res.status(400).json({ ok: false, error: 'Report has no email address.', code: 'REPORT_NO_EMAIL' });
@@ -464,8 +497,17 @@ app.put('/api/projects/:id', (req, res) => {
     if (!canAccessProject(req.currentUser, existing, 'edit')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const name = (req.body && req.body.name != null) ? String(req.body.name).trim() : null;
-    const project = projectStore.updateProject(req.params.id, { name: name || undefined });
+    const updates = {};
+    if (req.body && req.body.name != null) {
+      const name = String(req.body.name).trim();
+      if (name) updates.name = name;
+    }
+    if (req.body && req.body.owner != null) {
+      if (req.currentUser.role !== 'admin') return res.status(403).json({ error: 'Only admins can transfer project ownership' });
+      const newOwner = String(req.body.owner).trim();
+      if (newOwner) updates.owner = newOwner;
+    }
+    const project = projectStore.updateProject(req.params.id, updates);
     res.json(project);
   } catch (e) {
     logger.error('PUT /api/projects/:id:', e.message);

@@ -1,7 +1,9 @@
 .rag-main {
   padding: 24px;
-  max-width: 75vw;
+  max-width: 960px;
+  width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 .rag-card {
   background: var(--bg-panel);

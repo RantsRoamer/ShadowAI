@@ -65,6 +65,23 @@
         </div>
       </section>
 
+      <section class="section" id="reportAccessSection" style="display:none">
+        <h2>Reports — <span id="reportAccessUsername" style="color:var(--green-bright)"></span></h2>
+        <p class="section-desc">Reports owned by this user. Reassign to another user or delete.</p>
+        <div id="reportAccessList"></div>
+        <div class="form-actions">
+          <button type="button" id="closeReportAccessBtn" class="btn btn-small">Close</button>
+          <span id="reportAccessStatus" class="status"></span>
+        </div>
+      </section>
+
+      <section class="section" id="orphanedReportsSection" style="display:none">
+        <h2>Orphaned Reports</h2>
+        <p class="section-desc">Reports with no valid owner. Assign them to a user.</p>
+        <div id="orphanedReportsList"></div>
+        <span id="orphanedReportsStatus" class="status" style="display:block;margin-top:8px;"></span>
+      </section>
+
       <section class="section">
         <h2>Add / update user</h2>
         <div class="form-group">

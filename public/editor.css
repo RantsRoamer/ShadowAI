@@ -288,3 +288,64 @@ body {
 }
 
 .ai-apply-hint { font-size: 11px; color: var(--text-dim); }
+
+/* Mobile layout */
+@media (max-width: 768px) {
+  body {
+    height: auto;
+    overflow-y: auto;
+  }
+  .editor-main {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 56px);
+    overflow: visible;
+  }
+  .editor-sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 180px;
+    flex-shrink: 0;
+  }
+  .editor-area {
+    min-height: 50vh;
+  }
+  .editor-wrap {
+    min-height: 40vh;
+  }
+  .CodeMirror {
+    min-height: 300px !important;
+  }
+  .editor-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .editor-toolbar-right {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .editor-path {
+    font-size: 11px;
+  }
+  .ai-panel {
+    max-height: 240px;
+  }
+  .ai-input-row textarea {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 480px) {
+  .editor-sidebar {
+    max-height: 140px;
+  }
+  .editor-tabs {
+    font-size: 11px;
+  }
+  .editor-tab {
+    padding: 5px 10px;
+  }
+}
