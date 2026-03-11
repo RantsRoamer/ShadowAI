@@ -19,22 +19,6 @@
   </style>
 </head>
 <body>
-  <header class="app-header">
-    <div class="header-left">
-      <a href="/dashboard" class="logo">SHADOW_AI</a>
-    </div>
-    <nav class="header-nav">
-      <a href="/dashboard" class="nav-link">DASHBOARD</a>
-      <a href="/app" class="nav-link">CHAT</a>
-      <a href="/projects" class="nav-link">PROJECTS</a>
-      <a href="/skills" class="nav-link">SKILLS</a>
-      <a href="/rag" class="nav-link">KNOWLEDGE</a>
-      <a href="/config" class="nav-link">CONFIG</a>
-      <a href="/editor" class="nav-link">EDITOR</a>
-      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
-    </nav>
-  </header>
-
   <main class="config-main skills-main">
     <div class="config-card">
       <h1>HEARTBEAT</h1>
@@ -63,23 +47,6 @@
     </div>
   </main>
 
-  <script src="/static/nav.js"></script>
   <script src="/static/heartbeat.js"></script>
-  <script>
-    (function () {
-      // Hide outer header when embedded inside System Config iframe
-      try {
-        if (window.top !== window.self) {
-          var header = document.querySelector('.app-header');
-          if (header) header.style.display = 'none';
-          var main = document.querySelector('.config-main');
-          if (main) main.style.marginTop = '0';
-          document.body.style.paddingTop = '0';
-        }
-      } catch (e) {
-        // ignore
-      }
-    })();
-  </script>
 </body>
 </html>
