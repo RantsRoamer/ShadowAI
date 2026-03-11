@@ -289,9 +289,27 @@
       <div id="panel-heartbeat" class="config-panel" role="tabpanel" hidden>
         <section class="section">
           <h2>Heartbeat scheduler</h2>
-          <p class="section-desc">Schedule the AI or a skill to run at set times.</p>
-          <div class="embed-wrap">
-            <iframe src="/heartbeat" class="embed-frame" title="Heartbeat scheduler" loading="lazy"></iframe>
+          <p class="section-desc">Schedule the AI or a skill to run at set times. Cron format: minute hour day month weekday (e.g. <code>*/5 * * * *</code> = every 5 min, <code>0 9 * * *</code> = daily at 09:00).</p>
+
+          <div id="heartbeatList"></div>
+          <button type="button" id="hbAddJob" class="btn btn-small">+ Add job</button>
+
+          <div class="form-actions" style="margin-top:16px;">
+            <button type="button" id="hbSaveJobs" class="btn">Save all</button>
+            <span id="hbStatus" class="status"></span>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Inbound webhooks</h2>
+          <p class="section-desc">Create receiver URLs that external systems can POST to. Each webhook can run a skill or send a prompt to the AI. Use the URL shown below each entry to trigger it.</p>
+
+          <div id="webhookList"></div>
+          <button type="button" id="hbAddWebhook" class="btn btn-small">+ Add webhook</button>
+
+          <div class="form-actions" style="margin-top:16px;">
+            <button type="button" id="hbSaveWebhooks" class="btn">Save webhooks</button>
+            <span id="hbWebhookStatus" class="status"></span>
           </div>
         </section>
       </div>
@@ -327,7 +345,7 @@
       </div>
 
       <div class="form-actions">
-        <button type="button" id="saveBtn" class="btn">Save config</button>
+        <button type="button" id="configSaveBtn" class="btn">Save config</button>
         <span id="status" class="status"></span>
       </div>
     </div>

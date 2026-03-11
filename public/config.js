@@ -8,7 +8,7 @@
   const mainModelEl = document.getElementById('mainModel');
   const mainModelList = document.getElementById('mainModelList');
   const fetchMainModelsBtn = document.getElementById('fetchMainModels');
-  const saveBtn = document.getElementById('saveBtn');
+  const saveBtn = document.getElementById('configSaveBtn');
   const statusEl = document.getElementById('status');
   const avatarImg = document.getElementById('aiAvatarPreview');
   const avatarFileInput = document.getElementById('aiAvatarFile');
