@@ -47,7 +47,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
       connectSrc: ["'self'"],
       imgSrc: ["'self'", "data:"],
-      frameSrc: ["'none'"],
+      frameSrc: ["'self'"],
       objectSrc: ["'none'"],
       // Disable upgrade-insecure-requests — it tells browsers to force HTTPS,
       // which breaks a local HTTP-only server.
