@@ -19,6 +19,18 @@
   const ragChunkOverlapEl = document.getElementById('ragChunkOverlap');
   const ragCollectionNameEl = document.getElementById('ragCollectionName');
   const ragTopKEl = document.getElementById('ragTopK');
+  const cfgPersonalityEl = document.getElementById('cfgPersonality');
+  const cfgMemoryEl = document.getElementById('cfgMemory');
+  const cfgBehaviorEl = document.getElementById('cfgBehavior');
+  const cfgPersonalityStatus = document.getElementById('cfgPersonalityStatus');
+  const cfgMemoryStatus = document.getElementById('cfgMemoryStatus');
+  const cfgBehaviorStatus = document.getElementById('cfgBehaviorStatus');
+  const cfgSmBody = document.getElementById('cfgSmBody');
+  const cfgSmNewKey = document.getElementById('cfgSmNewKey');
+  const cfgSmNewValue = document.getElementById('cfgSmNewValue');
+  const cfgSmAddBtn = document.getElementById('cfgSmAddBtn');
+  const cfgSmSaveBtn = document.getElementById('cfgSmSaveBtn');
+  const cfgSmStatus = document.getElementById('cfgSmStatus');
 
   document.querySelectorAll('.config-tab').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -92,6 +104,37 @@
     if (ragCollectionNameEl) ragCollectionNameEl.value = rag.collectionName ?? 'shadowai';
     if (ragTopKEl) ragTopKEl.value = rag.topK ?? 8;
     refreshAvatarPreview();
+
+    // Load personality / memory / behavior / structured memory when those elements exist
+    if (cfgPersonalityEl || cfgMemoryEl || cfgBehaviorEl || cfgSmBody) {
+      try {
+        const [pRes, mRes, bRes, smRes] = await Promise.all([
+          fetch('/api/personality'),
+          fetch('/api/memory'),
+          fetch('/api/behavior'),
+          fetch('/api/structured-memory')
+        ]);
+        const [p, m, b, sm] = await Promise.all([pRes.json(), mRes.json(), bRes.json(), smRes.json()]);
+        if (cfgPersonalityEl) cfgPersonalityEl.value = p.content ?? '';
+        if (cfgMemoryEl) cfgMemoryEl.value = m.content ?? '';
+        if (cfgBehaviorEl) cfgBehaviorEl.value = b.content ?? '';
+        if (cfgSmBody && sm && sm.facts) {
+          cfgSmBody.innerHTML = '';
+          Object.keys(sm.facts).forEach(function (key) {
+            var tr = document.createElement('tr');
+            tr.dataset.key = key;
+            tr.innerHTML =
+              '<td><code>' + escapeAttr(key) + '</code></td>' +
+              '<td><input type="text" class="sm-val-input" value="' + escapeAttr(sm.facts[key]) + '" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:2px;color:var(--text-bright);padding:3px 6px;font-size:12px;" /></td>' +
+              '<td><button type="button" class="sm-del-btn" title="Delete">×</button></td>';
+            tr.querySelector('.sm-del-btn').addEventListener('click', function () { tr.remove(); });
+            cfgSmBody.appendChild(tr);
+          });
+        }
+      } catch (e) {
+        if (cfgPersonalityStatus) { cfgPersonalityStatus.textContent = e.message; cfgPersonalityStatus.style.color = 'var(--red)'; }
+      }
+    }
   }
   function toggleEmailAuth() {
     const useAuth = document.getElementById('emailUseAuth').checked;
@@ -134,6 +177,12 @@
         allowedUserIds: document.getElementById('discordAllowedUserIds').value.split(',').map(s => s.trim()).filter(Boolean)
       }
     };
+  }
+
+  function setInlineStatus(el, msg, isError) {
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = isError ? 'var(--red)' : 'var(--text-dim)';
   }
 
   document.getElementById('emailUseAuth').addEventListener('change', toggleEmailAuth);
@@ -260,6 +309,99 @@
           avatarStatusEl.textContent = (err && err.message) || 'Failed to remove avatar.';
           avatarStatusEl.style.color = 'var(--red)';
         });
+    });
+  }
+
+  // Personality tab save buttons (reuse existing /api endpoints)
+  if (cfgPersonalityEl && cfgPersonalityStatus) {
+    cfgPersonalityEl.addEventListener('blur', async function () {
+      setInlineStatus(cfgPersonalityStatus, 'Saving...');
+      try {
+        const res = await fetch('/api/personality', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: cfgPersonalityEl.value })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+        setInlineStatus(cfgPersonalityStatus, 'Saved.');
+      } catch (e) {
+        setInlineStatus(cfgPersonalityStatus, e.message || 'Failed to save.', true);
+      }
+    });
+  }
+
+  if (cfgMemoryEl && cfgMemoryStatus) {
+    cfgMemoryEl.addEventListener('blur', async function () {
+      setInlineStatus(cfgMemoryStatus, 'Saving...');
+      try {
+        const res = await fetch('/api/memory', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: cfgMemoryEl.value })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+        setInlineStatus(cfgMemoryStatus, 'Saved.');
+      } catch (e) {
+        setInlineStatus(cfgMemoryStatus, e.message || 'Failed to save.', true);
+      }
+    });
+  }
+
+  if (cfgBehaviorEl && cfgBehaviorStatus) {
+    cfgBehaviorEl.addEventListener('blur', async function () {
+      setInlineStatus(cfgBehaviorStatus, 'Saving...');
+      try {
+        const res = await fetch('/api/behavior', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: cfgBehaviorEl.value })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+        setInlineStatus(cfgBehaviorStatus, 'Saved.');
+      } catch (e) {
+        setInlineStatus(cfgBehaviorStatus, e.message || 'Failed to save.', true);
+      }
+    });
+  }
+
+  if (cfgSmAddBtn && cfgSmBody && cfgSmNewKey && cfgSmNewValue) {
+    cfgSmAddBtn.addEventListener('click', function () {
+      var key = (cfgSmNewKey.value || '').trim();
+      var value = (cfgSmNewValue.value || '').trim();
+      if (!key) return;
+      var tr = document.createElement('tr');
+      tr.dataset.key = key;
+      tr.innerHTML =
+        '<td><code>' + escapeAttr(key) + '</code></td>' +
+        '<td><input type="text" class="sm-val-input" value="' + escapeAttr(value) + '" style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:2px;color:var(--text-bright);padding:3px 6px;font-size:12px;" /></td>' +
+        '<td><button type="button" class="sm-del-btn" title="Delete">×</button></td>';
+      tr.querySelector('.sm-del-btn').addEventListener('click', function () { tr.remove(); });
+      cfgSmBody.appendChild(tr);
+      cfgSmNewKey.value = '';
+      cfgSmNewValue.value = '';
+    });
+  }
+
+  if (cfgSmSaveBtn && cfgSmBody && cfgSmStatus) {
+    cfgSmSaveBtn.addEventListener('click', async function () {
+      var facts = {};
+      cfgSmBody.querySelectorAll('tr').forEach(function (tr) {
+        var key = tr.dataset.key;
+        var val = tr.querySelector('.sm-val-input')?.value || '';
+        if (key) facts[key] = val;
+      });
+      setInlineStatus(cfgSmStatus, 'Saving...');
+      try {
+        const res = await fetch('/api/structured-memory', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ facts: facts })
+        });
+        if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+        setInlineStatus(cfgSmStatus, 'Saved.');
+      } catch (e) {
+        setInlineStatus(cfgSmStatus, e.message || 'Failed to save.', true);
+      }
     });
   }
 
