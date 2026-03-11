@@ -27,6 +27,7 @@
   let history = [];
   let currentChatId = null;
   let projectData = null;
+  let currentUser = null;
 
   function escapeHtml(s) {
     const div = document.createElement('div');
@@ -63,6 +64,66 @@
     if (clearAfter) setTimeout(() => { el.textContent = ''; }, clearAfter);
   }
 
+  function canManageShares() {
+    if (!currentUser || !projectData) return false;
+    return currentUser.role === 'admin' || projectData.owner === currentUser.username;
+  }
+
+  function renderShares() {
+    const sharesSection = document.getElementById('sharesSection');
+    const sharesOwnerEl = document.getElementById('sharesOwner');
+    const sharesList = document.getElementById('sharesList');
+    const sharesAddForm = document.getElementById('sharesAddForm');
+    if (!sharesSection || !projectData) return;
+
+    sharesSection.style.display = '';
+    const owner = projectData.owner || '—';
+    sharesOwnerEl.innerHTML = 'Owner: <span>' + escapeHtml(owner) + '</span>';
+
+    const shares = Array.isArray(projectData.shares) ? projectData.shares : [];
+    if (shares.length === 0) {
+      sharesList.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:4px 0;">No users added yet.</div>';
+    } else {
+      sharesList.innerHTML = shares.map((s, i) => {
+        const roleLabel = s.access === 'view' ? 'Read-only' : s.access === 'admin' ? 'Admin' : 'User';
+        const removeBtn = canManageShares()
+          ? '<button type="button" class="shares-remove-btn" data-index="' + i + '" title="Remove">×</button>'
+          : '';
+        return '<div class="shares-list-item">' +
+          '<span class="shares-list-name">' + escapeHtml(s.username) + '</span>' +
+          '<span class="shares-role-badge' + (s.access === 'admin' ? ' role-admin' : '') + '">' + roleLabel + '</span>' +
+          removeBtn +
+          '</div>';
+      }).join('');
+      sharesList.querySelectorAll('.shares-remove-btn').forEach(btn => {
+        btn.addEventListener('click', () => removeShare(parseInt(btn.dataset.index, 10)));
+      });
+    }
+
+    sharesAddForm.style.display = canManageShares() ? 'flex' : 'none';
+  }
+
+  function saveShares(shares) {
+    const sharesStatus = document.getElementById('sharesStatus');
+    return fetch('/api/projects/' + encodeURIComponent(projectId) + '/shares', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shares })
+    })
+      .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(new Error(d.error || r.statusText))))
+      .then(p => {
+        projectData = p;
+        renderShares();
+        showStatus(sharesStatus, 'Saved.', 2000);
+      })
+      .catch(e => showStatus(sharesStatus, e.message || 'Failed.', 3000));
+  }
+
+  function removeShare(index) {
+    const shares = (Array.isArray(projectData.shares) ? projectData.shares : []).filter((_, i) => i !== index);
+    saveShares(shares);
+  }
+
   function loadProject() {
     fetch('/api/projects/' + encodeURIComponent(projectId))
       .then(r => r.ok ? r.json() : Promise.reject(new Error('Not found')))
@@ -70,6 +131,7 @@
         projectData = p;
         projectHeaderName.textContent = p.name || 'Project';
         projectNameInput.value = p.name || '';
+        renderShares();
       })
       .catch(() => { projectHeaderName.textContent = 'Project not found'; });
   }
@@ -438,6 +500,33 @@
       saveChatHistory();
     });
   }
+
+  const addShareBtn = document.getElementById('addShareBtn');
+  if (addShareBtn) {
+    addShareBtn.addEventListener('click', () => {
+      const usernameEl = document.getElementById('shareUsername');
+      const accessEl = document.getElementById('shareAccess');
+      const sharesStatus = document.getElementById('sharesStatus');
+      const username = (usernameEl.value || '').trim();
+      if (!username) { showStatus(sharesStatus, 'Enter a username.', 2000); return; }
+      const shares = Array.isArray(projectData && projectData.shares) ? projectData.shares.slice() : [];
+      const existing = shares.findIndex(s => s.username === username);
+      if (existing >= 0) {
+        shares[existing] = { username, access: accessEl.value };
+      } else {
+        shares.push({ username, access: accessEl.value });
+      }
+      saveShares(shares).then(() => { usernameEl.value = ''; });
+    });
+  }
+
+  fetch('/api/me')
+    .then(r => r.ok ? r.json() : null)
+    .then(me => {
+      currentUser = me;
+      renderShares();
+    })
+    .catch(() => {});
 
   loadProject();
   loadMemory();
