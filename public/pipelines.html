@@ -81,5 +81,19 @@
 
   <script src="/static/nav.js"></script>
   <script src="/static/pipelines.js"></script>
+  <script>
+    (function () {
+      // Hide outer header when embedded inside System Config iframe
+      try {
+        if (window.top !== window.self) {
+          var header = document.querySelector('.app-header');
+          if (header) header.style.display = 'none';
+          document.body.style.paddingTop = '0';
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  </script>
 </body>
 </html>

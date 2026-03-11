@@ -289,12 +289,9 @@
       <div id="panel-heartbeat" class="config-panel" role="tabpanel" hidden>
         <section class="section">
           <h2>Heartbeat scheduler</h2>
-          <p class="section-desc">Edit heartbeat jobs directly. This is an advanced JSON view of <code>config.heartbeat</code>.</p>
-          <textarea id="cfgHeartbeatJson" rows="10" placeholder='[ { "id": "...", "name": "...", "schedule": "*/5 * * * *", "type": "skill" | "prompt", ... } ]' style="width:100%;min-height:160px;"></textarea>
-          <div class="form-actions">
-            <button type="button" id="cfgHeartbeatReload" class="btn btn-small">Reload from config</button>
-            <button type="button" id="cfgHeartbeatSave" class="btn btn-small">Save heartbeat</button>
-            <span id="cfgHeartbeatStatus" class="status"></span>
+          <p class="section-desc">Schedule the AI or a skill to run at set times.</p>
+          <div class="embed-wrap">
+            <iframe src="/heartbeat" class="embed-frame" title="Heartbeat scheduler" loading="lazy"></iframe>
           </div>
         </section>
       </div>
@@ -302,12 +299,9 @@
       <div id="panel-agents" class="config-panel" role="tabpanel" hidden>
         <section class="section">
           <h2>Agents</h2>
-          <p class="section-desc">Configure additional Ollama agents (e.g. Coding Agent). This edits <code>config.ollama.agents</code> as JSON.</p>
-          <textarea id="cfgAgentsJson" rows="10" placeholder='[ { "id": "coding", "name": "Coding Agent", "url": "...", "model": "...", "enabled": true } ]' style="width:100%;min-height:160px;"></textarea>
-          <div class="form-actions">
-            <button type="button" id="cfgAgentsReload" class="btn btn-small">Reload from config</button>
-            <button type="button" id="cfgAgentsSave" class="btn btn-small">Save agents</button>
-            <span id="cfgAgentsStatus" class="status"></span>
+          <p class="section-desc">Configure additional Ollama models (e.g. Coding Agent).</p>
+          <div class="embed-wrap">
+            <iframe src="/agents" class="embed-frame" title="Agents" loading="lazy"></iframe>
           </div>
         </section>
       </div>
@@ -315,12 +309,9 @@
       <div id="panel-pipelines" class="config-panel" role="tabpanel" hidden>
         <section class="section">
           <h2>Pipelines</h2>
-          <p class="section-desc">Manage pipelines as JSON (stored in <code>data/pipelines.json</code>). For visual editing, use the Pipelines page.</p>
-          <textarea id="cfgPipelinesJson" rows="10" placeholder='[ { "id": "pipe_...", "name": "My pipeline", "enabled": true, "nodes": [], "connections": [] } ]' style="width:100%;min-height:160px;"></textarea>
-          <div class="form-actions">
-            <button type="button" id="cfgPipelinesReload" class="btn btn-small">Reload from server</button>
-            <button type="button" id="cfgPipelinesSave" class="btn btn-small">Save pipelines</button>
-            <span id="cfgPipelinesStatus" class="status"></span>
+          <p class="section-desc">Experimental multi-step pipelines for advanced workflows.</p>
+          <div class="embed-wrap">
+            <iframe src="/pipelines" class="embed-frame" title="Pipelines" loading="lazy"></iframe>
           </div>
         </section>
       </div>
@@ -329,27 +320,8 @@
         <section class="section">
           <h2>Users</h2>
           <p class="section-desc">Manage local users and roles (admin only).</p>
-          <div class="form-group">
-            <table class="sm-table" id="cfgUsersTable">
-              <thead>
-                <tr><th>Username</th><th>Role</th><th>Actions</th></tr>
-              </thead>
-              <tbody id="cfgUsersTbody"></tbody>
-            </table>
-          </div>
-          <div class="form-group">
-            <label>Add / update user</label>
-            <div class="sm-add-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-              <input type="text" id="cfgUserUsername" placeholder="username" />
-              <input type="password" id="cfgUserPassword" placeholder="new password (optional)" />
-              <select id="cfgUserRole">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-                <option value="guest">Guest</option>
-              </select>
-              <button type="button" id="cfgUserSaveBtn" class="btn btn-small">Save user</button>
-            </div>
-            <span id="cfgUsersStatus" class="status"></span>
+          <div class="embed-wrap">
+            <iframe src="/users" class="embed-frame" title="Users" loading="lazy"></iframe>
           </div>
         </section>
       </div>
