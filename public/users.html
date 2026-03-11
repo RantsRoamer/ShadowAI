@@ -71,6 +71,22 @@
 
   <script src="/static/nav.js"></script>
   <script src="/static/users.js"></script>
+  <script>
+    (function () {
+      // Hide outer header when embedded inside System Config iframe
+      try {
+        if (window.top !== window.self) {
+          var header = document.querySelector('.app-header');
+          if (header) header.style.display = 'none';
+          var main = document.querySelector('.config-main');
+          if (main) main.style.marginTop = '0';
+          document.body.style.paddingTop = '0';
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  </script>
 </body>
 </html>
 
