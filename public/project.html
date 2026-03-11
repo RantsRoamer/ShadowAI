@@ -51,6 +51,21 @@
           <button type="button" id="saveProjectNameBtn" class="btn btn-small">Save name</button>
           <span id="projectNameStatus" class="project-status"></span>
         </section>
+        <section class="project-section" id="sharesSection" style="display:none">
+          <h2>Access</h2>
+          <div id="sharesOwner" class="shares-owner"></div>
+          <div id="sharesList"></div>
+          <div class="shares-add-form" id="sharesAddForm" style="display:none">
+            <input type="text" id="shareUsername" class="shares-input" placeholder="Username" autocomplete="off" />
+            <select id="shareAccess" class="shares-select">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+              <option value="view">Read-only</option>
+            </select>
+            <button type="button" id="addShareBtn" class="btn btn-small">Add</button>
+          </div>
+          <span id="sharesStatus" class="project-status"></span>
+        </section>
       </aside>
       <div class="project-content-wrap">
         <div class="project-tabs" role="tablist">

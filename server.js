@@ -147,6 +147,12 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/me', (req, res) => {
+  const u = req.currentUser;
+  if (!u) return res.status(401).json({ error: 'Not authenticated' });
+  res.json({ username: u.username, role: u.role });
+});
+
 // Serve AI avatar image (if uploaded). This is a simple file under data/.
 app.get('/static/ai-avatar', (req, res) => {
   try {
@@ -421,6 +427,22 @@ function canAccessProject(user, project, level) {
   return false;
 }
 
+// Resolve the effective chat owner for channel-scoped requests.
+// Returns the channelOwner string if the user is authorised, the user object
+// for their own chat, or null if access is denied.
+function resolveChannelUser(user, channelOwner) {
+  if (!user || !channelOwner || !chatStore.isChannelUsername(channelOwner)) return user;
+  if (channelOwner.startsWith('project_')) {
+    const pid = channelOwner.slice('project_'.length);
+    const project = projectStore.getProject(pid);
+    if (!project || !canAccessProject(user, project, 'view')) return null;
+    return channelOwner;
+  }
+  // Other channel types (telegram_, discord_, channel_) are system-level — admin only
+  if (user.role === 'admin') return channelOwner;
+  return user;
+}
+
 app.get('/api/projects/:id', (req, res) => {
   try {
     const project = projectStore.getProject(req.params.id);
@@ -487,6 +509,7 @@ app.get('/api/projects/:id/memory', (req, res) => {
   try {
     const project = projectStore.getProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, project, 'view')) return res.status(403).json({ error: 'Forbidden' });
     res.json({ content: projectStore.readProjectMemory(req.params.id) });
   } catch (e) {
     logger.error('GET /api/projects/:id/memory:', e.message);
@@ -498,6 +521,7 @@ app.put('/api/projects/:id/memory', (req, res) => {
   try {
     const project = projectStore.getProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, project, 'edit')) return res.status(403).json({ error: 'Forbidden' });
     projectStore.writeProjectMemory(req.params.id, req.body?.content ?? '');
     res.json({ ok: true });
   } catch (e) {
@@ -511,6 +535,7 @@ app.post('/api/projects/:id/import', async (req, res) => {
     const projectId = req.params.id;
     const project = projectStore.getProject(projectId);
     if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, project, 'edit')) return res.status(403).json({ error: 'Forbidden' });
     const type = (req.body && req.body.type) ? String(req.body.type).toLowerCase() : '';
     const filename = (req.body && req.body.filename != null) ? String(req.body.filename).trim() : '';
     const summarize = !!(req.body && req.body.summarize);
@@ -1221,7 +1246,8 @@ app.get('/api/chat/history', (req, res) => {
   const user = req.session && req.session.user;
   const chatId = req.query.chatId || undefined;
   const channelOwner = (req.query.username || '').trim();
-  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
+  const effectiveUser = resolveChannelUser(user, channelOwner);
+  if (effectiveUser === null) return res.status(403).json({ error: 'Forbidden' });
   const data = effectiveUser ? chatStore.readChat(effectiveUser, chatId) : { messages: [], title: null, customInstructions: '' };
   res.json({ messages: data.messages, title: data.title, customInstructions: data.customInstructions });
 });
@@ -1229,7 +1255,8 @@ app.get('/api/chat/history', (req, res) => {
 app.post('/api/chat/reset', (req, res) => {
   const user = req.session && req.session.user;
   const channelOwner = (req.body && req.body.username != null) ? String(req.body.username).trim() : '';
-  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
+  const effectiveUser = resolveChannelUser(user, channelOwner);
+  if (effectiveUser === null) return res.status(403).json({ error: 'Forbidden' });
   if (effectiveUser) chatStore.clearCurrentChat(effectiveUser);
   res.json({ ok: true });
 });
@@ -1240,7 +1267,8 @@ app.put('/api/chat/history', (req, res) => {
   if (!Array.isArray(messages)) return res.status(400).json({ error: 'messages array required' });
   const user = req.session && req.session.user;
   const channelOwner = (req.body?.username || '').trim();
-  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
+  const effectiveUser = resolveChannelUser(user, channelOwner);
+  if (effectiveUser === null) return res.status(403).json({ error: 'Forbidden' });
   if (effectiveUser) chatStore.writeChat(effectiveUser, messages, chatId);
   res.json({ ok: true });
 });
@@ -1255,7 +1283,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   }
   const user = req.session && req.session.user;
   const channelOwner = (channelChatOwner || '').trim();
-  const effectiveUser = (user && channelOwner && chatStore.isChannelUsername(channelOwner)) ? channelOwner : user;
+  const effectiveUser = resolveChannelUser(user, channelOwner);
+  if (effectiveUser === null) return res.status(403).json({ error: 'Forbidden' });
   const config = getConfig();
   let baseUrl = config.ollama.mainUrl;
   let model = config.ollama.mainModel;
