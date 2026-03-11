@@ -50,11 +50,6 @@
         <button type="button" class="config-tab" data-tab="notifications" role="tab" aria-selected="false">Notifications</button>
         <button type="button" class="config-tab" data-tab="channels" role="tab" aria-selected="false">Channels</button>
         <button type="button" class="config-tab" data-tab="ui" role="tab" aria-selected="false">UI</button>
-        <button type="button" class="config-tab" data-tab="personality" role="tab" aria-selected="false">Personality</button>
-        <button type="button" class="config-tab" data-tab="heartbeat" role="tab" aria-selected="false">Heartbeat</button>
-        <button type="button" class="config-tab" data-tab="agents" role="tab" aria-selected="false">Agents</button>
-        <button type="button" class="config-tab" data-tab="pipelines" role="tab" aria-selected="false">Pipelines</button>
-        <button type="button" class="config-tab" data-tab="users" role="tab" aria-selected="false">Users</button>
       </div>
 
       <div id="panel-server" class="config-panel active" role="tabpanel">
@@ -258,102 +253,6 @@
         </section>
       </div>
 
-      <div id="panel-personality" class="config-panel" role="tabpanel" hidden>
-        <section class="section">
-          <h2>Personality &amp; memory</h2>
-          <p class="section-desc">Manage AI Behavior, Personality, global Memory and structured memory.</p>
-          <div class="form-group">
-            <label>AI Behavior (data/AIBEHAVIOR.md)</label>
-            <textarea id="cfgBehavior" rows="6" placeholder="Who you are and how the AI should help you."></textarea>
-            <span id="cfgBehaviorStatus" class="status"></span>
-          </div>
-          <div class="form-group">
-            <label>Personality (data/personality.md)</label>
-            <textarea id="cfgPersonality" rows="6" placeholder="Tone, style, constraints for the AI."></textarea>
-            <span id="cfgPersonalityStatus" class="status"></span>
-          </div>
-          <div class="form-group">
-            <label>Global memory (data/memory.md)</label>
-            <textarea id="cfgMemory" rows="6" placeholder="Long-term notes and facts the AI should remember."></textarea>
-            <span id="cfgMemoryStatus" class="status"></span>
-          </div>
-          <div class="form-group">
-            <label>Structured memory (data/memory.json)</label>
-            <table class="sm-table">
-              <thead>
-                <tr><th>Key</th><th>Value</th><th></th></tr>
-              </thead>
-              <tbody id="cfgSmBody"></tbody>
-            </table>
-            <div class="sm-add-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-              <input type="text" id="cfgSmNewKey" placeholder="key (e.g. user:timezone)" />
-              <input type="text" id="cfgSmNewValue" placeholder="value" />
-              <button type="button" id="cfgSmAddBtn" class="btn btn-small">Add</button>
-            </div>
-            <button type="button" id="cfgSmSaveBtn" class="btn btn-small">Save structured memory</button>
-            <span id="cfgSmStatus" class="status"></span>
-          </div>
-        </section>
-      </div>
-
-      <div id="panel-heartbeat" class="config-panel" role="tabpanel" hidden>
-        <section class="section">
-          <h2>Heartbeat scheduler</h2>
-          <p class="section-desc">Schedule the AI or a skill to run at set times. Cron format: minute hour day month weekday (e.g. <code>*/5 * * * *</code> = every 5 min, <code>0 9 * * *</code> = daily at 09:00).</p>
-
-          <div id="heartbeatList"></div>
-          <button type="button" id="hbAddJob" class="btn btn-small">+ Add job</button>
-
-          <div class="form-actions" style="margin-top:16px;">
-            <button type="button" id="hbSaveJobs" class="btn">Save all</button>
-            <span id="hbStatus" class="status"></span>
-          </div>
-        </section>
-
-        <section class="section">
-          <h2>Inbound webhooks</h2>
-          <p class="section-desc">Create receiver URLs that external systems can POST to. Each webhook can run a skill or send a prompt to the AI. Use the URL shown below each entry to trigger it.</p>
-
-          <div id="webhookList"></div>
-          <button type="button" id="hbAddWebhook" class="btn btn-small">+ Add webhook</button>
-
-          <div class="form-actions" style="margin-top:16px;">
-            <button type="button" id="hbSaveWebhooks" class="btn">Save webhooks</button>
-            <span id="hbWebhookStatus" class="status"></span>
-          </div>
-        </section>
-      </div>
-
-      <div id="panel-agents" class="config-panel" role="tabpanel" hidden>
-        <section class="section">
-          <h2>Agents</h2>
-          <p class="section-desc">Configure additional Ollama models (e.g. Coding Agent).</p>
-          <div class="embed-wrap">
-            <iframe src="/agents" class="embed-frame" title="Agents" loading="lazy"></iframe>
-          </div>
-        </section>
-      </div>
-
-      <div id="panel-pipelines" class="config-panel" role="tabpanel" hidden>
-        <section class="section">
-          <h2>Pipelines</h2>
-          <p class="section-desc">Experimental multi-step pipelines for advanced workflows.</p>
-          <div class="embed-wrap">
-            <iframe src="/pipelines" class="embed-frame" title="Pipelines" loading="lazy"></iframe>
-          </div>
-        </section>
-      </div>
-
-      <div id="panel-users" class="config-panel" role="tabpanel" hidden>
-        <section class="section">
-          <h2>Users</h2>
-          <p class="section-desc">Manage local users and roles (admin only).</p>
-          <div class="embed-wrap">
-            <iframe src="/users" class="embed-frame" title="Users" loading="lazy"></iframe>
-          </div>
-        </section>
-      </div>
-
       <div class="form-actions">
         <button type="button" id="configSaveBtn" class="btn">Save config</button>
         <span id="status" class="status"></span>
@@ -363,6 +262,5 @@
 
   <script src="/static/nav.js"></script>
   <script src="/static/config.js"></script>
-  <script src="/static/heartbeat.js"></script>
 </body>
 </html>
