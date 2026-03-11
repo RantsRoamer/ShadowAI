@@ -8,7 +8,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { getConfig, reloadConfig, updateConfig, saveConfig, replaceConfig } = require('./lib/config.js');
 const { ollamaChatStream, ollamaChatWithTools, listModels } = require('./lib/ollama.js');
-const { authMiddleware, checkAuth } = require('./lib/auth.js');
+const { authMiddleware, authenticate, listUsers, createUser, updateUser, deleteUser, requireAdmin } = require('./lib/auth.js');
 const { runCode } = require('./lib/runCode.js');
 const { readFile, writeFile, listFiles } = require('./lib/selfUpdate.js');
 const skillsLib = require('./lib/skills.js');
@@ -122,16 +122,22 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(PUBLIC, 'login.html'));
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
   }
-  if (checkAuth(username, password)) {
-    req.session.user = username;
-    return res.json({ ok: true });
+  try {
+    const user = await authenticate(username, password);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    req.session.user = { username: user.username, role: user.role };
+    return res.json({ ok: true, user });
+  } catch (e) {
+    logger.error('POST /api/login:', e.message);
+    res.status(500).json({ error: 'Authentication failed' });
   }
-  res.status(401).json({ error: 'Invalid credentials' });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -176,6 +182,7 @@ app.get('/debug',       (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html
 app.get('/editor',      (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
 app.get('/projects',    (req, res) => res.sendFile(path.join(PUBLIC, 'projects.html')));
 app.get('/project',     (req, res) => res.sendFile(path.join(PUBLIC, 'project.html')));
+app.get('/users',       (req, res) => res.sendFile(path.join(PUBLIC, 'users.html')));
 
 // ---------------------------------------------------------------------------
 // Personality & memory
@@ -254,7 +261,19 @@ app.put('/api/behavior', (req, res) => {
 // ---------------------------------------------------------------------------
 app.get('/api/projects', (req, res) => {
   try {
-    res.json(projectStore.listProjects());
+    const all = projectStore.listProjects();
+    const user = req.currentUser;
+    if (!user || user.role === 'admin') {
+      return res.json(all);
+    }
+    const visible = all.filter((p) => {
+      if (p.owner && p.owner === user.username) return true;
+      if (Array.isArray(p.shares)) {
+        return p.shares.some((s) => s.username === user.username);
+      }
+      return false;
+    });
+    res.json(visible);
   } catch (e) {
     logger.error('GET /api/projects:', e.message);
     res.status(500).json({ error: e.message });
@@ -379,7 +398,8 @@ app.post('/api/projects/reports/:reportId/send', (req, res) => {
 app.post('/api/projects', (req, res) => {
   try {
     const name = (req.body && req.body.name != null) ? String(req.body.name).trim() : 'Untitled project';
-    const project = projectStore.createProject(name || 'Untitled project');
+    const owner = req.currentUser && req.currentUser.username ? req.currentUser.username : null;
+    const project = projectStore.createProject(name || 'Untitled project', owner);
     if (!project) return res.status(400).json({ error: 'Failed to create project' });
     res.json(project);
   } catch (e) {
@@ -388,10 +408,26 @@ app.post('/api/projects', (req, res) => {
   }
 });
 
+function canAccessProject(user, project, level) {
+  if (!user || !project) return false;
+  if (user.role === 'admin') return true;
+  if (project.owner && project.owner === user.username) return true;
+  const shares = Array.isArray(project.shares) ? project.shares : [];
+  const share = shares.find((s) => s.username === user.username);
+  if (!share) return false;
+  if (level === 'view') return true;
+  if (level === 'edit') return share.access === 'admin' || share.access === 'user';
+  if (level === 'admin') return share.access === 'admin';
+  return false;
+}
+
 app.get('/api/projects/:id', (req, res) => {
   try {
     const project = projectStore.getProject(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, project, 'view')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     res.json(project);
   } catch (e) {
     logger.error('GET /api/projects/:id:', e.message);
@@ -401,8 +437,13 @@ app.get('/api/projects/:id', (req, res) => {
 
 app.put('/api/projects/:id', (req, res) => {
   try {
-    const project = projectStore.updateProject(req.params.id, req.body || {});
-    if (!project) return res.status(404).json({ error: 'Project not found' });
+    const existing = projectStore.getProject(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, existing, 'edit')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const name = (req.body && req.body.name != null) ? String(req.body.name).trim() : null;
+    const project = projectStore.updateProject(req.params.id, { name: name || undefined });
     res.json(project);
   } catch (e) {
     logger.error('PUT /api/projects/:id:', e.message);
@@ -412,11 +453,32 @@ app.put('/api/projects/:id', (req, res) => {
 
 app.delete('/api/projects/:id', (req, res) => {
   try {
+    const existing = projectStore.getProject(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, existing, 'admin')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const ok = projectStore.deleteProject(req.params.id);
     if (!ok) return res.status(404).json({ error: 'Project not found' });
     res.json({ ok: true });
   } catch (e) {
     logger.error('DELETE /api/projects/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/projects/:id/shares', (req, res) => {
+  try {
+    const existing = projectStore.getProject(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, existing, 'admin')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const shares = Array.isArray(req.body && req.body.shares) ? req.body.shares : [];
+    const project = projectStore.updateProject(req.params.id, { shares });
+    res.json(project);
+  } catch (e) {
+    logger.error('PUT /api/projects/:id/shares:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -701,6 +763,63 @@ app.post('/api/ui/avatar', (req, res) => {
   } catch (e) {
     logger.error('POST /api/ui/avatar:', e.message);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Users (admin only)
+app.get('/api/users', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const users = await listUsers();
+    res.json({ ok: true, users });
+  } catch (e) {
+    logger.error('GET /api/users:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/users', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const body = req.body || {};
+    const user = await createUser({
+      username: body.username,
+      password: body.password,
+      role: body.role
+    });
+    res.json({ ok: true, user });
+  } catch (e) {
+    logger.error('POST /api/users:', e.message);
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.put('/api/users/:username', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const updates = {};
+    if (req.body && typeof req.body.password === 'string' && req.body.password) {
+      updates.password = req.body.password;
+    }
+    if (req.body && typeof req.body.role === 'string') {
+      updates.role = req.body.role;
+    }
+    await updateUser(req.params.username, updates);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('PUT /api/users/:username:', e.message);
+    res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/users/:username', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    await deleteUser(req.params.username);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /api/users/:username:', e.message);
+    res.status(400).json({ ok: false, error: e.message });
   }
 });
 

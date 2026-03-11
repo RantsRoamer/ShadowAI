@@ -22,6 +22,8 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 - **Knowledge index (RAG)** — Built‑in retrieval-augmented generation using Ollama embeddings and a local vector index in `data/vectors`. Upload PDFs/TXT/MD/DOC/DOCX or index project memory, then query via the KNOWLEDGE page, `/rag <query>`, or `#rag` in chat.
 - **UI customization** — Change the application name, toggle tool‑call blocks and the prompt library button, and upload an AI avatar/profile picture used as the assistant’s chat avatar.
 - **Mobile-friendly UI** — Chat, Projects, and other main pages include responsive layouts so the interface remains usable on phones and tablets.
+- **Multi-user & roles** — SQLite-backed users (`data/users.db`) with `admin`, `user`, and `guest` roles. Each user has their own chats and can own projects; admins can manage users and global config.
+- **Project sharing** — Projects can be shared with other users at different access levels (admin, edit, view-only). Admins can see all projects; non-admins see only their own and those shared with them.
 
 ## Requirements
 
@@ -223,7 +225,9 @@ Open **HEARTBEAT** to schedule the AI or a skill to run at set times:
 
 ## Security
 
-- Default password is stored in plain text in `config.json`. For production, use a strong password and consider hashing (e.g. bcrypt) in `lib/auth.js`.
+- Users and roles are stored in a local SQLite database at `data/users.db`. On first start, the existing `config.auth` entry is migrated into the users table as the initial `admin`.
+- Admins can create/update/delete users and assign roles from the **USERS** page (or via `/api/users`).
+- Only admins can change global config, email/notification settings, and user accounts. Regular users have their own chats and can only access projects they own or that are shared with them.
 - Code execution runs in a sandbox under the `run/` folder with time and output limits.
 - Self-update is limited to the project directory and allowed file extensions.
 
