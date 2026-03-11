@@ -22,8 +22,8 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 - **Knowledge index (RAG)** — Built‑in retrieval-augmented generation using Ollama embeddings and a local vector index in `data/vectors`. Upload PDFs/TXT/MD/DOC/DOCX or index project memory, then query via the KNOWLEDGE page, `/rag <query>`, or `#rag` in chat.
 - **UI customization** — Change the application name, toggle tool‑call blocks and the prompt library button, and upload an AI avatar/profile picture used as the assistant’s chat avatar.
 - **Mobile-friendly UI** — Chat, Projects, and other main pages include responsive layouts so the interface remains usable on phones and tablets.
-- **Multi-user & roles** — SQLite-backed users (`data/users.db`) with `admin`, `user`, and `guest` roles. Each user has their own chats and can own projects; admins can manage users and global config.
-- **Project sharing** — Projects can be shared with other users at different access levels (admin, edit, view-only). Admins can see all projects; non-admins see only their own and those shared with them.
+- **Multi-user & roles** — SQLite-backed users (`data/users.db`) with `admin`, `user`, and `guest` roles. Each user has isolated chats and projects. Admins manage all users and global config from **SYSTEM → USERS**.
+- **Project access control** — Projects can be shared with other users at three levels: **Admin** (full control), **User** (chat + edit memory), or **Read-only** (chat only). Access is enforced server-side on every request. Non-admins see only their own projects and those explicitly shared with them.
 
 ## Requirements
 
@@ -108,6 +108,23 @@ Configure via environment variables (applied at startup by `docker-init.js`):
 
 Config, chat history, and personality data are stored in the `/app/data` volume so they persist across container restarts.
 
+## Navigation
+
+The top nav bar is organised as:
+
+`DASHBOARD | CHAT | PROJECTS | SKILLS | KNOWLEDGE | SYSTEM ▾ | EDITOR`
+
+The **SYSTEM** dropdown contains pages for system administration:
+
+| Page | Description |
+|------|-------------|
+| CONFIG | Server, auth, Ollama, search, notifications, channels, UI, RAG |
+| PERSONALITY | Personality, memory, AI behavior, structured memory |
+| HEARTBEAT | Scheduled jobs and inbound webhooks |
+| AGENTS | Additional Ollama models / agents |
+| PIPELINES | Multi-step automation pipelines |
+| USERS | User management and project access (admin only) |
+
 ## Config
 
 - **Server**: Bind address (`0.0.0.0` = all interfaces) and port. Changes require restart.
@@ -135,6 +152,20 @@ Open **PROJECTS** to create and manage project-specific chats. Each project is i
 - **Project memory** — Edit the memory text area (markdown). This is the only context the AI has for that project. Save with “Save memory”.
 - **Import** — Paste text and click “Import text”, or upload a **PDF** (text is extracted) or an **image** (Ollama vision describes it and the description is added to memory). PDF import requires the optional dependency: `npm install pdf-parse`. Image import uses the configured Ollama model (set a vision-capable model like `llava` in Config → Ollama if needed).
 - **Project chat** — Use the chat panel to ask questions about the project. Answers are based only on that project’s memory. You can clear the project chat with “Clear chat” without losing the project’s memory.
+
+### Project access
+
+Each project page has an **Access** section in the left sidebar. The project owner (or a global admin) can grant other users access at three levels:
+
+| Level | Can chat | Edit memory & import files | Delete project / manage access |
+|-------|----------|---------------------------|-------------------------------|
+| Read-only | ✓ | — | — |
+| User | ✓ | ✓ | — |
+| Admin | ✓ | ✓ | ✓ |
+
+- Type a username, select a role, and click **Add**.
+- Click **×** next to a name to remove their access.
+- Access is enforced server-side — users who are not the owner and have no share entry cannot read or write a project’s memory, import files, or access the project chat.
 
 ### Project email reports
 
@@ -223,11 +254,48 @@ Open **HEARTBEAT** to schedule the AI or a skill to run at set times:
 - **Run in chat**: `/skill <id>` or `/skill <id> {"key":"value"}`.
 - **Format**: `skill.json` has `name`, `description`, `enabled`. `run.js` must export `async function run(args) { return result; }` or `module.exports = { run }`.
 
+## Multi-user setup
+
+ShadowAI supports multiple users, each with isolated chats and project access controlled by role and explicit sharing.
+
+### User roles
+
+| Role | Description |
+|------|-------------|
+| `admin` | Full access: global config, all projects, user management |
+| `user` | Own chats and projects; access to shared projects per their share level |
+| `guest` | Same as user but intended for restricted or read-only access |
+
+### Managing users (admin)
+
+Open **SYSTEM → USERS** to:
+
+- **Add a user** — fill in username, password, and role, then click **Save user**.
+- **Edit a user** — click **Edit** on any row to load their details into the form, update, and save.
+- **Delete a user** — click **Delete** (not available for the `admin` account).
+- **Manage project access** — click **Projects** on any user row to open the access panel. Every project is listed with a dropdown (**None / Read-only / User / Admin**). Set each project's level and click **Save access**. Only changed projects are updated.
+
+### Granting project access (project owner or admin)
+
+Any user who owns a project (or has admin-level share access) can also manage access directly from the project page:
+
+1. Open the project from **PROJECTS**.
+2. In the left sidebar, find the **Access** section.
+3. Enter a username, choose a role, and click **Add**.
+4. Remove access with the **×** button next to a name.
+
+### Data isolation
+
+- Each user's chat history is stored separately and is never visible to other users.
+- Project memory, imports, and project chat are only accessible to the project owner and users with an explicit share entry.
+- All access checks are enforced server-side — bypassing the UI via direct API calls returns `403 Forbidden` for unauthorised requests.
+
 ## Security
 
 - Users and roles are stored in a local SQLite database at `data/users.db`. On first start, the existing `config.auth` entry is migrated into the users table as the initial `admin`.
-- Admins can create/update/delete users and assign roles from the **USERS** page (or via `/api/users`).
-- Only admins can change global config, email/notification settings, and user accounts. Regular users have their own chats and can only access projects they own or that are shared with them.
+- Admins can create/update/delete users and assign roles from **SYSTEM → USERS** (or via `/api/users`).
+- Only admins can change global config, email/notification settings, and user accounts.
+- Project access (memory read/write, file import, project chat) is checked on every request against the project's `shares` list.
 - Code execution runs in a sandbox under the `run/` folder with time and output limits.
 - Self-update is limited to the project directory and allowed file extensions.
 

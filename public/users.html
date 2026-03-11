@@ -54,6 +54,17 @@
         </table>
       </section>
 
+      <section class="section" id="projectAccessSection" style="display:none">
+        <h2>Project access — <span id="projectAccessUsername" style="color:var(--green-bright)"></span></h2>
+        <p class="section-desc">Set each project's access level for this user. "None" removes access.</p>
+        <div id="projectAccessList"></div>
+        <div class="form-actions">
+          <button type="button" id="saveAccessBtn" class="btn">Save access</button>
+          <button type="button" id="closeAccessBtn" class="btn btn-small">Close</button>
+          <span id="accessStatus" class="status"></span>
+        </div>
+      </section>
+
       <section class="section">
         <h2>Add / update user</h2>
         <div class="form-group">
@@ -80,6 +91,7 @@
     </div>
   </main>
 
+  <script src="/static/nav.js"></script>
   <script src="/static/users.js"></script>
 </body>
 </html>

@@ -80,6 +80,33 @@
 .form-actions { margin-top: 24px; display: flex; align-items: center; gap: 16px; }
 .status { font-size: 13px; color: var(--text-dim); }
 
+/* Project access rows (user manager) */
+.project-access-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.project-access-row:last-child { border-bottom: none; }
+.project-access-name {
+  flex: 1;
+  color: var(--text-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-access-owner {
+  color: var(--text-dim);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.project-access-select {
+  width: 110px;
+  flex-shrink: 0;
+}
+
 .embed-wrap {
   margin-top: 12px;
   border: 1px solid var(--border);
