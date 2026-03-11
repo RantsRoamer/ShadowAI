@@ -10,6 +10,10 @@
   const fetchMainModelsBtn = document.getElementById('fetchMainModels');
   const saveBtn = document.getElementById('saveBtn');
   const statusEl = document.getElementById('status');
+  const avatarImg = document.getElementById('aiAvatarPreview');
+  const avatarFileInput = document.getElementById('aiAvatarFile');
+  const avatarRemoveBtn = document.getElementById('aiAvatarRemove');
+  const avatarStatusEl = document.getElementById('avatarStatus');
 
   document.querySelectorAll('.config-tab').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -26,6 +30,18 @@
   function setStatus(msg, isError) {
     statusEl.textContent = msg;
     statusEl.style.color = isError ? 'var(--red)' : 'var(--text-dim)';
+  }
+
+  function refreshAvatarPreview() {
+    if (!avatarImg) return;
+    const url = '/static/ai-avatar?ts=' + Date.now();
+    avatarImg.onload = function () {
+      avatarImg.style.display = 'block';
+    };
+    avatarImg.onerror = function () {
+      avatarImg.style.display = 'none';
+    };
+    avatarImg.src = url;
   }
 
   async function loadConfig() {
@@ -64,6 +80,7 @@
     document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
     document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
     document.getElementById('promptLibrary').checked = ui.promptLibrary !== false;
+    refreshAvatarPreview();
   }
   function toggleEmailAuth() {
     const useAuth = document.getElementById('emailUseAuth').checked;
@@ -147,6 +164,83 @@
       setStatus(e.message, true);
     }
   });
+
+  if (avatarFileInput) {
+    avatarFileInput.addEventListener('change', function () {
+      const file = avatarFileInput.files && avatarFileInput.files[0];
+      if (!file) return;
+      if (!file.type || file.type.indexOf('image/') !== 0) {
+        if (avatarStatusEl) {
+          avatarStatusEl.textContent = 'Please select an image file.';
+          avatarStatusEl.style.color = 'var(--red)';
+        }
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const dataUrl = e.target.result;
+        if (!dataUrl || typeof dataUrl !== 'string') return;
+        if (avatarStatusEl) {
+          avatarStatusEl.textContent = 'Uploading...';
+          avatarStatusEl.style.color = '';
+        }
+        fetch('/api/ui/avatar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dataUrl: dataUrl })
+        })
+          .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
+          .then(function (result) {
+            if (!avatarStatusEl) return;
+            if (result.ok && result.data && result.data.ok) {
+              avatarStatusEl.textContent = 'Avatar saved.';
+              avatarStatusEl.style.color = '';
+              refreshAvatarPreview();
+            } else {
+              avatarStatusEl.textContent = (result.data && result.data.error) || 'Failed to save avatar.';
+              avatarStatusEl.style.color = 'var(--red)';
+            }
+          })
+          .catch(function (err) {
+            if (!avatarStatusEl) return;
+            avatarStatusEl.textContent = (err && err.message) || 'Failed to save avatar.';
+            avatarStatusEl.style.color = 'var(--red)';
+          });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (avatarRemoveBtn) {
+    avatarRemoveBtn.addEventListener('click', function () {
+      if (avatarStatusEl) {
+        avatarStatusEl.textContent = 'Removing...';
+        avatarStatusEl.style.color = '';
+      }
+      fetch('/api/ui/avatar', { method: 'DELETE' })
+        .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, data: d }; }); })
+        .then(function (result) {
+          if (!avatarStatusEl) return;
+          if (result.ok && result.data && result.data.ok) {
+            avatarStatusEl.textContent = 'Avatar removed.';
+            avatarStatusEl.style.color = '';
+            if (avatarImg) {
+              avatarImg.src = '';
+              avatarImg.style.display = 'none';
+            }
+            if (avatarFileInput) avatarFileInput.value = '';
+          } else {
+            avatarStatusEl.textContent = (result.data && result.data.error) || 'Failed to remove avatar.';
+            avatarStatusEl.style.color = 'var(--red)';
+          }
+        })
+        .catch(function (err) {
+          if (!avatarStatusEl) return;
+          avatarStatusEl.textContent = (err && err.message) || 'Failed to remove avatar.';
+          avatarStatusEl.style.color = 'var(--red)';
+        });
+    });
+  }
 
   saveBtn.addEventListener('click', async () => {
     const password = passwordEl.value;

@@ -215,6 +215,18 @@
             <label><input type="checkbox" id="promptLibrary" /> Enable prompt library</label>
             <span class="section-desc">Shows the PROMPTS button in the chat input area for saving and reusing prompts.</span>
           </div>
+          <div class="form-group">
+            <label>AI avatar (profile picture)</label>
+            <div class="avatar-row">
+              <img id="aiAvatarPreview" alt="AI avatar preview" class="avatar-preview" />
+              <div class="avatar-actions">
+                <input type="file" id="aiAvatarFile" accept="image/*" />
+                <button type="button" id="aiAvatarRemove" class="btn btn-small">Remove avatar</button>
+                <p class="section-desc">Upload an image to use as the AI&apos;s avatar in chat. A small square or circular image works best.</p>
+                <span id="avatarStatus" class="status"></span>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
 

@@ -80,6 +80,26 @@
 .form-actions { margin-top: 24px; display: flex; align-items: center; gap: 16px; }
 .status { font-size: 13px; color: var(--text-dim); }
 
+.avatar-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.avatar-preview {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  display: none;
+}
+.avatar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .debug-pre {
   background: var(--bg-input);
   border: 1px solid var(--border);

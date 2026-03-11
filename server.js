@@ -140,6 +140,25 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// Serve AI avatar image (if uploaded). This is a simple file under data/.
+app.get('/static/ai-avatar', (req, res) => {
+  try {
+    const fs = require('fs');
+    const DATA_DIR = path.join(__dirname, 'data');
+    const candidates = ['ai-avatar.png', 'ai-avatar.jpg', 'ai-avatar.jpeg', 'ai-avatar.webp'];
+    for (const name of candidates) {
+      const filePath = path.join(DATA_DIR, name);
+      if (fs.existsSync(filePath)) {
+        return res.sendFile(filePath);
+      }
+    }
+    res.status(404).end();
+  } catch (e) {
+    logger.warn('GET /static/ai-avatar error:', e.message);
+    res.status(500).end();
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Routes — protected pages
 // ---------------------------------------------------------------------------
@@ -640,6 +659,69 @@ app.get('/api/app-name', (req, res) => {
   const c = getConfig();
   const name = (c.ui && c.ui.appName != null && String(c.ui.appName).trim()) ? String(c.ui.appName).trim() : 'SHADOW_AI';
   res.json({ appName: name });
+});
+
+// Upload / remove AI avatar (profile picture). Expects JSON { dataUrl } where
+// dataUrl is a data:image/...;base64,... string. Only available to authenticated users.
+app.post('/api/ui/avatar', (req, res) => {
+  try {
+    const body = req.body || {};
+    const dataUrl = typeof body.dataUrl === 'string' ? body.dataUrl.trim() : '';
+    if (!dataUrl) {
+      return res.status(400).json({ ok: false, error: 'dataUrl is required' });
+    }
+    const match = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp));base64,(.+)$/i);
+    if (!match) {
+      return res.status(400).json({ ok: false, error: 'dataUrl must be a base64-encoded PNG, JPEG, or WebP image.' });
+    }
+    const mime = match[1].toLowerCase();
+    let ext = match[2].toLowerCase();
+    if (ext === 'jpeg') ext = 'jpg';
+    const base64 = match[3];
+    const buf = Buffer.from(base64, 'base64');
+    if (!buf.length) {
+      return res.status(400).json({ ok: false, error: 'Image data is empty.' });
+    }
+    const fs = require('fs');
+    const DATA_DIR = path.join(__dirname, 'data');
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    const candidates = ['ai-avatar.png', 'ai-avatar.jpg', 'ai-avatar.jpeg', 'ai-avatar.webp'];
+    for (const name of candidates) {
+      const p = path.join(DATA_DIR, name);
+      if (fs.existsSync(p)) {
+        try { fs.unlinkSync(p); } catch (_) {}
+      }
+    }
+    const outPath = path.join(DATA_DIR, 'ai-avatar.' + ext);
+    fs.writeFileSync(outPath, buf);
+    logger.info('Updated AI avatar at', outPath, 'mime:', mime);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/ui/avatar:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/ui/avatar', (req, res) => {
+  try {
+    const fs = require('fs');
+    const DATA_DIR = path.join(__dirname, 'data');
+    const candidates = ['ai-avatar.png', 'ai-avatar.jpg', 'ai-avatar.jpeg', 'ai-avatar.webp'];
+    let removed = false;
+    for (const name of candidates) {
+      const p = path.join(DATA_DIR, name);
+      if (fs.existsSync(p)) {
+        try { fs.unlinkSync(p); removed = true; } catch (_) {}
+      }
+    }
+    if (removed) {
+      logger.info('Removed AI avatar');
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /api/ui/avatar:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 app.get('/api/config', (req, res) => {
