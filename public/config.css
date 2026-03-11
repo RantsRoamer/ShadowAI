@@ -80,6 +80,19 @@
 .form-actions { margin-top: 24px; display: flex; align-items: center; gap: 16px; }
 .status { font-size: 13px; color: var(--text-dim); }
 
+.embed-wrap {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.embed-frame {
+  width: 100%;
+  min-height: 420px;
+  border: none;
+  background: transparent;
+}
+
 .avatar-row {
   display: flex;
   align-items: flex-start;

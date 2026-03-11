@@ -11,23 +11,6 @@
   <link rel="stylesheet" href="/static/pipelines.css" />
 </head>
 <body>
-  <header class="app-header">
-    <div class="header-left">
-      <a href="/dashboard" class="logo">SHADOW_AI</a>
-    </div>
-    <nav class="header-nav">
-      <a href="/dashboard" class="nav-link">DASHBOARD</a>
-      <a href="/app" class="nav-link">CHAT</a>
-      <a href="/projects" class="nav-link">PROJECTS</a>
-      <a href="/skills" class="nav-link">SKILLS</a>
-      <a href="/rag" class="nav-link">KNOWLEDGE</a>
-      <a href="/config" class="nav-link">CONFIG</a>
-      <span class="nav-link active">PIPELINES</span>
-      <a href="/editor" class="nav-link">EDITOR</a>
-      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
-    </nav>
-  </header>
-
   <div class="pipelines-layout">
     <!-- Left sidebar: pipeline list -->
     <aside class="pipelines-sidebar">
@@ -79,21 +62,6 @@
     </div>
   </div>
 
-  <script src="/static/nav.js"></script>
   <script src="/static/pipelines.js"></script>
-  <script>
-    (function () {
-      // Hide outer header when embedded inside System Config iframe
-      try {
-        if (window.top !== window.self) {
-          var header = document.querySelector('.app-header');
-          if (header) header.style.display = 'none';
-          document.body.style.paddingTop = '0';
-        }
-      } catch (e) {
-        // ignore
-      }
-    })();
-  </script>
 </body>
 </html>
