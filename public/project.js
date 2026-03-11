@@ -75,8 +75,6 @@
     const sharesList = document.getElementById('sharesList');
     const sharesAddForm = document.getElementById('sharesAddForm');
     if (!sharesSection || !projectData) return;
-
-    sharesSection.style.display = '';
     const owner = projectData.owner || '—';
     sharesOwnerEl.innerHTML = 'Owner: <span>' + escapeHtml(owner) + '</span>';
 
@@ -125,10 +123,16 @@
   }
 
   function loadProject() {
-    fetch('/api/projects/' + encodeURIComponent(projectId))
-      .then(r => r.ok ? r.json() : Promise.reject(new Error('Not found')))
-      .then(p => {
+    Promise.all([
+      fetch('/api/projects/' + encodeURIComponent(projectId))
+        .then(r => r.ok ? r.json() : Promise.reject(new Error('Not found'))),
+      fetch('/api/me')
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+    ])
+      .then(([p, me]) => {
         projectData = p;
+        currentUser = me;
         projectHeaderName.textContent = p.name || 'Project';
         projectNameInput.value = p.name || '';
         renderShares();
@@ -519,14 +523,6 @@
       saveShares(shares).then(() => { usernameEl.value = ''; });
     });
   }
-
-  fetch('/api/me')
-    .then(r => r.ok ? r.json() : null)
-    .then(me => {
-      currentUser = me;
-      renderShares();
-    })
-    .catch(() => {});
 
   loadProject();
   loadMemory();
