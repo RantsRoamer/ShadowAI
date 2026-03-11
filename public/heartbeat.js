@@ -1,12 +1,16 @@
 (function () {
+  // Support both standalone /heartbeat page and inline CONFIG tab
   const heartbeatList = document.getElementById('heartbeatList');
-  const addJobBtn = document.getElementById('addJob');
-  const saveBtn = document.getElementById('saveBtn');
-  const statusEl = document.getElementById('status');
+  const addJobBtn = document.getElementById('hbAddJob') || document.getElementById('addJob');
+  const saveBtn = document.getElementById('hbSaveJobs') || document.getElementById('saveBtn');
+  const statusEl = document.getElementById('hbStatus') || document.getElementById('status');
   const webhookListEl = document.getElementById('webhookList');
-  const addWebhookBtn = document.getElementById('addWebhook');
-  const saveWebhooksBtn = document.getElementById('saveWebhooksBtn');
-  const webhookStatusEl = document.getElementById('webhookStatus');
+  const addWebhookBtn = document.getElementById('hbAddWebhook') || document.getElementById('addWebhook');
+  const saveWebhooksBtn = document.getElementById('hbSaveWebhooks') || document.getElementById('saveWebhooksBtn');
+  const webhookStatusEl = document.getElementById('hbWebhookStatus') || document.getElementById('webhookStatus');
+
+  // If we don't have a heartbeat list (e.g. wrong page), do nothing
+  if (!heartbeatList) return;
 
   let webhooks = [];
 
