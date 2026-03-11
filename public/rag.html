@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Knowledge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/rag.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/dashboard" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/projects" class="nav-link">PROJECTS</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <span class="nav-link active">KNOWLEDGE</span>
+      <a href="/personality" class="nav-link">PERSONALITY</a>
+      <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+      <a href="/agents" class="nav-link">AGENTS</a>
+      <a href="/pipelines" class="nav-link">PIPELINES</a>
+      <a href="/config" class="nav-link">CONFIG</a>
+      <a href="/editor" class="nav-link">EDITOR</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="rag-main">
+    <div class="rag-card">
+      <h1>KNOWLEDGE INDEX (RAG)</h1>
+      <p class="rag-desc">
+        Upload documents and index project memory so the AI can answer questions using Retrieval-Augmented Generation.
+        Use <code>/rag &lt;query&gt;</code> or start a message with <code>#rag</code> in Chat to search this knowledge.
+      </p>
+
+      <section class="rag-section">
+        <h2>Target</h2>
+        <div class="rag-target-row">
+          <label>
+            <input type="radio" name="ragScope" value="global" checked />
+            Global knowledge
+          </label>
+          <label>
+            <input type="radio" name="ragScope" value="project" />
+            Project-specific
+          </label>
+          <select id="ragProjectSelect" class="rag-select" disabled>
+            <option value="">Select project…</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="rag-section">
+        <h2>Upload documents</h2>
+        <p class="rag-desc">PDF, TXT, MD, DOC, DOCX are supported. Text is chunked, embedded with Ollama, and stored in the local index.</p>
+        <div class="rag-upload-row">
+          <input type="file" id="ragFile" />
+          <button type="button" id="ragUploadBtn" class="btn">Upload &amp; index</button>
+          <button type="button" id="ragClearBtn" class="btn secondary">Clear index for target</button>
+        </div>
+        <div id="ragStatus" class="rag-status"></div>
+      </section>
+
+      <section class="rag-section">
+        <h2>Index project memory</h2>
+        <p class="rag-desc">
+          For project targets, you can index the project&apos;s <code>memory.md</code> into RAG so queries can reference it.
+        </p>
+        <button type="button" id="ragIndexMemoryBtn" class="btn" disabled>Index selected project memory</button>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/rag.js"></script>
+</body>
+</html>
+

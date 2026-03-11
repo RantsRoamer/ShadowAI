@@ -18,6 +18,10 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 - **Skills/plugins** — Ask the AI to build a skill; it creates `skills/<id>/skill.json` + `run.js`. Enable/disable and run from **SKILLS** with no server reload. Run in chat: `/skill <id> [JSON args]`
 - **Heartbeat scheduler** — Cron-style jobs that run skills or prompts every X minutes/hours/days; jobs remember `lastRunAt` so missed runs while offline are caught up once on restart, and skill results can optionally be emailed.
 - **Projects** — Isolated project-specific chats. Each project has its own memory (markdown); you can add notes, paste text, or import PDFs and images (PDF text extraction and image description via Ollama vision). The AI answers only from that project’s context and is not aware of other projects.
+- **Project email reports** — Configure multiple named reports under PROJECTS (Email reports): choose projects, schedule (cron), recipient email, and a custom formatting prompt. Reports are run by the heartbeat scheduler, respect your configured timezone, and send a single combined email per report.
+- **Knowledge index (RAG)** — Built‑in retrieval-augmented generation using Ollama embeddings and a local vector index in `data/vectors`. Upload PDFs/TXT/MD/DOC/DOCX or index project memory, then query via the KNOWLEDGE page, `/rag <query>`, or `#rag` in chat.
+- **UI customization** — Change the application name, toggle tool‑call blocks and the prompt library button, and upload an AI avatar/profile picture used as the assistant’s chat avatar.
+- **Mobile-friendly UI** — Chat, Projects, and other main pages include responsive layouts so the interface remains usable on phones and tablets.
 
 ## Requirements
 
@@ -109,6 +113,8 @@ Config, chat history, and personality data are stored in the `/app/data` volume 
 - **Ollama — Main Brain**: Base URL (e.g. `http://localhost:11434`) and model name. Use "Fetch models" to list models from the server.
 - **Agents**: Add agents (e.g. Coding Agent) with their own URL and model. Select the agent in the chat header to use it for that conversation.
 - **Channels**: API key for the channel API (CLI/bots), and optional Telegram and Discord bots. **Restart the server** after changing channel settings.
+- **UI**: Application name shown in the header and login, toggle for showing tool-call results in chat, toggle for the Prompt Library button, and upload/remove the AI’s avatar (profile picture).
+- **RAG (Retrieval)**: Embedding model name (Ollama), chunk size and overlap, base collection name for the local index in `data/vectors`, and default Top‑K results to retrieve per query.
 
 ## Personality, memory & AI behavior
 
@@ -128,7 +134,31 @@ Open **PROJECTS** to create and manage project-specific chats. Each project is i
 - **Import** — Paste text and click “Import text”, or upload a **PDF** (text is extracted) or an **image** (Ollama vision describes it and the description is added to memory). PDF import requires the optional dependency: `npm install pdf-parse`. Image import uses the configured Ollama model (set a vision-capable model like `llava` in Config → Ollama if needed).
 - **Project chat** — Use the chat panel to ask questions about the project. Answers are based only on that project’s memory. You can clear the project chat with “Clear chat” without losing the project’s memory.
 
+### Project email reports
+
+- Open the **Email reports** tab under PROJECTS.
+- Create multiple reports with:
+  - **Name** and **enabled** toggle.
+  - **Send to email** address.
+  - **Schedule** (cron expression or presets like “Daily 08:00”; interpreted in your configured timezone).
+  - **Included projects** (one or many).
+  - **Format prompt** describing what to include and how to format (e.g. detailed budget overview, bullet action list, tables).
+- Each report sends **one combined email** for its selected projects. You can also click **Send now** to run a report immediately.
+- Reports are implemented as heartbeat jobs and track `lastRunAt` so they don’t double‑fire and recover cleanly after downtime.
+
 Data is stored under `data/projects/<id>/` (project metadata and `memory.md`). Chat history for each project is stored like other synthetic users (e.g. `project_<id>`).
+
+## Knowledge index (RAG)
+
+Open **KNOWLEDGE** to manage the built‑in retrieval index.
+
+- **Target** — Choose **Global** (shared across all chats) or **Project** (per‑project index).
+- **Upload documents** — Upload PDF, TXT, MD, DOC, or DOCX. Text is extracted, chunked, embedded via the configured Ollama embedding model, and stored in a local JSON index under `data/vectors`.
+- **Index project memory** — For project targets, you can index a project’s `memory.md` so RAG queries can use that long‑term project context.
+- **Clear index** — Clear the global or selected project index if you want to start fresh or change chunking parameters.
+- **In chat**:
+  - `/rag <query>` — runs a retrieval query and shows the top‑k chunks as an assistant message.
+  - `#rag <question>` — treat the message as a normal question, but prepend retrieved chunks into the model’s context so the answer uses that knowledge.
 
 ## Multi-channel messaging
 
