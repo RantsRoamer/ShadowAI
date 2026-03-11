@@ -1,7 +1,9 @@
 .config-main {
   padding: 24px;
-  max-width: 75vw;
+  max-width: 960px;
+  width: 100%;
   margin: 0 auto;
+  box-sizing: border-box;
 }
 .config-card {
   background: var(--bg-panel);
@@ -167,3 +169,56 @@
 .agent-block label { font-size: 11px; }
 .agent-block input[type="checkbox"] { width: auto; margin-right: 6px; }
 .agent-block .remove-agent { color: var(--red); font-size: 12px; cursor: pointer; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .config-main {
+    padding: 16px 12px;
+  }
+  .config-card {
+    padding: 16px;
+  }
+  .config-tabs {
+    overflow-x: auto;
+    gap: 0;
+  }
+  .config-tab {
+    padding: 10px 12px;
+    flex-shrink: 0;
+  }
+  .form-actions {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .input-with-btn {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .input-with-btn .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .config-card {
+    padding: 12px;
+  }
+  .config-tab {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .project-access-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .project-access-select {
+    width: 100%;
+    flex-shrink: unset;
+  }
+  .agent-block .row {
+    flex-direction: column;
+  }
+  .embed-frame {
+    min-height: 280px;
+  }
+}

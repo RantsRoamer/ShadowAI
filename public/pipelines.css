@@ -234,3 +234,55 @@
 .run-result h4 { margin: 0 0 6px 0; font-size: 11px; color: var(--green-bright); letter-spacing: 1px; }
 .run-result pre { margin: 0; font-size: 10px; color: var(--text-bright); white-space: pre-wrap; word-break: break-all; }
 .run-result .close-btn { float: right; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 0; margin-left: 8px; }
+
+/* Mobile layout */
+@media (max-width: 768px) {
+  .pipelines-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 56px);
+    overflow: visible;
+  }
+  .pipelines-sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 180px;
+    flex-shrink: 0;
+  }
+  .pipelines-canvas-wrap {
+    min-height: 320px;
+    overflow: hidden;
+  }
+  .pipeline-canvas-container {
+    min-height: 300px;
+  }
+  .pipelines-toolbar {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .pipelines-toolbar .pipeline-name-input {
+    width: 100%;
+  }
+  .node-config-panel {
+    width: 100%;
+    min-width: 0;
+    border-left: none;
+    border-top: 2px solid var(--border);
+    max-height: 240px;
+  }
+  .run-result {
+    max-width: calc(100% - 24px);
+    bottom: 8px;
+    right: 8px;
+    left: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pipelines-sidebar {
+    max-height: 140px;
+    padding: 8px;
+  }
+}
