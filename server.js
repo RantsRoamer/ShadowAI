@@ -833,6 +833,17 @@ app.post('/api/ui/avatar', (req, res) => {
   }
 });
 
+// Users — lightweight username list for any authenticated user (used for share dropdowns)
+app.get('/api/users/names', async (req, res) => {
+  try {
+    const users = await listUsers();
+    res.json({ usernames: users.map((u) => u.username) });
+  } catch (e) {
+    logger.error('GET /api/users/names:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Users (admin only)
 app.get('/api/users', async (req, res) => {
   if (!requireAdmin(req, res)) return;

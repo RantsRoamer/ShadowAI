@@ -28,6 +28,7 @@
   let currentChatId = null;
   let projectData = null;
   let currentUser = null;
+  let allUsers = [];
 
   function escapeHtml(s) {
     const div = document.createElement('div');
@@ -99,6 +100,19 @@
     }
 
     sharesAddForm.style.display = canManageShares() ? 'flex' : 'none';
+
+    // Populate user select, excluding owner (already has access)
+    const userSelect = document.getElementById('shareUsername');
+    if (userSelect && canManageShares()) {
+      const currentShares = Array.isArray(projectData.shares) ? projectData.shares : [];
+      const owner = projectData.owner || '';
+      const options = allUsers.filter(u => u !== owner);
+      if (options.length === 0) {
+        userSelect.innerHTML = '<option value="">No other users</option>';
+      } else {
+        userSelect.innerHTML = options.map(u => '<option value="' + escapeHtml(u) + '">' + escapeHtml(u) + '</option>').join('');
+      }
+    }
   }
 
   function saveShares(shares) {
@@ -128,11 +142,15 @@
         .then(r => r.ok ? r.json() : Promise.reject(new Error('Not found'))),
       fetch('/api/me')
         .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
+      fetch('/api/users/names')
+        .then(r => r.ok ? r.json() : null)
         .catch(() => null)
     ])
-      .then(([p, me]) => {
+      .then(([p, me, usersData]) => {
         projectData = p;
         currentUser = me;
+        allUsers = (usersData && Array.isArray(usersData.usernames)) ? usersData.usernames : [];
         projectHeaderName.textContent = p.name || 'Project';
         projectNameInput.value = p.name || '';
         renderShares();
@@ -512,7 +530,7 @@
       const accessEl = document.getElementById('shareAccess');
       const sharesStatus = document.getElementById('sharesStatus');
       const username = (usernameEl.value || '').trim();
-      if (!username) { showStatus(sharesStatus, 'Enter a username.', 2000); return; }
+      if (!username) { showStatus(sharesStatus, 'Select a user.', 2000); return; }
       const shares = Array.isArray(projectData && projectData.shares) ? projectData.shares.slice() : [];
       const existing = shares.findIndex(s => s.username === username);
       if (existing >= 0) {
@@ -520,7 +538,7 @@
       } else {
         shares.push({ username, access: accessEl.value });
       }
-      saveShares(shares).then(() => { usernameEl.value = ''; });
+      saveShares(shares);
     });
   }
 
