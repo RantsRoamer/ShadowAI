@@ -1091,13 +1091,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         type: 'function',
         function: {
           name: 'append_project_memory',
-          description: 'Save important information to this project\'s memory (project memory file). Use when the user shares facts, decisions, dates, contacts, or requirements they want remembered for this project.',
+          description: 'Save or update important information in this project\'s memory (project memory file). Use when the user shares facts, decisions, dates, contacts, or requirements they want remembered for this project. When information changes (e.g. updated budget or timeline), call this tool again with the same sectionTitle to overwrite that section instead of appending a new one.',
           parameters: {
             type: 'object',
             required: ['text'],
             properties: {
               text: { type: 'string', description: 'The information to save (e.g. "Launch date: March 2025")' },
-              sectionTitle: { type: 'string', description: 'Optional section heading (e.g. "Key dates")' }
+              sectionTitle: { type: 'string', description: 'Optional section heading (e.g. "Budget", "Timeline", "Key dates"). If you reuse the same title later, that section will be replaced with the new content.' }
             }
           }
         }
