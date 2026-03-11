@@ -235,6 +235,23 @@
     uiSettings.showToolCalls = ui.showToolCalls !== false;
     uiSettings.promptLibrary = ui.promptLibrary !== false;
     document.getElementById('promptsBtn').style.display = uiSettings.promptLibrary ? '' : 'none';
+
+    // Load AI avatar (if configured) and expose as CSS variable for assistant messages.
+    try {
+      const url = '/static/ai-avatar?ts=' + Date.now();
+      const img = new Image();
+      img.onload = function () {
+        document.documentElement.style.setProperty('--ai-avatar-url', 'url("' + url.replace(/"/g, '\\"') + '")');
+        document.documentElement.setAttribute('data-ai-avatar', '1');
+      };
+      img.onerror = function () {
+        document.documentElement.style.removeProperty('--ai-avatar-url');
+        document.documentElement.removeAttribute('data-ai-avatar');
+      };
+      img.src = url;
+    } catch (_) {
+      // ignore avatar load errors
+    }
   }
 
   function addMessage(role, content, isError = false, explicitIndex) {
@@ -244,9 +261,18 @@
     const msgIndex = explicitIndex !== undefined ? explicitIndex : history.length; // index in history[]
     div.dataset.index = msgIndex;
     const meta = role === 'user' ? 'You' : (isError ? 'Error' : 'ShadowAI');
+    const avatarHtml =
+      role === 'user'
+        ? '<span class="msg-avatar msg-avatar-user" aria-hidden="true"></span>'
+        : (isError
+            ? '<span class="msg-avatar msg-avatar-ai" aria-hidden="true"></span>'
+            : '<span class="msg-avatar msg-avatar-ai" aria-hidden="true"></span>');
     const editBtn = role === 'user' ? '<button type="button" class="msg-edit" title="Edit message">Edit</button>' : '';
     const actions = '<div class="msg-actions"><button type="button" class="msg-copy" title="Copy">Copy</button>' + editBtn + '</div>';
-    div.innerHTML = '<div class="meta">' + escapeHtml(meta) + '</div><div class="msg-body">' + formatContent(content) + '</div>' + actions;
+    div.innerHTML =
+      '<div class="meta">' + avatarHtml + '<span class="msg-meta-label">' + escapeHtml(meta) + '</span></div>' +
+      '<div class="msg-body">' + formatContent(content) + '</div>' +
+      actions;
     const copyBtn = div.querySelector('.msg-copy');
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(content || '').then(() => { copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500); }).catch(() => {});

@@ -274,7 +274,35 @@
 }
 .msg.user { border-left-color: var(--green-bright); background: var(--green-dim); }
 .msg.error { border-left-color: var(--red); background: rgba(255, 68, 102, 0.08); }
-.msg .meta { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+.msg .meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.msg .meta .msg-meta-label {
+  flex: 0 1 auto;
+}
+.msg-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.msg-avatar-user {
+  background-color: var(--green-mid);
+}
+.msg-avatar-ai {
+  background-color: var(--bg-input);
+  background-image: var(--ai-avatar-url);
+}
+.msg .msg-body { white-space: normal; }
 .msg .msg-body { white-space: normal; }
 .msg .msg-body p { margin: 0 0 0.6em 0; }
 .msg .msg-body p:last-child { margin-bottom: 0; }
