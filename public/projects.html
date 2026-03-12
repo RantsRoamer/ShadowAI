@@ -78,20 +78,48 @@
             <span class="projects-report-label">Send to email</span>
             <input type="email" id="reportToEmail" class="projects-report-input" placeholder="you@example.com" />
           </label>
-          <label class="projects-report-row">
+          <div class="projects-report-row schedule-builder-row">
             <span class="projects-report-label">Schedule</span>
-            <select id="reportSchedule" class="projects-report-input">
-              <option value="0 8 * * *">Daily at 8:00</option>
-              <option value="0 9 * * *">Daily at 9:00</option>
-              <option value="0 7 * * *">Daily at 7:00</option>
-              <option value="0 18 * * *">Daily at 18:00</option>
-              <option value="0 8 * * 1">Weekly Monday 8:00</option>
-              <option value="0 9 * * 1">Weekly Monday 9:00</option>
-              <option value="0 8 * * 5">Weekly Friday 8:00</option>
-              <option value="custom">Custom (cron)</option>
-            </select>
-            <input type="text" id="reportScheduleCustom" class="projects-report-input projects-report-cron" placeholder="e.g. 0 8 * * *" style="display:none" title="Cron: min hr day month weekday" />
-          </label>
+            <div class="schedule-builder" id="scheduleBuilder">
+              <div class="sched-controls">
+                <select id="schedFreq" class="sched-freq">
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="hourly">Every hour</option>
+                  <option value="custom">Custom cron…</option>
+                </select>
+                <span id="schedDayWrap" class="sched-extra" style="display:none">on
+                  <select id="schedDay" class="sched-select-sm">
+                    <option value="1">Monday</option>
+                    <option value="2">Tuesday</option>
+                    <option value="3">Wednesday</option>
+                    <option value="4">Thursday</option>
+                    <option value="5">Friday</option>
+                    <option value="6">Saturday</option>
+                    <option value="0">Sunday</option>
+                  </select>
+                </span>
+                <span id="schedDomWrap" class="sched-extra" style="display:none">on day
+                  <select id="schedDom" class="sched-select-sm"><!-- JS-generated --></select>
+                </span>
+                <span id="schedTimeWrap" class="sched-extra">at
+                  <select id="schedHour" class="sched-select-sm"><!-- JS-generated --></select>:
+                  <select id="schedMin" class="sched-select-sm">
+                    <option value="0">00</option>
+                    <option value="15">15</option>
+                    <option value="30">30</option>
+                    <option value="45">45</option>
+                  </select>
+                </span>
+                <span id="schedHourlyWrap" class="sched-extra" style="display:none">at :
+                  <select id="schedHourlyMin" class="sched-select-sm"><!-- JS-generated --></select>
+                </span>
+              </div>
+              <input type="text" id="schedCustomInput" class="projects-report-cron sched-custom-input" placeholder="e.g. 0 8 * * 1  (min hr dom month dow)" style="display:none" />
+              <div class="sched-preview">→ <span id="schedPreview"></span></div>
+            </div>
+          </div>
           <div class="projects-report-row">
             <span class="projects-report-label">Include projects</span>
             <div id="reportProjectChecks" class="projects-report-checks"></div>

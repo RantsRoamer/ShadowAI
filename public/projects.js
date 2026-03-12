@@ -8,8 +8,6 @@
   const reportName = document.getElementById('reportName');
   const reportEnabled = document.getElementById('reportEnabled');
   const reportToEmail = document.getElementById('reportToEmail');
-  const reportSchedule = document.getElementById('reportSchedule');
-  const reportScheduleCustom = document.getElementById('reportScheduleCustom');
   const reportProjectChecks = document.getElementById('reportProjectChecks');
   const reportPromptInput = document.getElementById('reportPromptInput');
   const reportSaveBtn = document.getElementById('reportSaveBtn');
@@ -19,15 +17,122 @@
   let projects = [];
   let editingReportId = null;
 
-  const SCHEDULE_LABELS = {
-    '0 8 * * *': 'Daily 8:00',
-    '0 9 * * *': 'Daily 9:00',
-    '0 7 * * *': 'Daily 7:00',
-    '0 18 * * *': 'Daily 18:00',
-    '0 8 * * 1': 'Mon 8:00',
-    '0 9 * * 1': 'Mon 9:00',
-    '0 8 * * 5': 'Fri 8:00'
-  };
+  // ── Schedule builder helpers ──────────────────────────────────────────────
+
+  function initScheduleSelects() {
+    const hourSel = document.getElementById('schedHour');
+    if (hourSel && !hourSel.options.length) {
+      for (let h = 0; h < 24; h++) {
+        const o = document.createElement('option');
+        o.value = h; o.textContent = String(h).padStart(2, '0') + ':00';
+        hourSel.appendChild(o);
+      }
+    }
+    const domSel = document.getElementById('schedDom');
+    if (domSel && !domSel.options.length) {
+      for (let d = 1; d <= 28; d++) {
+        const o = document.createElement('option');
+        o.value = d; o.textContent = d;
+        domSel.appendChild(o);
+      }
+    }
+    const hMinSel = document.getElementById('schedHourlyMin');
+    if (hMinSel && !hMinSel.options.length) {
+      for (let m = 0; m < 60; m += 5) {
+        const o = document.createElement('option');
+        o.value = m; o.textContent = String(m).padStart(2, '0');
+        hMinSel.appendChild(o);
+      }
+    }
+  }
+
+  function setSelectNearest(id, numStr, validValues) {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const n = parseInt(numStr, 10);
+    if (isNaN(n)) { sel.value = String(validValues[0]); return; }
+    let best = validValues[0], bestDist = Math.abs(n - validValues[0]);
+    for (const v of validValues) { const d = Math.abs(n - v); if (d < bestDist) { bestDist = d; best = v; } }
+    sel.value = String(best);
+  }
+
+  function updateScheduleVisibility() {
+    const freq = (document.getElementById('schedFreq') || {}).value || 'daily';
+    const show = (id, vis) => { const el = document.getElementById(id); if (el) el.style.display = vis ? '' : 'none'; };
+    show('schedTimeWrap', freq === 'daily' || freq === 'weekly' || freq === 'monthly');
+    show('schedDayWrap', freq === 'weekly');
+    show('schedDomWrap', freq === 'monthly');
+    show('schedHourlyWrap', freq === 'hourly');
+    show('schedCustomInput', freq === 'custom');
+    updateSchedulePreview();
+  }
+
+  function getScheduleCron() {
+    const freq = (document.getElementById('schedFreq') || {}).value || 'daily';
+    if (freq === 'custom') return ((document.getElementById('schedCustomInput') || {}).value || '').trim() || '0 8 * * *';
+    if (freq === 'hourly') return ((document.getElementById('schedHourlyMin') || {}).value || '0') + ' * * * *';
+    const hour = (document.getElementById('schedHour') || {}).value || '8';
+    const min  = (document.getElementById('schedMin')  || {}).value || '0';
+    if (freq === 'daily')   return min + ' ' + hour + ' * * *';
+    if (freq === 'weekly')  return min + ' ' + hour + ' * * ' + ((document.getElementById('schedDay') || {}).value || '1');
+    if (freq === 'monthly') return min + ' ' + hour + ' ' + ((document.getElementById('schedDom') || {}).value || '1') + ' * *';
+    return '0 8 * * *';
+  }
+
+  function setScheduleFromCron(cron) {
+    initScheduleSelects();
+    if (!cron) cron = '0 8 * * *';
+    const parts = cron.trim().split(/\s+/);
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+    if (parts.length === 5) {
+      const [min, hour, dom, month, dow] = parts;
+      const hourOk = /^\d+$/.test(hour);
+      if (hour === '*' && dom === '*' && month === '*' && dow === '*') {
+        set('schedFreq', 'hourly');
+        setSelectNearest('schedHourlyMin', min, [0,5,10,15,20,25,30,35,40,45,50,55]);
+        updateScheduleVisibility(); return;
+      }
+      if (/^\d+$/.test(dom) && month === '*' && dow === '*' && hourOk) {
+        set('schedFreq', 'monthly'); set('schedDom', dom); set('schedHour', hour);
+        setSelectNearest('schedMin', min, [0,15,30,45]);
+        updateScheduleVisibility(); return;
+      }
+      if (dom === '*' && month === '*' && /^\d+$/.test(dow) && hourOk) {
+        set('schedFreq', 'weekly'); set('schedDay', dow); set('schedHour', hour);
+        setSelectNearest('schedMin', min, [0,15,30,45]);
+        updateScheduleVisibility(); return;
+      }
+      if (dom === '*' && month === '*' && dow === '*' && hourOk) {
+        set('schedFreq', 'daily'); set('schedHour', hour);
+        setSelectNearest('schedMin', min, [0,15,30,45]);
+        updateScheduleVisibility(); return;
+      }
+    }
+    set('schedFreq', 'custom');
+    set('schedCustomInput', cron);
+    updateScheduleVisibility();
+  }
+
+  function updateSchedulePreview() {
+    const el = document.getElementById('schedPreview');
+    if (el) el.textContent = getScheduleCron();
+  }
+
+  function describeCron(cron) {
+    if (!cron) return '—';
+    const parts = cron.trim().split(/\s+/);
+    if (parts.length !== 5) return cron;
+    const [min, hour, dom, month, dow] = parts;
+    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const pad = n => String(n).padStart(2, '0');
+    if (hour === '*' && dom === '*' && month === '*' && dow === '*') return 'Hourly :' + pad(min);
+    if (dom === '*' && month === '*' && dow === '*' && /^\d+$/.test(hour)) return 'Daily ' + pad(hour) + ':' + pad(min);
+    if (dom === '*' && month === '*' && /^\d+$/.test(dow) && /^\d+$/.test(hour)) return (DAYS[+dow] || 'day ' + dow) + ' ' + pad(hour) + ':' + pad(min);
+    if (/^\d+$/.test(dom) && month === '*' && dow === '*' && /^\d+$/.test(hour)) return 'Monthly day ' + dom + ' ' + pad(hour) + ':' + pad(min);
+    return cron;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   function switchTab(tabId) {
     document.querySelectorAll('.projects-tab').forEach(t => {
@@ -114,7 +219,7 @@
           return;
         }
         reportsList.innerHTML = reports.map(r => {
-          const scheduleLabel = SCHEDULE_LABELS[r.schedule] || r.schedule || '—';
+          const scheduleLabel = describeCron(r.schedule);
           const lastRun = r.lastRunAt ? new Date(r.lastRunAt).toLocaleString() : 'Never';
           const projCount = Array.isArray(r.projectIds) ? r.projectIds.length : 0;
           return `
@@ -166,11 +271,7 @@
           reportName.value = report.name || '';
           reportEnabled.checked = report.enabled !== false;
           reportToEmail.value = report.toEmail || '';
-          const schedule = report.schedule || '0 8 * * *';
-          const isCustom = !Object.keys(SCHEDULE_LABELS).includes(schedule);
-          reportSchedule.value = isCustom ? 'custom' : schedule;
-          reportScheduleCustom.style.display = isCustom ? 'block' : 'none';
-          reportScheduleCustom.value = isCustom ? schedule : '';
+          setScheduleFromCron(report.schedule || '0 8 * * *');
           reportPromptInput.value = report.reportPrompt || '';
           renderProjectChecks(report.projectIds || []);
           reportFormWrap.style.display = 'block';
@@ -179,9 +280,7 @@
       reportName.value = '';
       reportEnabled.checked = true;
       reportToEmail.value = '';
-      reportSchedule.value = '0 8 * * *';
-      reportScheduleCustom.style.display = 'none';
-      reportScheduleCustom.value = '';
+      setScheduleFromCron('0 8 * * *');
       reportPromptInput.value = '';
       renderProjectChecks([]);
       reportFormWrap.style.display = 'block';
@@ -193,12 +292,14 @@
     reportFormWrap.style.display = 'none';
   }
 
-  if (reportSchedule) {
-    reportSchedule.addEventListener('change', function () {
-      reportScheduleCustom.style.display = this.value === 'custom' ? 'block' : 'none';
-      if (this.value !== 'custom') reportScheduleCustom.value = '';
-    });
-  }
+  const schedFreqEl = document.getElementById('schedFreq');
+  if (schedFreqEl) schedFreqEl.addEventListener('change', updateScheduleVisibility);
+  ['schedDay', 'schedDom', 'schedHour', 'schedMin', 'schedHourlyMin'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateSchedulePreview);
+  });
+  const schedCustomInputEl = document.getElementById('schedCustomInput');
+  if (schedCustomInputEl) schedCustomInputEl.addEventListener('input', updateSchedulePreview);
 
   if (addReportBtn) {
     addReportBtn.addEventListener('click', () => openReportForm(null));
@@ -211,9 +312,7 @@
   if (reportSaveBtn) {
     reportSaveBtn.addEventListener('click', function () {
       const name = (reportName.value || '').trim() || 'Report';
-      const schedule = reportSchedule.value === 'custom'
-        ? (reportScheduleCustom.value || '').trim() || '0 8 * * *'
-        : reportSchedule.value;
+      const schedule = getScheduleCron();
       const projectIds = Array.from(reportProjectChecks.querySelectorAll('.report-project-check:checked')).map(cb => cb.getAttribute('data-id'));
       const body = {
         name,
