@@ -153,6 +153,28 @@ app.get('/api/me', (req, res) => {
   res.json({ username: u.username, role: u.role });
 });
 
+app.post('/api/users/me/password', async (req, res) => {
+  const u = req.currentUser;
+  if (!u) return res.status(401).json({ error: 'Not authenticated' });
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'currentPassword and newPassword are required' });
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' });
+  }
+  try {
+    const verified = await authenticate(u.username, currentPassword);
+    if (!verified) return res.status(403).json({ error: 'Current password is incorrect' });
+    await updateUser(u.username, { password: newPassword });
+    logger.info(`Password changed for user: ${u.username}`);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/users/me/password:', e.message);
+    res.status(500).json({ error: 'Failed to update password' });
+  }
+});
+
 // Serve AI avatar image (if uploaded). This is a simple file under data/.
 app.get('/static/ai-avatar', (req, res) => {
   try {
@@ -181,6 +203,7 @@ function adminPageGuard(req, res, next) {
   next();
 }
 
+app.get('/profile',     (req, res) => res.sendFile(path.join(PUBLIC, 'profile.html')));
 app.get('/dashboard',   (req, res) => res.sendFile(path.join(PUBLIC, 'dashboard.html')));
 app.get('/app',         (req, res) => res.sendFile(path.join(PUBLIC, 'app.html')));
 app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.html')));

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Account</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <style>
+    .profile-main {
+      max-width: 480px;
+      margin: 2.5rem auto;
+      padding: 0 1rem;
+    }
+    .profile-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      margin-bottom: 1.5rem;
+    }
+    .profile-card {
+      background: var(--bg-secondary, #0d0d0d);
+      border: 1px solid var(--border, #1a1a1a);
+      border-radius: 4px;
+      padding: 1.5rem;
+    }
+    .profile-card h2 {
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin: 0 0 1.2rem 0;
+      text-transform: uppercase;
+    }
+    .profile-info {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1.8rem;
+      font-size: 0.85rem;
+      color: var(--text-muted, #666);
+    }
+    .profile-info span { color: var(--text, #ccc); }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      color: var(--text-muted, #666);
+      text-transform: uppercase;
+    }
+    .form-group input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .form-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 1.2rem;
+    }
+    #pwStatus {
+      font-size: 0.8rem;
+    }
+    #pwStatus.ok    { color: var(--accent); }
+    #pwStatus.error { color: #e05; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/dashboard" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/projects" class="nav-link">PROJECTS</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/rag" class="nav-link">KNOWLEDGE</a>
+      <div class="nav-dropdown">
+        <span class="nav-link nav-dropdown-toggle">SYSTEM</span>
+        <div class="nav-dropdown-menu">
+          <a href="/config" class="nav-link">CONFIG</a>
+          <a href="/personality" class="nav-link">PERSONALITY</a>
+          <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+          <a href="/agents" class="nav-link">AGENTS</a>
+          <a href="/pipelines" class="nav-link">PIPELINES</a>
+          <a href="/users" class="nav-link">USERS</a>
+        </div>
+      </div>
+      <a href="/editor" class="nav-link">EDITOR</a>
+      <a href="/profile" class="nav-link active">ACCOUNT</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="profile-main">
+    <p class="profile-title">ACCOUNT</p>
+
+    <div class="profile-card">
+      <h2>Profile</h2>
+      <div class="profile-info">
+        <div>USER <span id="infoUsername">—</span></div>
+        <div>ROLE <span id="infoRole">—</span></div>
+      </div>
+
+      <h2>Change Password</h2>
+      <div class="form-group">
+        <label for="currentPassword">Current Password</label>
+        <input type="password" id="currentPassword" autocomplete="current-password" />
+      </div>
+      <div class="form-group">
+        <label for="newPassword">New Password</label>
+        <input type="password" id="newPassword" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">Confirm New Password</label>
+        <input type="password" id="confirmPassword" autocomplete="new-password" />
+      </div>
+      <div class="form-actions">
+        <button type="button" id="changePasswordBtn" class="btn">UPDATE PASSWORD</button>
+        <span id="pwStatus"></span>
+      </div>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/profile.js"></script>
+</body>
+</html>
