@@ -74,16 +74,6 @@
     })
     .catch(function () {});
 
-  // Inject ACCOUNT nav link before LOGOUT button (on all pages except /profile itself)
-  var logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn && window.location.pathname !== '/profile') {
-    var accountLink = document.createElement('a');
-    accountLink.href = '/profile';
-    accountLink.className = 'nav-link';
-    accountLink.textContent = 'ACCOUNT';
-    logoutBtn.parentNode.insertBefore(accountLink, logoutBtn);
-  }
-
   // Hide admin-only nav items for non-admin users
   fetch('/api/me')
     .then(function (r) { return r.ok ? r.json() : null; })
