@@ -41,6 +41,19 @@
       <p class="config-note">Inspect why SearXNG web search might not be working.</p>
 
       <section class="section">
+        <h2>Memory Files</h2>
+        <p class="section-desc">Check the project memory files for structural issues (missing frontmatter, invalid types, missing index entries). Use "Fix" to auto-repair any problems found.</p>
+        <div class="form-group">
+          <label>Status</label>
+          <pre id="memoryResult" class="debug-pre">Click "Check" to inspect.</pre>
+        </div>
+        <div style="display:flex;gap:0.6rem;">
+          <button type="button" id="memoryCheckBtn" class="btn btn-small">Check</button>
+          <button type="button" id="memoryFixBtn" class="btn btn-small">Fix</button>
+        </div>
+      </section>
+
+      <section class="section">
         <h2>SearXNG</h2>
         <p class="section-desc">Current config and whether the chat tool is active. Run a test search to see request URL, status, and response.</p>
         <div class="form-group">

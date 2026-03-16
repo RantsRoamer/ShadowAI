@@ -1188,6 +1188,28 @@ app.post('/api/notifications/test-email', async (req, res) => {
 // ---------------------------------------------------------------------------
 // Debug endpoints
 // ---------------------------------------------------------------------------
+const memoryCheck = require('./lib/memoryCheck.js');
+
+app.get('/api/debug/memory', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json(memoryCheck.runCheck(false));
+  } catch (e) {
+    logger.error('GET /api/debug/memory:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/debug/memory/fix', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json(memoryCheck.runCheck(true));
+  } catch (e) {
+    logger.error('POST /api/debug/memory/fix:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/debug/searxng', (req, res) => {
   const c = getConfig().searxng || {};
   res.json({
