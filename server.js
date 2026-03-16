@@ -597,6 +597,21 @@ app.put('/api/projects/:id/memory', (req, res) => {
   }
 });
 
+app.post('/api/projects/:id/memory/consolidate', (req, res) => {
+  try {
+    const project = projectStore.getProject(req.params.id);
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.currentUser, project, 'admin')) return res.status(403).json({ error: 'Forbidden' });
+    const raw     = projectStore.readProjectMemory(req.params.id);
+    projectStore.writeProjectMemory(req.params.id, raw);   // writeProjectMemory runs consolidation
+    const result  = projectStore.readProjectMemory(req.params.id);
+    res.json({ ok: true, content: result });
+  } catch (e) {
+    logger.error('POST /api/projects/:id/memory/consolidate:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/projects/:id/import', async (req, res) => {
   try {
     const projectId = req.params.id;
@@ -1566,13 +1581,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         type: 'function',
         function: {
           name: 'append_project_memory',
-          description: 'Save or update important information in this project\'s memory (project memory file). Use when the user shares facts, decisions, dates, contacts, or requirements they want remembered for this project. When information changes (e.g. updated budget or timeline), call this tool again with the same sectionTitle to overwrite that section instead of appending a new one.',
+          description: 'Save or update a section in this project\'s memory file. ALWAYS provide a sectionTitle — this is the canonical heading under which the information is stored. Calling with the same sectionTitle replaces that section entirely, so never invent a new title for existing information (e.g. always use "Budget" not "Updated Budget"). Do NOT include a "Last Updated" line in your text — that is managed automatically. Use concise, consistent titles like "Overview", "Timeline", "Budget", "Key Contacts", "Requirements", "Decisions".',
           parameters: {
             type: 'object',
-            required: ['text'],
+            required: ['text', 'sectionTitle'],
             properties: {
-              text: { type: 'string', description: 'The information to save (e.g. "Launch date: March 2025")' },
-              sectionTitle: { type: 'string', description: 'Optional section heading (e.g. "Budget", "Timeline", "Key dates"). If you reuse the same title later, that section will be replaced with the new content.' }
+              text: { type: 'string', description: 'The content to store under this section. Plain text or markdown. Do not include a Last Updated line.' },
+              sectionTitle: { type: 'string', description: 'The section heading. Use a short, consistent noun phrase (e.g. "Budget", "Timeline", "Requirements"). Reusing an existing title overwrites that section.' }
             }
           }
         }

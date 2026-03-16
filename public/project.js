@@ -16,6 +16,7 @@
   const memoryPanel = document.getElementById('memoryPanel');
   const projectMemory = document.getElementById('projectMemory');
   const saveMemoryBtn = document.getElementById('saveMemoryBtn');
+  const consolidateMemoryBtn = document.getElementById('consolidateMemoryBtn');
   const memoryStatus = document.getElementById('memoryStatus');
   const messagesEl = document.getElementById('messages');
   const userInput = document.getElementById('userInput');
@@ -154,6 +155,9 @@
         projectHeaderName.textContent = p.name || 'Project';
         projectNameInput.value = p.name || '';
         renderShares();
+        if (consolidateMemoryBtn) {
+          consolidateMemoryBtn.style.display = canManageShares() ? '' : 'none';
+        }
       })
       .catch(() => { projectHeaderName.textContent = 'Project not found'; });
   }
@@ -235,6 +239,22 @@
       })
       .catch(() => showStatus(memoryStatus, 'Failed to save.', 3000));
   });
+
+  if (consolidateMemoryBtn) {
+    consolidateMemoryBtn.addEventListener('click', () => {
+      if (!confirm('Consolidate memory? Duplicate sections will be merged (last entry wins) and formatting will be cleaned up.')) return;
+      consolidateMemoryBtn.disabled = true;
+      showStatus(memoryStatus, 'Consolidating…');
+      fetch('/api/projects/' + encodeURIComponent(projectId) + '/memory/consolidate', { method: 'POST' })
+        .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(new Error(d.error || 'Failed'))))
+        .then(data => {
+          projectMemory.value = data.content || '';
+          showStatus(memoryStatus, 'Memory consolidated.', 3000);
+        })
+        .catch(e => showStatus(memoryStatus, e.message || 'Failed to consolidate.', 3000))
+        .finally(() => { consolidateMemoryBtn.disabled = false; });
+    });
+  }
 
   function setProcessing(processing) {
     sendBtn.disabled = processing;
