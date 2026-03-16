@@ -1307,7 +1307,7 @@ app.get('/api/chats', (req, res) => {
   const user = req.session && req.session.user;
   if (!user) return res.json({ chats: [], currentChatId: null, channelChats: [] });
   const data = chatStore.listChats(user);
-  const channelChats = chatStore.listAllChannelChats();
+  const channelChats = req.currentUser && req.currentUser.role === 'admin' ? chatStore.listAllChannelChats() : [];
   res.json({ chats: data.chats, currentChatId: data.currentChatId, channelChats });
 });
 
