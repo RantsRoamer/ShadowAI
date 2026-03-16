@@ -492,10 +492,12 @@ function resolveChannelUser(user, channelOwner) {
     const pid = channelOwner.slice('project_'.length);
     const project = projectStore.getProject(pid);
     if (!project || !canAccessProject(user, project, 'view')) return null;
-    return channelOwner;
+    // Each user gets their own project chat: project_<id>_<username>
+    const uname = chatStore.safeUsername(typeof user === 'string' ? user : (user.username || ''));
+    return 'project_' + pid + '_' + uname;
   }
   // Other channel types (telegram_, discord_, channel_) are system-level — admin only
-  if (user.role === 'admin') return channelOwner;
+  if (typeof user !== 'string' && user.role === 'admin') return channelOwner;
   return user;
 }
 
