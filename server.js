@@ -27,6 +27,8 @@ const pipelineRunner = require('./lib/pipelineRunner.js');
 const projectStore = require('./lib/projectStore.js');
 const projectImport = require('./lib/projectImport.js');
 const ragLib = require('./lib/rag.js');
+const agentStore = require('./lib/agentStore.js');
+const agentRunner = require('./lib/agentRunner.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -219,6 +221,7 @@ app.get('/pipelines',   adminPageGuard, (req, res) => res.sendFile(path.join(PUB
 app.get('/editor',      adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'editor.html')));
 app.get('/users',       adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'users.html')));
 app.get('/debug',       adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'debug.html')));
+app.get('/autoagent', adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'autoagent.html')));
 
 // ---------------------------------------------------------------------------
 // Personality & memory
@@ -1396,6 +1399,26 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' });
   }
+
+  // Agent task creation via chat intent: /agent goal <text>
+  const lastMsg = messages[messages.length - 1];
+  if (lastMsg && lastMsg.role === 'user' && typeof lastMsg.content === 'string') {
+    const trimmed = lastMsg.content.trim();
+    if (trimmed.toLowerCase().startsWith('/agent goal ')) {
+      const goal = trimmed.slice('/agent goal '.length).trim();
+      if (goal) {
+        try {
+          const task = agentStore.createTask({ goal });
+          return res.json({
+            content: `Agent task created.\n\nTitle: "${task.title}"\nTask ID: \`${task.id}\`\nStatus: queued\n\nTrack progress at [/autoagent](/autoagent).`
+          });
+        } catch (e) {
+          return res.status(500).json({ error: 'Failed to create agent task: ' + e.message });
+        }
+      }
+    }
+  }
+
   const user = req.session && req.session.user;
   const channelOwner = (channelChatOwner || '').trim();
   const effectiveUser = resolveChannelUser(user, channelOwner);
@@ -2004,6 +2027,127 @@ app.post('/api/pipelines/:id/run', runLimiter, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Autonomous agent routes
+// ---------------------------------------------------------------------------
+app.get('/api/agent/tasks', requireAdmin, (req, res) => {
+  try {
+    res.json(agentStore.listTasks());
+  } catch (e) {
+    logger.error('GET /api/agent/tasks:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/agent/tasks', requireAdmin, (req, res) => {
+  try {
+    const { goal, blockedBehavior, title } = req.body || {};
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({ error: 'goal is required' });
+    }
+    const task = agentStore.createTask({
+      goal: goal.trim(),
+      title: title ? String(title).trim() : undefined,
+      blockedBehavior: blockedBehavior || 'pause'
+    });
+    res.status(201).json(task);
+  } catch (e) {
+    logger.error('POST /api/agent/tasks:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/agent/tasks/:id', requireAdmin, (req, res) => {
+  try {
+    const task = agentStore.getTask(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Not found' });
+    res.json(task);
+  } catch (e) {
+    logger.error('GET /api/agent/tasks/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/agent/tasks/:id', requireAdmin, (req, res) => {
+  try {
+    agentStore.deleteTask(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('DELETE /api/agent/tasks/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/agent/tasks/:id/approve', requireAdmin, async (req, res) => {
+  try {
+    const task = agentStore.getTask(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Not found' });
+    if (task.status !== 'awaiting_approval') {
+      return res.status(400).json({ error: 'Task is not awaiting approval' });
+    }
+    await agentRunner.resumeAfterApproval(task, true, null);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/agent/tasks/:id/approve:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/agent/tasks/:id/reject', requireAdmin, async (req, res) => {
+  try {
+    const task = agentStore.getTask(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Not found' });
+    if (task.status !== 'awaiting_approval') {
+      return res.status(400).json({ error: 'Task is not awaiting approval' });
+    }
+    const { reason } = req.body || {};
+    await agentRunner.resumeAfterApproval(task, false, reason ? String(reason) : '');
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/agent/tasks/:id/reject:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/agent/tasks/:id/unblock', requireAdmin, (req, res) => {
+  try {
+    const task = agentStore.getTask(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Not found' });
+    if (task.status !== 'blocked') {
+      return res.status(400).json({ error: 'Task is not blocked' });
+    }
+    agentStore.updateTask(req.params.id, { status: 'executing' });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/agent/tasks/:id/unblock:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/agent/config', requireAdmin, (req, res) => {
+  try {
+    const cfg = getConfig();
+    res.json(cfg.agent || { maxConcurrent: 2, loopIntervalMs: 5000 });
+  } catch (e) {
+    logger.error('GET /api/agent/config:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/agent/config', requireAdmin, (req, res) => {
+  try {
+    const { maxConcurrent, loopIntervalMs } = req.body || {};
+    const updates = {};
+    if (maxConcurrent != null) updates.maxConcurrent = Math.max(1, Math.min(10, Number(maxConcurrent)));
+    if (loopIntervalMs != null) updates.loopIntervalMs = Math.max(1000, Number(loopIntervalMs));
+    updateConfig({ agent: updates });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('PUT /api/agent/config:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
 app.get('/api/dashboard', async (req, res) => {
@@ -2134,6 +2278,7 @@ function start() {
 
   heartbeatLib.startHeartbeat();
   pipelineRunner.startScheduler();
+  agentRunner.startAgentRunner();
 
   try {
     const telegramBot = require('./lib/telegramBot.js');
