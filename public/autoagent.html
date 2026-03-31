@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Autonomous Agent</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/config.css" />
+  <link rel="stylesheet" href="/static/autoagent.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/dashboard" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/projects" class="nav-link">PROJECTS</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/rag" class="nav-link">KNOWLEDGE</a>
+      <div class="nav-dropdown">
+        <span class="nav-link nav-dropdown-toggle has-active">SYSTEM</span>
+        <div class="nav-dropdown-menu">
+          <a href="/config" class="nav-link">CONFIG</a>
+          <a href="/personality" class="nav-link">PERSONALITY</a>
+          <a href="/heartbeat" class="nav-link">HEARTBEAT</a>
+          <a href="/agents" class="nav-link">AGENTS</a>
+          <a href="/pipelines" class="nav-link">PIPELINES</a>
+          <span class="nav-link active">AUTOAGENT</span>
+          <a href="/users" class="nav-link">USERS</a>
+        </div>
+      </div>
+      <a href="/editor" class="nav-link">EDITOR</a>
+      <a href="/profile" class="nav-link">ACCOUNT</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="config-main">
+
+    <!-- Approval queue (shown only when tasks are awaiting approval) -->
+    <div id="approvalQueue" style="display:none;">
+      <div class="config-card agent-approval-card">
+        <h1>APPROVAL REQUIRED</h1>
+        <p class="config-note">The agent wants to take an irreversible action. Review and approve or reject.</p>
+        <div id="approvalList"></div>
+      </div>
+    </div>
+
+    <!-- Task list + detail layout -->
+    <div class="agent-layout">
+
+      <!-- Left: task list + new task form -->
+      <div class="agent-sidebar">
+        <div class="config-card">
+          <h1>TASKS</h1>
+          <div id="taskList"><p class="config-note">Loading...</p></div>
+          <button type="button" id="newTaskBtn" class="btn btn-small" style="margin-top:12px;">+ New task</button>
+        </div>
+
+        <!-- New task form (hidden by default) -->
+        <div class="config-card" id="newTaskForm" style="display:none; margin-top:16px;">
+          <h1>NEW TASK</h1>
+          <div class="form-group">
+            <label class="form-label">Goal</label>
+            <textarea id="taskGoal" class="form-control" rows="4" placeholder="Describe what the agent should do..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">When blocked</label>
+            <select id="taskBlockedBehavior" class="form-control">
+              <option value="pause">Pause and wait</option>
+              <option value="notify">Pause and notify me by email</option>
+              <option value="continue">Best-guess and continue</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="submitTaskBtn" class="btn">Create task</button>
+            <button type="button" id="cancelTaskBtn" class="btn btn-secondary">Cancel</button>
+            <span id="taskStatus" class="status"></span>
+          </div>
+        </div>
+
+        <!-- Agent config -->
+        <div class="config-card" style="margin-top:16px;">
+          <h1>AGENT CONFIG</h1>
+          <div class="form-group">
+            <label class="form-label">Max concurrent tasks</label>
+            <input type="number" id="cfgMaxConcurrent" class="form-control" min="1" max="10" value="2" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Loop interval (ms)</label>
+            <input type="number" id="cfgLoopInterval" class="form-control" min="1000" step="1000" value="5000" />
+          </div>
+          <div class="form-actions">
+            <button type="button" id="saveConfigBtn" class="btn">Save config</button>
+            <span id="configStatus" class="status"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: task detail panel -->
+      <div class="agent-detail" id="taskDetail" style="display:none;">
+        <div class="config-card">
+          <div class="agent-detail-header">
+            <h1 id="detailTitle">TASK</h1>
+            <div class="agent-detail-actions">
+              <span id="detailStatus" class="agent-badge"></span>
+              <button type="button" id="deleteTaskBtn" class="btn btn-small btn-danger">Delete</button>
+              <button type="button" id="unblockTaskBtn" class="btn btn-small" style="display:none;">Unblock</button>
+              <button type="button" id="closeDetailBtn" class="btn btn-small btn-secondary">Close</button>
+            </div>
+          </div>
+          <p id="detailGoal" class="config-note"></p>
+
+          <!-- Plan -->
+          <h2 style="margin-top:16px;">PLAN</h2>
+          <ol id="detailPlan" class="agent-plan-list"></ol>
+
+          <!-- Learnings -->
+          <div id="detailLearnings" style="display:none;">
+            <h2 style="margin-top:16px;">LEARNINGS</h2>
+            <div id="detailLearningsContent"></div>
+          </div>
+
+          <!-- Log -->
+          <h2 style="margin-top:16px;">LOG</h2>
+          <div id="detailLog" class="agent-log"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/autoagent.js"></script>
+</body>
+</html>
