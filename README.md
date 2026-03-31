@@ -297,7 +297,7 @@ Any user who owns a project (or has admin-level share access) can also manage ac
 - Only admins can change global config, email/notification settings, and user accounts.
 - Project access (memory read/write, file import, project chat) is checked on every request against the project's `shares` list.
 - Code execution runs in a sandbox under the `run/` folder with time and output limits.
-- Self-update is limited to the project directory and allowed file extensions.
+- Self-update is limited to the project directory and allowed file extensions. X
 
 ## License
 
