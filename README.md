@@ -237,12 +237,16 @@ echo "Summarize the last three messages" | node scripts/cli.js
 
 ### Matrix (Synapse / homeserver) bot
 
-1. On your homeserver, create a dedicated bot user (or use an existing account). Obtain an **access token** (e.g. sign in with [Element](https://element.io) and copy the token from **Help & About → Access Token**, or use `POST /_matrix/client/v3/login` against your Synapse URL).
-2. In Config → Channels, enable **Matrix bot**, set **Homeserver URL** to your client API base (e.g. `https://matrix.example.org`), and paste the **access token**. Restart the server.
+1. On your homeserver, create a dedicated bot user (or use an existing account).
+2. In Config → Channels, enable **Matrix bot** and set **Homeserver URL** to your client API base (e.g. `https://matrix.example.org`). Choose a **sign-in method**:
+   - **Access token** — paste a token (e.g. from Element **Help & About → Access Token**). Easiest if you already have a token.
+   - **Username and password (Client-Server login API)** — enter the bot’s Matrix user ID (local part or full `@user:server`) and password. On startup, ShadowAI calls `POST /_matrix/client/v3/login` (same API Element uses) and uses the returned access token for the session. The password is stored in `config.json` when you save; it is not returned in the config API response.
+   - If **Access token** is selected but the token field is empty, ShadowAI will still try **user ID + password** from config when both are set (fallback).
 3. Install the optional dependency: `npm install matrix-bot-sdk`
-4. Invite the bot to a room or start a direct message. The bot auto-accepts invites. Each Matrix user gets their own conversation history (unencrypted rooms work out of the box; encrypted rooms require extra crypto setup and are not covered here).
-5. **Restrict who can use the bot:** set **Allowed Matrix user IDs** to comma-separated full MXIDs (e.g. `@alice:example.org`). Leave empty to allow any user in rooms where the bot is present.
-6. Send `reset` or `!reset` in the room to clear that user’s stored conversation (same idea as Discord `/reset`).
+4. Restart the server after saving channel settings.
+5. Invite the bot to a room or start a direct message. The bot auto-accepts invites. Each Matrix user gets their own conversation history (unencrypted rooms work out of the box; encrypted rooms require extra crypto setup and are not covered here).
+6. **Restrict who can use the bot:** set **Allowed Matrix user IDs** to comma-separated full MXIDs (e.g. `@alice:example.org`). Leave empty to allow any user in rooms where the bot is present.
+7. Send `reset` or `!reset` in the room to clear that user’s stored conversation (same idea as Discord `/reset`).
 
 Channel conversations (CLI, Telegram, Discord, Matrix) are stored per synthetic user id (e.g. `channel_cli`, `telegram_<userId>`, `discord_<userId>`, `matrix_<localpart_homeserver>`) and appear in the web UI chat list so you can inspect or continue them from the browser. CLEAR in the web UI, or `/reset` in Discord / `reset` in Matrix, will clear that channel conversation.
 

@@ -214,9 +214,29 @@
             <span class="section-desc">Client API base (same host you use in Element; no trailing path).</span>
           </div>
           <div class="form-group">
+            <label>Matrix sign-in method</label>
+            <select id="matrixAuthMode" aria-label="Matrix sign-in method">
+              <option value="token">Access token</option>
+              <option value="password">Username and password (Client-Server login API)</option>
+            </select>
+            <span class="section-desc">Use a token you paste, or store the bot’s Matrix ID and password and let the server call <code>POST /_matrix/client/v3/login</code> on startup.</span>
+          </div>
+          <div class="form-group" id="matrixAuthTokenGroup">
             <label>Matrix access token</label>
             <input type="password" id="matrixAccessToken" placeholder="Bot user access token" autocomplete="off" />
-            <span class="section-desc">Create a bot user on the server, then obtain a token (e.g. login via Element or <code>/_matrix/client/v3/login</code>).</span>
+            <span class="section-desc">From Element (Help → Access Token) or any client; used when sign-in method is Access token.</span>
+          </div>
+          <div id="matrixAuthPasswordWrap" hidden>
+            <div class="form-group">
+              <label>Matrix user ID</label>
+              <input type="text" id="matrixUserId" placeholder="localpart or @user:server" autocomplete="off" />
+              <span class="section-desc">Bot account: local username or full MXID for this homeserver.</span>
+            </div>
+            <div class="form-group">
+              <label>Matrix password</label>
+              <input type="password" id="matrixPassword" placeholder="Leave blank after saving to keep unchanged" autocomplete="new-password" />
+              <span class="section-desc">Stored in <code>config.json</code> on save. Shown empty when you reload; type again only to change it.</span>
+            </div>
           </div>
           <div class="form-group">
             <label>Allowed Matrix user IDs</label>

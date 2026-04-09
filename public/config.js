@@ -38,6 +38,16 @@
     statusEl.style.color = isError ? 'var(--red)' : 'var(--text-dim)';
   }
 
+  function toggleMatrixAuthFields() {
+    const modeEl = document.getElementById('matrixAuthMode');
+    if (!modeEl) return;
+    const mode = modeEl.value || 'token';
+    const tokenGr = document.getElementById('matrixAuthTokenGroup');
+    const pwdWrap = document.getElementById('matrixAuthPasswordWrap');
+    if (tokenGr) tokenGr.hidden = mode === 'password';
+    if (pwdWrap) pwdWrap.hidden = mode !== 'password';
+  }
+
   function refreshAvatarPreview() {
     if (!avatarImg) return;
     const url = '/static/ai-avatar?ts=' + Date.now();
@@ -84,8 +94,14 @@
     document.getElementById('discordAllowedUserIds').value = Array.isArray(ch.discord?.allowedUserIds) ? ch.discord.allowedUserIds.join(', ') : (ch.discord?.allowedUserIds ?? '');
     document.getElementById('matrixEnabled').checked = ch.matrix?.enabled === true;
     document.getElementById('matrixHomeserverUrl').value = ch.matrix?.homeserverUrl ?? '';
+    const matrixModeEl = document.getElementById('matrixAuthMode');
+    if (matrixModeEl) matrixModeEl.value = ch.matrix?.authMode === 'password' ? 'password' : 'token';
+    document.getElementById('matrixUserId').value = ch.matrix?.userId ?? '';
     document.getElementById('matrixAccessToken').value = ch.matrix?.accessToken ?? '';
+    const mp = document.getElementById('matrixPassword');
+    if (mp) mp.value = '';
     document.getElementById('matrixAllowedUserIds').value = Array.isArray(ch.matrix?.allowedUserIds) ? ch.matrix.allowedUserIds.join(', ') : (ch.matrix?.allowedUserIds ?? '');
+    toggleMatrixAuthFields();
     const ui = c.ui || {};
     document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
     document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
@@ -139,12 +155,22 @@
         botToken: document.getElementById('discordBotToken').value.trim(),
         allowedUserIds: document.getElementById('discordAllowedUserIds').value.split(',').map(s => s.trim()).filter(Boolean)
       },
-      matrix: {
-        enabled: document.getElementById('matrixEnabled').checked,
-        homeserverUrl: document.getElementById('matrixHomeserverUrl').value.trim(),
-        accessToken: document.getElementById('matrixAccessToken').value.trim(),
-        allowedUserIds: document.getElementById('matrixAllowedUserIds').value.split(',').map(s => s.trim()).filter(Boolean)
-      }
+      matrix: (() => {
+        const authMode = (document.getElementById('matrixAuthMode') && document.getElementById('matrixAuthMode').value) || 'token';
+        const row = {
+          enabled: document.getElementById('matrixEnabled').checked,
+          authMode,
+          homeserverUrl: document.getElementById('matrixHomeserverUrl').value.trim(),
+          userId: document.getElementById('matrixUserId').value.trim(),
+          accessToken: document.getElementById('matrixAccessToken').value.trim(),
+          allowedUserIds: document.getElementById('matrixAllowedUserIds').value.split(',').map(s => s.trim()).filter(Boolean)
+        };
+        const pwdEl = document.getElementById('matrixPassword');
+        const pwdVal = pwdEl ? pwdEl.value : '';
+        if (pwdVal) row.password = pwdVal;
+        else if (authMode === 'token') row.password = '';
+        return row;
+      })()
     };
   }
 
@@ -379,8 +405,14 @@
         document.getElementById('discordAllowedUserIds').value = Array.isArray(ch.discord?.allowedUserIds) ? ch.discord.allowedUserIds.join(', ') : (ch.discord?.allowedUserIds ?? '');
         document.getElementById('matrixEnabled').checked = ch.matrix?.enabled === true;
         document.getElementById('matrixHomeserverUrl').value = ch.matrix?.homeserverUrl ?? '';
+        const matrixModeEl2 = document.getElementById('matrixAuthMode');
+        if (matrixModeEl2) matrixModeEl2.value = ch.matrix?.authMode === 'password' ? 'password' : 'token';
+        document.getElementById('matrixUserId').value = ch.matrix?.userId ?? '';
         document.getElementById('matrixAccessToken').value = ch.matrix?.accessToken ?? '';
+        const mp2 = document.getElementById('matrixPassword');
+        if (mp2) mp2.value = '';
         document.getElementById('matrixAllowedUserIds').value = Array.isArray(ch.matrix?.allowedUserIds) ? ch.matrix.allowedUserIds.join(', ') : (ch.matrix?.allowedUserIds ?? '');
+        toggleMatrixAuthFields();
         const ui = c.ui || {};
         document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
         document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
@@ -391,6 +423,9 @@
       setStatus(e.message, true);
     }
   });
+
+  const matrixAuthModeEl = document.getElementById('matrixAuthMode');
+  if (matrixAuthModeEl) matrixAuthModeEl.addEventListener('change', toggleMatrixAuthFields);
 
   loadConfig();
 })();
