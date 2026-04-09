@@ -1205,6 +1205,17 @@ app.post('/api/notifications/test-email', async (req, res) => {
   }
 });
 
+app.post('/api/system/project-memory/repair', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const result = projectStore.repairAllProjectMemories();
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    logger.error('POST /api/system/project-memory/repair:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Debug endpoints
 // ---------------------------------------------------------------------------

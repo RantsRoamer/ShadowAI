@@ -19,6 +19,8 @@
   const ragChunkOverlapEl = document.getElementById('ragChunkOverlap');
   const ragCollectionNameEl = document.getElementById('ragCollectionName');
   const ragTopKEl = document.getElementById('ragTopK');
+  const repairProjectMemoryBtn = document.getElementById('repairProjectMemoryBtn');
+  const repairProjectMemoryStatusEl = document.getElementById('repairProjectMemoryStatus');
   document.querySelectorAll('.config-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-tab');
@@ -140,6 +142,30 @@
     if (!el) return;
     el.textContent = msg;
     el.style.color = isError ? 'var(--red)' : 'var(--text-dim)';
+  }
+
+  if (repairProjectMemoryBtn) {
+    repairProjectMemoryBtn.addEventListener('click', async () => {
+      repairProjectMemoryBtn.disabled = true;
+      setInlineStatus(repairProjectMemoryStatusEl, 'Repairing project memories...', false);
+      try {
+        const res = await fetch('/api/system/project-memory/repair', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        const scanned = Number.isFinite(data.scanned) ? data.scanned : 0;
+        const changed = Number.isFinite(data.changed) ? data.changed : 0;
+        const skipped = Number.isFinite(data.skipped) ? data.skipped : 0;
+        setInlineStatus(
+          repairProjectMemoryStatusEl,
+          `Done. Scanned ${scanned}, repaired ${changed}, skipped ${skipped}.`,
+          false
+        );
+      } catch (e) {
+        setInlineStatus(repairProjectMemoryStatusEl, e.message || 'Repair failed.', true);
+      } finally {
+        repairProjectMemoryBtn.disabled = false;
+      }
+    });
   }
 
   document.getElementById('emailUseAuth').addEventListener('change', toggleEmailAuth);

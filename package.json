@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "cli": "node scripts/cli.js"
+    "cli": "node scripts/cli.js",
+    "repair:project-memory": "node scripts/repair-project-memories.js"
   },
   "engines": {
     "node": ">=18"

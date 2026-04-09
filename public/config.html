@@ -252,6 +252,12 @@
             <label>Top-K results</label>
             <input type="number" id="ragTopK" min="1" max="50" step="1" placeholder="8" />
           </div>
+          <div class="form-group">
+            <h2>Project Memory</h2>
+            <p class="section-desc">Repair and de-duplicate all existing project memory files. This keeps one latest section per topic and fixes malformed markdown headings.</p>
+            <button type="button" id="repairProjectMemoryBtn" class="btn btn-small">Repair all project memories</button>
+            <span id="repairProjectMemoryStatus" class="status" style="margin-left:8px;"></span>
+          </div>
         </section>
       </div>
 
