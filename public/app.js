@@ -421,15 +421,32 @@
     return el.innerHTML;
   }
 
+  /** Open http(s) links from chat markdown in a new browser tab/window. */
+  function externalLinksOpenInNewWindow(html) {
+    if (!html) return html;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('a[href]').forEach((a) => {
+      const href = a.getAttribute('href') || '';
+      if (/^https?:\/\//i.test(href) || /^\/\//.test(href)) {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+      }
+    });
+    return wrap.innerHTML;
+  }
+
   function formatContent(text) {
     if (!text) return '';
     if (typeof marked !== 'undefined') {
       marked.setOptions({ gfm: true, breaks: true });
       const raw = marked.parse(text, { async: false });
       if (typeof DOMPurify !== 'undefined') {
-        return DOMPurify.sanitize(raw, { ALLOWED_TAGS: ['p','br','strong','em','code','pre','ul','ol','li','table','thead','tbody','tr','th','td','h1','h2','h3','h4','h5','h6','blockquote','a','span','div'], ALLOWED_ATTR: ['href','class'] });
+        return externalLinksOpenInNewWindow(
+          DOMPurify.sanitize(raw, { ALLOWED_TAGS: ['p','br','strong','em','code','pre','ul','ol','li','table','thead','tbody','tr','th','td','h1','h2','h3','h4','h5','h6','blockquote','a','span','div'], ALLOWED_ATTR: ['href','class'] })
+        );
       }
-      return raw;
+      return externalLinksOpenInNewWindow(raw);
     }
     return escapeHtml(text)
       .replace(/\n/g, '<br>')

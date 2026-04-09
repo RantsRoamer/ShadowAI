@@ -315,6 +315,21 @@
     }
   });
 
+  /** Open http(s) links from markdown in a new browser tab/window. */
+  function externalLinksOpenInNewWindow(html) {
+    if (!html) return html;
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('a[href]').forEach((a) => {
+      const href = a.getAttribute('href') || '';
+      if (/^https?:\/\//i.test(href) || /^\/\//.test(href)) {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+      }
+    });
+    return wrap.innerHTML;
+  }
+
   async function askAI() {
     const instruction = aiInstruction.value.trim();
     if (!instruction) return;
@@ -363,7 +378,7 @@
           }
           if (data.content) {
             fullText += data.content;
-            aiResponse.innerHTML = DOMPurify.sanitize(marked.parse(fullText));
+            aiResponse.innerHTML = externalLinksOpenInNewWindow(DOMPurify.sanitize(marked.parse(fullText)));
           }
           if (data.done) break;
         }
