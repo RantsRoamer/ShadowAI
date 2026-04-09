@@ -82,6 +82,10 @@
     document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
     document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
     document.getElementById('discordAllowedUserIds').value = Array.isArray(ch.discord?.allowedUserIds) ? ch.discord.allowedUserIds.join(', ') : (ch.discord?.allowedUserIds ?? '');
+    document.getElementById('matrixEnabled').checked = ch.matrix?.enabled === true;
+    document.getElementById('matrixHomeserverUrl').value = ch.matrix?.homeserverUrl ?? '';
+    document.getElementById('matrixAccessToken').value = ch.matrix?.accessToken ?? '';
+    document.getElementById('matrixAllowedUserIds').value = Array.isArray(ch.matrix?.allowedUserIds) ? ch.matrix.allowedUserIds.join(', ') : (ch.matrix?.allowedUserIds ?? '');
     const ui = c.ui || {};
     document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
     document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;
@@ -134,6 +138,12 @@
         enabled: document.getElementById('discordEnabled').checked,
         botToken: document.getElementById('discordBotToken').value.trim(),
         allowedUserIds: document.getElementById('discordAllowedUserIds').value.split(',').map(s => s.trim()).filter(Boolean)
+      },
+      matrix: {
+        enabled: document.getElementById('matrixEnabled').checked,
+        homeserverUrl: document.getElementById('matrixHomeserverUrl').value.trim(),
+        accessToken: document.getElementById('matrixAccessToken').value.trim(),
+        allowedUserIds: document.getElementById('matrixAllowedUserIds').value.split(',').map(s => s.trim()).filter(Boolean)
       }
     };
   }
@@ -366,6 +376,11 @@
         document.getElementById('telegramBotToken').value = ch.telegram?.botToken ?? '';
         document.getElementById('discordEnabled').checked = ch.discord?.enabled === true;
         document.getElementById('discordBotToken').value = ch.discord?.botToken ?? '';
+        document.getElementById('discordAllowedUserIds').value = Array.isArray(ch.discord?.allowedUserIds) ? ch.discord.allowedUserIds.join(', ') : (ch.discord?.allowedUserIds ?? '');
+        document.getElementById('matrixEnabled').checked = ch.matrix?.enabled === true;
+        document.getElementById('matrixHomeserverUrl').value = ch.matrix?.homeserverUrl ?? '';
+        document.getElementById('matrixAccessToken').value = ch.matrix?.accessToken ?? '';
+        document.getElementById('matrixAllowedUserIds').value = Array.isArray(ch.matrix?.allowedUserIds) ? ch.matrix.allowedUserIds.join(', ') : (ch.matrix?.allowedUserIds ?? '');
         const ui = c.ui || {};
         document.getElementById('appName').value = ui.appName ?? 'SHADOW_AI';
         document.getElementById('showToolCalls').checked = ui.showToolCalls !== false;

@@ -983,7 +983,7 @@ app.get('/api/config', (req, res) => {
       if (safe.auth) safe.auth = { user: safe.auth.user || '' }; // never send pass
       return safe;
     })(),
-    channels: c.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '' } },
+    channels: c.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] }, matrix: { enabled: false, homeserverUrl: '', accessToken: '', allowedUserIds: [] } },
     ui: c.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' },
     rag: c.rag || {
       embeddingModel: 'nomic-embed-text',
@@ -1141,10 +1141,11 @@ app.put('/api/config', (req, res) => {
       config.channels = {
         apiKey: updates.channels.apiKey !== undefined ? String(updates.channels.apiKey) : (config.channels && config.channels.apiKey) || '',
         telegram: { ...(config.channels && config.channels.telegram), ...(updates.channels.telegram || {}), enabled: !!(updates.channels.telegram && updates.channels.telegram.enabled), botToken: (updates.channels.telegram && updates.channels.telegram.botToken !== undefined) ? String(updates.channels.telegram.botToken) : (config.channels && config.channels.telegram && config.channels.telegram.botToken) || '' },
-        discord: { ...(config.channels && config.channels.discord), ...(updates.channels.discord || {}), enabled: !!(updates.channels.discord && updates.channels.discord.enabled), botToken: (updates.channels.discord && updates.channels.discord.botToken !== undefined) ? String(updates.channels.discord.botToken) : (config.channels && config.channels.discord && config.channels.discord.botToken) || '', allowedUserIds: Array.isArray(updates.channels.discord && updates.channels.discord.allowedUserIds) ? updates.channels.discord.allowedUserIds.filter(id => typeof id === 'string').map(s => s.trim()).filter(Boolean) : (config.channels && config.channels.discord && config.channels.discord.allowedUserIds) || [] }
+        discord: { ...(config.channels && config.channels.discord), ...(updates.channels.discord || {}), enabled: !!(updates.channels.discord && updates.channels.discord.enabled), botToken: (updates.channels.discord && updates.channels.discord.botToken !== undefined) ? String(updates.channels.discord.botToken) : (config.channels && config.channels.discord && config.channels.discord.botToken) || '', allowedUserIds: Array.isArray(updates.channels.discord && updates.channels.discord.allowedUserIds) ? updates.channels.discord.allowedUserIds.filter(id => typeof id === 'string').map(s => s.trim()).filter(Boolean) : (config.channels && config.channels.discord && config.channels.discord.allowedUserIds) || [] },
+        matrix: { ...(config.channels && config.channels.matrix), ...(updates.channels.matrix || {}), enabled: !!(updates.channels.matrix && updates.channels.matrix.enabled), homeserverUrl: (updates.channels.matrix && updates.channels.matrix.homeserverUrl !== undefined) ? String(updates.channels.matrix.homeserverUrl).trim() : (config.channels && config.channels.matrix && config.channels.matrix.homeserverUrl) || '', accessToken: (updates.channels.matrix && updates.channels.matrix.accessToken !== undefined) ? String(updates.channels.matrix.accessToken) : (config.channels && config.channels.matrix && config.channels.matrix.accessToken) || '', allowedUserIds: Array.isArray(updates.channels.matrix && updates.channels.matrix.allowedUserIds) ? updates.channels.matrix.allowedUserIds.filter(id => typeof id === 'string').map(s => s.trim()).filter(Boolean) : (config.channels && config.channels.matrix && config.channels.matrix.allowedUserIds) || [] }
       };
     } else if (!config.channels) {
-      config.channels = { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } };
+      config.channels = { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] }, matrix: { enabled: false, homeserverUrl: '', accessToken: '', allowedUserIds: [] } };
     }
 
     replaceConfig(config);
@@ -1167,7 +1168,7 @@ app.put('/api/config', (req, res) => {
           if (safe.auth) safe.auth = { user: safe.auth.user || '' };
           return safe;
         })(),
-        channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] } },
+        channels: config.channels || { apiKey: '', telegram: { enabled: false, botToken: '' }, discord: { enabled: false, botToken: '', allowedUserIds: [] }, matrix: { enabled: false, homeserverUrl: '', accessToken: '', allowedUserIds: [] } },
         ui: config.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' },
         rag: config.rag || {
           embeddingModel: 'nomic-embed-text',
@@ -2302,6 +2303,12 @@ function start() {
     discordBot.startDiscordBot();
   } catch (e) {
     logger.warn('Discord bot init error:', e.message);
+  }
+  try {
+    const matrixBot = require('./lib/matrixBot.js');
+    matrixBot.startMatrixBot();
+  } catch (e) {
+    logger.warn('Matrix bot init error:', e.message);
   }
 
   try {

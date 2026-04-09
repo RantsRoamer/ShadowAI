@@ -179,8 +179,8 @@
 
       <div id="panel-channels" class="config-panel" role="tabpanel" hidden>
         <section class="section">
-          <h2>Channels (CLI, Telegram, Discord)</h2>
-          <p class="section-desc">Use the same AI from the command line or messaging apps. Set an API key for CLI and optional bot tokens for Telegram/Discord. Restart the server after changing.</p>
+          <h2>Channels (CLI, Telegram, Discord, Matrix)</h2>
+          <p class="section-desc">Use the same AI from the command line or messaging apps. Set an API key for CLI and optional bot tokens for Telegram/Discord, or a Matrix bot for Synapse and other homeservers. Restart the server after changing.</p>
           <div class="form-group">
             <label>API key (for CLI and channel auth)</label>
             <input type="password" id="channelsApiKey" placeholder="Leave empty to disable channel API" autocomplete="off" />
@@ -204,6 +204,24 @@
             <label>Allowed Discord user IDs</label>
             <input type="text" id="discordAllowedUserIds" placeholder="Comma-separated, e.g. 123456789012345678. Leave empty to allow all" autocomplete="off" />
             <span class="section-desc">Only these users will get AI replies. Right-click a user in Discord → Copy user ID (enable Developer Mode in User Settings).</span>
+          </div>
+          <div class="form-group">
+            <label><input type="checkbox" id="matrixEnabled" /> Enable Matrix bot (Synapse / Matrix homeserver)</label>
+          </div>
+          <div class="form-group">
+            <label>Matrix homeserver URL</label>
+            <input type="text" id="matrixHomeserverUrl" placeholder="https://matrix.example.org" autocomplete="off" />
+            <span class="section-desc">Client API base (same host you use in Element; no trailing path).</span>
+          </div>
+          <div class="form-group">
+            <label>Matrix access token</label>
+            <input type="password" id="matrixAccessToken" placeholder="Bot user access token" autocomplete="off" />
+            <span class="section-desc">Create a bot user on the server, then obtain a token (e.g. login via Element or <code>/_matrix/client/v3/login</code>).</span>
+          </div>
+          <div class="form-group">
+            <label>Allowed Matrix user IDs</label>
+            <input type="text" id="matrixAllowedUserIds" placeholder="Comma-separated, e.g. @alice:example.org. Leave empty to allow all" autocomplete="off" />
+            <span class="section-desc">Full MXIDs only users on this list get replies. Leave empty to allow any user in rooms with the bot.</span>
           </div>
         </section>
       </div>

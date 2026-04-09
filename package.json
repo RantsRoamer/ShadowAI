@@ -29,6 +29,7 @@
   "optionalDependencies": {
     "discord.js": "^14.14.0",
     "mammoth": "^1.8.0",
+    "matrix-bot-sdk": "^0.8.0",
     "node-telegram-bot-api": "^0.66.0",
     "pdf-parse": "^1.1.1",
     "word-extractor": "^1.0.4"

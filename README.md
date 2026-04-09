@@ -8,11 +8,11 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 
 ## Features
 
-- **Multi-channel** — Same AI from CLI, Telegram, and Discord (Config → Channels; optional bots)
+- **Multi-channel** — Same AI from CLI, Telegram, Discord, and Matrix (Config → Channels; optional bots)
 - **Password protected** — default login `admin` / `admin` (change in Config)
 - **Multi-model** — Main Brain model + optional agents (e.g. Coding Agent) from same or different Ollama URLs
 - **Config via UI** — Server bind address (default `0.0.0.0`), port (default `9090`), auth, Ollama URLs and models
-- **Personality, memory & AI behavior** — `personality.md`, `memory.md`, and `AIBEHAVIOR.md` (who you are / how the AI should help) are injected into every chat (web, CLI, Telegram, Discord).
+- **Personality, memory & AI behavior** — `personality.md`, `memory.md`, and `AIBEHAVIOR.md` (who you are / how the AI should help) are injected into every chat (web, CLI, Telegram, Discord, Matrix).
 - **Run code** — In chat: `/run js <code>` or `/run py <code>`
 - **Self-update** — Read/write project files: `/read path`, `/write path` + content, `/list [path]` (allowed extensions: .js, .json, .html, .css, .md, .txt, .ts, .py, etc.)
 - **Skills/plugins** — Ask the AI to build a skill; it creates `skills/<id>/skill.json` + `run.js`. Enable/disable and run from **SKILLS** with no server reload. Run in chat: `/skill <id> [JSON args]`
@@ -131,7 +131,7 @@ The **SYSTEM** dropdown contains pages for system administration:
 - **Auth**: Username and password. Leave password blank to keep current.
 - **Ollama — Main Brain**: Base URL (e.g. `http://localhost:11434`) and model name. Use "Fetch models" to list models from the server.
 - **Agents**: Add agents (e.g. Coding Agent) with their own URL and model. Select the agent in the chat header to use it for that conversation.
-- **Channels**: API key for the channel API (CLI/bots), and optional Telegram and Discord bots. **Restart the server** after changing channel settings.
+- **Channels**: API key for the channel API (CLI/bots), and optional Telegram, Discord, and Matrix bots. **Restart the server** after changing channel settings.
 - **UI**: Application name shown in the header and login, toggle for showing tool-call results in chat, toggle for the Prompt Library button, and upload/remove the AI’s avatar (profile picture).
 - **RAG (Retrieval)**: Embedding model name (Ollama), chunk size and overlap, base collection name for the local index in `data/vectors`, and default Top‑K results to retrieve per query.
 
@@ -142,7 +142,7 @@ Open **PERSONALITY** in the nav to edit:
 - **Personality** (`data/personality.md`): how the AI should generally behave (tone, style, constraints). Included in every system prompt.
 - **Memory** (`data/memory.md`): free-form notes and facts the AI should remember long-term. The `append_memory` tool adds timestamped entries when you say “remember X”. Included in every system prompt so the AI can answer “who am I?” etc.
 - **Structured memory** (`data/memory.json`): key–value / graph-like facts (e.g. `user:timezone`, `project:shadowai:status`). Exposed to the model via the `get_memory(key)` / `set_memory(key, value)` tools and injected into the system prompt as a short “recent facts” block that is shared across chats and channels.
-- **AI Behavior** (`data/AIBEHAVIOR.md`): who you are and how the AI should help you (role, projects, important dates like your wedding). This is injected into every chat (web, CLI, Telegram, Discord) so the assistant always has your context.
+- **AI Behavior** (`data/AIBEHAVIOR.md`): who you are and how the AI should help you (role, projects, important dates like your wedding). This is injected into every chat (web, CLI, Telegram, Discord, Matrix) so the assistant always has your context.
 
 ## Projects
 
@@ -195,7 +195,7 @@ Open **KNOWLEDGE** to manage the built‑in retrieval index.
 
 ## Multi-channel messaging
 
-Use the same AI from the **CLI**, **Telegram**, and **Discord**. Configure in **CONFIG → Channels** and restart the server for changes to take effect.
+Use the same AI from the **CLI**, **Telegram**, **Discord**, or **Matrix** (Synapse and other homeservers). Configure in **CONFIG → Channels** and restart the server for changes to take effect.
 
 ### API key
 
@@ -235,7 +235,16 @@ echo "Summarize the last three messages" | node scripts/cli.js
 5. **Restrict who can use the bot:** set **Allowed Discord user IDs** to a comma-separated list of Discord user IDs (e.g. `123456789012345678`). Leave empty to allow everyone. Enable Developer Mode in Discord (User Settings → App Settings) then right-click a user → Copy user ID.
 6. The bot supports typing indicators while it’s generating a reply, and a `/reset` (slash command or text) to clear that user’s conversation.
 
-Channel conversations (CLI, Telegram, Discord) are stored per synthetic user id (e.g. `channel_cli`, `telegram_<userId>`, `discord_<userId>`) and appear in the web UI chat list so you can inspect or continue them from the browser. CLEAR in the web UI, or `/reset` in Discord, will clear that channel conversation.
+### Matrix (Synapse / homeserver) bot
+
+1. On your homeserver, create a dedicated bot user (or use an existing account). Obtain an **access token** (e.g. sign in with [Element](https://element.io) and copy the token from **Help & About → Access Token**, or use `POST /_matrix/client/v3/login` against your Synapse URL).
+2. In Config → Channels, enable **Matrix bot**, set **Homeserver URL** to your client API base (e.g. `https://matrix.example.org`), and paste the **access token**. Restart the server.
+3. Install the optional dependency: `npm install matrix-bot-sdk`
+4. Invite the bot to a room or start a direct message. The bot auto-accepts invites. Each Matrix user gets their own conversation history (unencrypted rooms work out of the box; encrypted rooms require extra crypto setup and are not covered here).
+5. **Restrict who can use the bot:** set **Allowed Matrix user IDs** to comma-separated full MXIDs (e.g. `@alice:example.org`). Leave empty to allow any user in rooms where the bot is present.
+6. Send `reset` or `!reset` in the room to clear that user’s stored conversation (same idea as Discord `/reset`).
+
+Channel conversations (CLI, Telegram, Discord, Matrix) are stored per synthetic user id (e.g. `channel_cli`, `telegram_<userId>`, `discord_<userId>`, `matrix_<localpart_homeserver>`) and appear in the web UI chat list so you can inspect or continue them from the browser. CLEAR in the web UI, or `/reset` in Discord / `reset` in Matrix, will clear that channel conversation.
 
 ## Heartbeat (scheduled tasks)
 
