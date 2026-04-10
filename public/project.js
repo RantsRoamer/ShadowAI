@@ -381,6 +381,15 @@
               if (!msgDiv) { typingEl.remove(); msgDiv = addMessage('assistant', ''); contentEl = msgDiv.querySelector('.msg-body'); }
               if (contentEl) contentEl.innerHTML = (contentEl.innerHTML || '') + '<br><span class="error">' + escapeHtml(data.error) + '</span>';
             }
+            if (data.tokenStats) {
+              const el = document.getElementById('tokenStats');
+              if (el) {
+                const p = Number(data.tokenStats.promptTokens || 0).toLocaleString();
+                const e = Number(data.tokenStats.evalTokens || 0).toLocaleString();
+                const pct = Number(data.tokenStats.usagePct || 0);
+                el.textContent = `↑${p} ↓${e} • ${pct.toFixed(1)}% ctx`;
+              }
+            }
             if (data.done) {
               if (data.chatId) currentChatId = data.chatId;
               streamDone = true;

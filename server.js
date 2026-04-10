@@ -1500,6 +1500,14 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   const ollamaOptions = {};
   if (config.ollama.temperature != null && config.ollama.temperature !== '') ollamaOptions.temperature = Number(config.ollama.temperature);
   if (config.ollama.num_predict != null && config.ollama.num_predict !== '') ollamaOptions.num_predict = Number(config.ollama.num_predict);
+  const contextWindow = Number(config.ollama.num_ctx) > 0 ? Number(config.ollama.num_ctx) : 8192;
+  function enrichTokenStats(stats) {
+    const promptTokens = Number(stats && stats.promptTokens) || 0;
+    const evalTokens = Number(stats && stats.evalTokens) || 0;
+    const total = promptTokens + evalTokens;
+    const usagePct = contextWindow > 0 ? Math.min(100, (total / contextWindow) * 100) : 0;
+    return { promptTokens, evalTokens, totalTokens: total, contextWindow, usagePct };
+  }
   const isProjectChat = channelOwner && channelOwner.startsWith('project_');
   // Use explicit projectId from body (same as Memory tab) so we always read the correct project's memory
   const projectId = (isProjectChat && (bodyProjectId || channelOwner.slice(7)))
@@ -1712,7 +1720,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
           if (toolCalls.length === 0) {
             finalContent = msg.content || '';
             if (data.eval_count != null || data.prompt_eval_count != null) {
-              tokenStats = { promptTokens: data.prompt_eval_count || 0, evalTokens: data.eval_count || 0 };
+              tokenStats = enrichTokenStats({ promptTokens: data.prompt_eval_count || 0, evalTokens: data.eval_count || 0 });
             }
             break;
           }
@@ -1813,7 +1821,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         assistantContent = finalContent || '';
         if (finalContent) res.write(`data: ${JSON.stringify({ content: finalContent })}\n\n`);
       } else {
-        for await (const chunk of ollamaChatStream(baseUrl, model, fullMessages, ollamaOptions, (meta) => { tokenStats = meta; })) {
+        for await (const chunk of ollamaChatStream(baseUrl, model, fullMessages, ollamaOptions, (meta) => { tokenStats = enrichTokenStats(meta); })) {
           assistantContent += chunk;
           res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
         }

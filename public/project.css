@@ -244,6 +244,13 @@
   width: 100%;
 }
 
+.token-stats {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 /* Mobile-friendly layout for project page */
 @media (max-width: 768px) {
   .project-main {

@@ -580,7 +580,12 @@
               }
               if (data.tokenStats) {
                 const el = document.getElementById('tokenStats');
-                if (el) el.textContent = `↑${data.tokenStats.promptTokens.toLocaleString()} ↓${data.tokenStats.evalTokens.toLocaleString()} tokens`;
+                if (el) {
+                  const p = Number(data.tokenStats.promptTokens || 0).toLocaleString();
+                  const e = Number(data.tokenStats.evalTokens || 0).toLocaleString();
+                  const pct = Number(data.tokenStats.usagePct || 0);
+                  el.textContent = `↑${p} ↓${e} • ${pct.toFixed(1)}% ctx`;
+                }
               }
               if (data.done) {
                 if (data.chatId) currentChatId = data.chatId;
