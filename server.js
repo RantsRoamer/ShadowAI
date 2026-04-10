@@ -18,6 +18,7 @@ const searxngLib = require('./lib/searxng.js');
 const fetchUrlLib = require('./lib/fetchUrl.js');
 const structuredMemory = require('./lib/structuredMemory.js');
 const chatStore = require('./lib/chatStore.js');
+const channelLinks = require('./lib/channelLinks.js');
 const emailLib = require('./lib/email.js');
 const logger = require('./lib/logger.js');
 const systemPrompt = require('./lib/systemPrompt.js');
@@ -107,8 +108,8 @@ app.use('/static', express.static(PUBLIC));
 // ---------------------------------------------------------------------------
 // System prompt builder (delegates to lib)
 // ---------------------------------------------------------------------------
-function buildSystemPrompt(customInstructions = '') {
-  return systemPrompt.buildSystemPrompt(customInstructions);
+function buildSystemPrompt(customInstructions = '', userContext = '') {
+  return systemPrompt.buildSystemPrompt(customInstructions, userContext);
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +229,8 @@ app.get('/autoagent', adminPageGuard, (req, res) => res.sendFile(path.join(PUBLI
 // ---------------------------------------------------------------------------
 app.get('/api/personality', (req, res) => {
   try {
-    res.json({ content: personalityLib.readPersonality() });
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    res.json({ content: personalityLib.readPersonality(scopeUser) });
   } catch (e) {
     logger.error('GET /api/personality:', e.message);
     res.status(500).json({ error: e.message });
@@ -237,7 +239,8 @@ app.get('/api/personality', (req, res) => {
 
 app.put('/api/personality', (req, res) => {
   try {
-    personalityLib.writePersonality(req.body?.content ?? '');
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    personalityLib.writePersonality(req.body?.content ?? '', scopeUser);
     res.json({ ok: true });
   } catch (e) {
     logger.error('PUT /api/personality:', e.message);
@@ -247,7 +250,8 @@ app.put('/api/personality', (req, res) => {
 
 app.get('/api/memory', (req, res) => {
   try {
-    res.json({ content: personalityLib.readMemory() });
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    res.json({ content: personalityLib.readMemory(scopeUser) });
   } catch (e) {
     logger.error('GET /api/memory:', e.message);
     res.status(500).json({ error: e.message });
@@ -256,7 +260,8 @@ app.get('/api/memory', (req, res) => {
 
 app.put('/api/memory', (req, res) => {
   try {
-    personalityLib.writeMemory(req.body?.content ?? '');
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    personalityLib.writeMemory(req.body?.content ?? '', scopeUser);
     res.json({ ok: true });
   } catch (e) {
     logger.error('PUT /api/memory:', e.message);
@@ -268,7 +273,8 @@ app.post('/api/memory/append', (req, res) => {
   try {
     const text = req.body?.text ?? '';
     if (!text.trim()) return res.status(400).json({ error: 'text required' });
-    personalityLib.appendMemory(text);
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    personalityLib.appendMemory(text, scopeUser);
     res.json({ ok: true });
   } catch (e) {
     logger.error('POST /api/memory/append:', e.message);
@@ -278,7 +284,8 @@ app.post('/api/memory/append', (req, res) => {
 
 app.get('/api/behavior', (req, res) => {
   try {
-    res.json({ content: personalityLib.readBehavior() });
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    res.json({ content: personalityLib.readBehavior(scopeUser) });
   } catch (e) {
     logger.error('GET /api/behavior:', e.message);
     res.status(500).json({ error: e.message });
@@ -287,7 +294,8 @@ app.get('/api/behavior', (req, res) => {
 
 app.put('/api/behavior', (req, res) => {
   try {
-    personalityLib.writeBehavior(req.body?.content ?? '');
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    personalityLib.writeBehavior(req.body?.content ?? '', scopeUser);
     res.json({ ok: true });
   } catch (e) {
     logger.error('PUT /api/behavior:', e.message);
@@ -499,7 +507,9 @@ function resolveChannelUser(user, channelOwner) {
     const uname = chatStore.safeUsername(typeof user === 'string' ? user : (user.username || ''));
     return 'project_' + pid + '_' + uname;
   }
-  // Other channel types (telegram_, discord_, channel_) are system-level — admin only
+  const linkedOwner = channelLinks.getLinkedAppUser(channelOwner);
+  if (linkedOwner && typeof user !== 'string' && user.username === linkedOwner) return channelOwner;
+  // Other channel types (telegram_, discord_, matrix_, channel_) are system-level — admin only
   if (typeof user !== 'string' && user.role === 'admin') return channelOwner;
   return user;
 }
@@ -715,7 +725,8 @@ app.post('/api/projects/:id/import', async (req, res) => {
 // ---------------------------------------------------------------------------
 app.get('/api/structured-memory', (req, res) => {
   try {
-    res.json(structuredMemory.readAll());
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    res.json(structuredMemory.readAll(scopeUser));
   } catch (e) {
     logger.error('GET /api/structured-memory:', e.message);
     res.status(500).json({ error: e.message });
@@ -724,7 +735,8 @@ app.get('/api/structured-memory', (req, res) => {
 
 app.put('/api/structured-memory', (req, res) => {
   try {
-    structuredMemory.writeAll(req.body || {});
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    structuredMemory.writeAll(req.body || {}, scopeUser);
     res.json({ ok: true });
   } catch (e) {
     logger.error('PUT /api/structured-memory:', e.message);
@@ -1355,7 +1367,16 @@ app.get('/api/chats', (req, res) => {
   const user = req.session && req.session.user;
   if (!user) return res.json({ chats: [], currentChatId: null, channelChats: [] });
   const data = chatStore.listChats(user);
-  const channelChats = req.currentUser && req.currentUser.role === 'admin' ? chatStore.listAllChannelChats() : [];
+  let channelChats = [];
+  if (req.currentUser && req.currentUser.role === 'admin') {
+    channelChats = chatStore.listAllChannelChats();
+  } else if (req.currentUser && req.currentUser.username) {
+    const linked = channelLinks.getLinkedChannelsForUser(req.currentUser.username);
+    if (linked.length > 0) {
+      const all = chatStore.listAllChannelChats();
+      channelChats = all.filter((c) => linked.includes(c.username));
+    }
+  }
   res.json({ chats: data.chats, currentChatId: data.currentChatId, channelChats });
 });
 
@@ -1432,6 +1453,19 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   const lastMsg = messages[messages.length - 1];
   if (lastMsg && lastMsg.role === 'user' && typeof lastMsg.content === 'string') {
     const trimmed = lastMsg.content.trim();
+    if (trimmed.toLowerCase() === '/linkcode') {
+      const current = req.currentUser && req.currentUser.username ? req.currentUser.username : (req.session && req.session.user) || '';
+      if (!current) return res.status(401).json({ error: 'Not authenticated' });
+      const token = channelLinks.createVerificationCode(current);
+      if (!token) return res.status(500).json({ error: 'Could not create verification code' });
+      return res.json({
+        content:
+          `Bot link code: \`${token.code}\`\n\n` +
+          `In Telegram/Discord/Matrix bot chat, send:\n` +
+          `\`/verify ${token.code}\`\n\n` +
+          `This code expires in 10 minutes.`
+      });
+    }
     if (trimmed.toLowerCase().startsWith('/agent goal ')) {
       const goal = trimmed.slice('/agent goal '.length).trim();
       if (goal) {
@@ -1480,8 +1514,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   // Build system prompt; for project chat we keep it short and inject memory as first user message so model reliably sees it
   const projectMemoryContent = isProjectChat && projectId ? projectStore.readProjectMemory(projectId).trim() : '';
   const systemContent = isProjectChat && projectId
-    ? systemPrompt.buildProjectSystemPrompt(projectId, typeof customInstructions === 'string' ? customInstructions : '', !projectMemoryContent)
-    : buildSystemPrompt(typeof customInstructions === 'string' ? customInstructions : '');
+    ? systemPrompt.buildProjectSystemPrompt(projectId, typeof customInstructions === 'string' ? customInstructions : '', !projectMemoryContent, effectiveUser || user || '')
+    : buildSystemPrompt(typeof customInstructions === 'string' ? customInstructions : '', effectiveUser || user || '');
   const systemPromptMsg = {
     role: 'system',
     content: systemContent
@@ -1700,7 +1734,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               let content;
               if (name === 'append_memory') {
                 const text = args.text != null ? String(args.text).trim() : '';
-                if (text) personalityLib.appendMemory(text);
+                if (text) personalityLib.appendMemory(text, effectiveUser || user || '');
                 content = text ? 'Saved to memory.' : 'No text provided.';
               } else if (name === 'append_project_memory' && projectId) {
                 const text = args.text != null ? String(args.text).trim() : '';
@@ -1749,13 +1783,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                 }
               } else if (name === 'get_memory') {
                 const key = args.key != null ? String(args.key).trim() : '';
-                content = key ? structuredMemory.getMemory(key) : '';
+                content = key ? structuredMemory.getMemory(key, effectiveUser || user || '') : '';
               } else if (name === 'set_memory') {
                 const key = args.key != null ? String(args.key).trim() : '';
                 const value = args.value != null ? String(args.value) : '';
                 if (!key) content = 'Error: key is required.';
                 else {
-                  structuredMemory.setMemory(key, value);
+                  structuredMemory.setMemory(key, value, effectiveUser || user || '');
                   content = `Stored structured memory for key \"${key}\".`;
                 }
               } else if (['create_skill', 'add_heartbeat_job', 'update_skill', 'update_heartbeat_job', 'list_heartbeat_jobs'].includes(name)) {
@@ -2232,12 +2266,11 @@ app.get('/api/dashboard', async (req, res) => {
     skillsLib.ensureEnabledSkillsLoaded();
     const allSkills = skillsLib.listSkills();
 
-    // Memory
-    const DATA_DIR = path.join(__dirname, 'data');
-    const MEMORY_PATH = path.join(DATA_DIR, 'memory.md');
+    // Memory (user-scoped)
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
     let freeformLines = 0;
-    try { if (fs.existsSync(MEMORY_PATH)) freeformLines = fs.readFileSync(MEMORY_PATH, 'utf8').split('\n').filter(l => l.trim()).length; } catch (_) {}
-    const smData = structuredMemory.readAll();
+    try { freeformLines = personalityLib.readMemory(scopeUser).split('\n').filter(l => l.trim()).length; } catch (_) {}
+    const smData = structuredMemory.readAll(scopeUser);
     const structuredKeys = Object.keys(smData.facts || {}).length;
 
     // Projects
