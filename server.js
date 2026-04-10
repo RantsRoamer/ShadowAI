@@ -1470,6 +1470,18 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' });
   }
+  const respondChatContent = (content) => {
+    if (wantStream !== false) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+      res.write(`data: ${JSON.stringify({ content: String(content || '') })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      return res.end();
+    }
+    return res.json({ content: String(content || '') });
+  };
 
   // Agent task creation via chat intent: /agent goal <text>
   const lastMsg = messages[messages.length - 1];
@@ -1480,22 +1492,19 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       if (!current) return res.status(401).json({ error: 'Not authenticated' });
       const token = channelLinks.createVerificationCode(current);
       if (!token) return res.status(500).json({ error: 'Could not create verification code' });
-      return res.json({
-        content:
-          `Bot link code: \`${token.code}\`\n\n` +
-          `In Telegram/Discord/Matrix bot chat, send:\n` +
-          `\`/verify ${token.code}\`\n\n` +
-          `This code expires in 10 minutes.`
-      });
+      return respondChatContent(
+        `Bot link code: \`${token.code}\`\n\n` +
+        `In Telegram/Discord/Matrix bot chat, send:\n` +
+        `\`/verify ${token.code}\`\n\n` +
+        `This code expires in 10 minutes.`
+      );
     }
     if (trimmed.toLowerCase().startsWith('/agent goal ')) {
       const goal = trimmed.slice('/agent goal '.length).trim();
       if (goal) {
         try {
           const task = agentStore.createTask({ goal });
-          return res.json({
-            content: `Agent task created.\n\nTitle: "${task.title}"\nTask ID: \`${task.id}\`\nStatus: queued\n\nTrack progress at [/autoagent](/autoagent).`
-          });
+          return respondChatContent(`Agent task created.\n\nTitle: "${task.title}"\nTask ID: \`${task.id}\`\nStatus: queued\n\nTrack progress at [/autoagent](/autoagent).`);
         } catch (e) {
           return res.status(500).json({ error: 'Failed to create agent task: ' + e.message });
         }
