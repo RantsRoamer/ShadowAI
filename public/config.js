@@ -21,6 +21,7 @@
   const ragTopKEl = document.getElementById('ragTopK');
   const repairProjectMemoryBtn = document.getElementById('repairProjectMemoryBtn');
   const repairProjectMemoryStatusEl = document.getElementById('repairProjectMemoryStatus');
+  let lastModelMeta = {};
   document.querySelectorAll('.config-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-tab');
@@ -182,6 +183,18 @@
     el.style.color = isError ? 'var(--red)' : 'var(--text-dim)';
   }
 
+  function applyModelCapability(modelName) {
+    const key = (modelName || '').trim();
+    if (!key || !lastModelMeta || !lastModelMeta[key]) return;
+    const cap = Number(lastModelMeta[key].contextWindow || 0);
+    if (!cap || cap <= 0) return;
+    const numPredictEl = document.getElementById('ollamaNumPredict');
+    if (!numPredictEl) return;
+    numPredictEl.max = String(cap);
+    numPredictEl.value = String(cap);
+    setStatus('Model capability detected: max tokens set to ' + cap);
+  }
+
   if (repairProjectMemoryBtn) {
     repairProjectMemoryBtn.addEventListener('click', async () => {
       repairProjectMemoryBtn.disabled = true;
@@ -234,17 +247,23 @@
       const res = await fetch('/api/ollama/models?url=' + encodeURIComponent(url));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.statusText);
+      lastModelMeta = data.modelMeta || {};
       mainModelList.style.display = 'block';
       mainModelList.innerHTML = '<option value="">Select or type below</option>' +
         (data.models || []).map(m => '<option value="' + escapeAttr(m) + '">' + escapeAttr(m) + '</option>').join('');
       mainModelList.addEventListener('change', () => {
-        if (mainModelList.value) mainModelEl.value = mainModelList.value;
+        if (mainModelList.value) {
+          mainModelEl.value = mainModelList.value;
+          applyModelCapability(mainModelList.value);
+        }
       });
+      applyModelCapability(mainModelEl.value);
       setStatus('Loaded ' + (data.models?.length || 0) + ' models');
     } catch (e) {
       setStatus(e.message, true);
     }
   });
+  mainModelEl.addEventListener('change', () => applyModelCapability(mainModelEl.value));
 
   function getRagFromDom() {
     return {

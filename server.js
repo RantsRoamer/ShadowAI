@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { getConfig, reloadConfig, updateConfig, saveConfig, replaceConfig } = require('./lib/config.js');
-const { ollamaChatStream, ollamaChatWithTools, listModels } = require('./lib/ollama.js');
+const { ollamaChatStream, ollamaChatWithTools, listModels, getModelContextWindow } = require('./lib/ollama.js');
 const { authMiddleware, authenticate, listUsers, createUser, updateUser, deleteUser, requireAdmin } = require('./lib/auth.js');
 const { runCode } = require('./lib/runCode.js');
 const { readFile, writeFile, listFiles } = require('./lib/selfUpdate.js');
@@ -1300,7 +1300,14 @@ app.get('/api/ollama/models', async (req, res) => {
   const url = req.query.url || getConfig().ollama.mainUrl;
   try {
     const models = await listModels(url);
-    res.json({ models });
+    const modelMeta = {};
+    await Promise.all(models.map(async (m) => {
+      try {
+        const ctx = await getModelContextWindow(url, m);
+        if (ctx > 0) modelMeta[m] = { contextWindow: ctx };
+      } catch (_) {}
+    }));
+    res.json({ models, modelMeta });
   } catch (e) {
     logger.warn('GET /api/ollama/models:', e.message);
     res.status(502).json({ error: e.message });
