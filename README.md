@@ -244,9 +244,10 @@ echo "Summarize the last three messages" | node scripts/cli.js
    - If **Access token** is selected but the token field is empty, ShadowAI will still try **user ID + password** from config when both are set (fallback).
 3. Install the optional dependency: `npm install matrix-bot-sdk`
 4. Restart the server after saving channel settings.
-5. Invite the bot to a room or start a direct message. The bot auto-accepts invites. Each Matrix user gets their own conversation history (unencrypted rooms work out of the box; encrypted rooms require extra crypto setup and are not covered here).
-6. **Restrict who can use the bot:** set **Allowed Matrix user IDs** to comma-separated full MXIDs (e.g. `@alice:example.org`). Leave empty to allow any user in rooms where the bot is present.
-7. Send `reset` or `!reset` in the room to clear that user’s stored conversation (same idea as Discord `/reset`).
+5. **Use an unencrypted room.** Element often creates **encrypted** DMs by default; this bot does **not** implement Matrix E2E, so it never sees those messages and cannot reply. Create a new room and **disable encryption** (or use a public unencrypted room). If encryption is on, the server log will warn that an encrypted event was received.
+6. Invite the bot to that room or start a DM in an unencrypted chat. The bot auto-accepts invites. Each Matrix user gets their own conversation history.
+7. **Restrict who can use the bot:** set **Allowed Matrix user IDs** to comma-separated full MXIDs (e.g. `@alice:example.org`). Leave empty to allow any user in rooms where the bot is present.
+8. Send `reset` or `!reset` in the room to clear that user’s stored conversation (same idea as Discord `/reset`).
 
 Channel conversations (CLI, Telegram, Discord, Matrix) are stored per synthetic user id (e.g. `channel_cli`, `telegram_<userId>`, `discord_<userId>`, `matrix_<localpart_homeserver>`) and appear in the web UI chat list so you can inspect or continue them from the browser. CLEAR in the web UI, or `/reset` in Discord / `reset` in Matrix, will clear that channel conversation.
 
