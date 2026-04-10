@@ -44,8 +44,10 @@
     const mode = modeEl.value || 'token';
     const tokenGr = document.getElementById('matrixAuthTokenGroup');
     const pwdWrap = document.getElementById('matrixAuthPasswordWrap');
-    if (tokenGr) tokenGr.hidden = mode === 'password';
-    if (pwdWrap) pwdWrap.hidden = mode !== 'password';
+    const usePassword = mode === 'password';
+    /* Use display like email auth — [hidden] + .config-panel display:none can leave rows invisible or stuck */
+    if (tokenGr) tokenGr.style.display = usePassword ? 'none' : '';
+    if (pwdWrap) pwdWrap.style.display = usePassword ? 'block' : 'none';
   }
 
   function refreshAvatarPreview() {
@@ -425,7 +427,10 @@
   });
 
   const matrixAuthModeEl = document.getElementById('matrixAuthMode');
-  if (matrixAuthModeEl) matrixAuthModeEl.addEventListener('change', toggleMatrixAuthFields);
+  if (matrixAuthModeEl) {
+    matrixAuthModeEl.addEventListener('change', toggleMatrixAuthFields);
+    matrixAuthModeEl.addEventListener('input', toggleMatrixAuthFields);
+  }
 
   loadConfig();
 })();
