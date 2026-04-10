@@ -1,20 +1,68 @@
 (function () {
-  const btn = document.getElementById('logoutBtn');
-  if (btn) btn.addEventListener('click', async () => {
-    await fetch('/api/logout', { method: 'POST' });
-    window.location.href = '/login';
-  });
+  const PATH = window.location.pathname || '/';
 
-  // Inject hamburger button for mobile nav
-  var appHeader = document.querySelector('.app-header');
-  var headerNav = document.querySelector('.header-nav');
-  var headerLeft = document.querySelector('.header-left');
-  if (appHeader && headerNav && headerLeft) {
-    var hamburger = document.createElement('button');
+  function isActive(href) {
+    return PATH === href;
+  }
+
+  function navLink(href, label) {
+    const cls = 'nav-link' + (isActive(href) ? ' active' : '');
+    return `<a href="${href}" class="${cls}">${label}</a>`;
+  }
+
+  function buildHeader(appName, isAdmin) {
+    const systemMenu = isAdmin ? `
+      <div class="nav-dropdown">
+        <span class="nav-link nav-dropdown-toggle${PATH.startsWith('/config') || PATH.startsWith('/personality') || PATH.startsWith('/heartbeat') || PATH.startsWith('/agents') || PATH.startsWith('/pipelines') || PATH.startsWith('/autoagent') || PATH.startsWith('/users') ? ' has-active' : ''}">SYSTEM</span>
+        <div class="nav-dropdown-menu">
+          ${navLink('/config', 'CONFIG')}
+          ${navLink('/personality', 'PERSONALITY')}
+          ${navLink('/heartbeat', 'HEARTBEAT')}
+          ${navLink('/agents', 'AGENTS')}
+          ${navLink('/pipelines', 'PIPELINES')}
+          ${navLink('/autoagent', 'AUTOAGENT')}
+          ${navLink('/users', 'USERS')}
+        </div>
+      </div>` : '';
+    const editorLink = isAdmin ? navLink('/editor', 'EDITOR') : '';
+
+    return `
+      <header class="app-header">
+        <div class="header-left">
+          <a href="/dashboard" class="logo">${appName}</a>
+        </div>
+        <nav class="header-nav">
+          ${navLink('/dashboard', 'DASHBOARD')}
+          ${navLink('/app', 'CHAT')}
+          ${navLink('/projects', 'PROJECTS')}
+          ${navLink('/skills', 'SKILLS')}
+          ${navLink('/rag', 'KNOWLEDGE')}
+          ${systemMenu}
+          ${editorLink}
+          ${navLink('/my-data', 'MY DATA')}
+          ${navLink('/profile', 'ACCOUNT')}
+          <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+        </nav>
+      </header>
+    `;
+  }
+
+  function wireInteractions() {
+    const btn = document.getElementById('logoutBtn');
+    if (btn) btn.addEventListener('click', async () => {
+      await fetch('/api/logout', { method: 'POST' });
+      window.location.href = '/login';
+    });
+
+    const appHeader = document.querySelector('.app-header');
+    const headerNav = document.querySelector('.header-nav');
+    if (!appHeader || !headerNav) return;
+
+    const hamburger = document.createElement('button');
     hamburger.className = 'nav-hamburger';
     hamburger.setAttribute('aria-label', 'Toggle navigation');
     hamburger.setAttribute('aria-expanded', 'false');
-    hamburger.textContent = '\u2630'; // ☰
+    hamburger.textContent = '\u2630';
     appHeader.insertBefore(hamburger, headerNav);
 
     function closeHamburgerNav() {
@@ -25,79 +73,45 @@
 
     hamburger.addEventListener('click', function (e) {
       e.stopPropagation();
-      var isOpen = headerNav.classList.toggle('nav-open');
+      const isOpen = headerNav.classList.toggle('nav-open');
       hamburger.setAttribute('aria-expanded', String(isOpen));
-      hamburger.textContent = isOpen ? '\u2715' : '\u2630'; // ✕ or ☰
+      hamburger.textContent = isOpen ? '\u2715' : '\u2630';
     });
 
-    // Close when a nav anchor link is clicked
     headerNav.addEventListener('click', function (e) {
-      if (e.target.closest('a.nav-link')) {
-        closeHamburgerNav();
-      }
+      if (e.target.closest('a.nav-link')) closeHamburgerNav();
     });
 
     document.addEventListener('click', function (e) {
-      if (!e.target.closest('.app-header')) {
-        closeHamburgerNav();
+      if (!e.target.closest('.app-header')) closeHamburgerNav();
+    });
+
+    document.querySelectorAll('.nav-dropdown-toggle').forEach(function (toggle) {
+      toggle.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggle.closest('.nav-dropdown').classList.toggle('open');
+      });
+    });
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.nav-dropdown')) {
+        document.querySelectorAll('.nav-dropdown.open').forEach(function (d) { d.classList.remove('open'); });
       }
     });
   }
 
-  // Dropdown toggle (click for mobile / keyboard)
-  document.querySelectorAll('.nav-dropdown-toggle').forEach(function (toggle) {
-    toggle.addEventListener('click', function (e) {
-      e.stopPropagation();
-      toggle.closest('.nav-dropdown').classList.toggle('open');
-    });
-  });
-  document.addEventListener('click', function (e) {
-    if (!e.target.closest('.nav-dropdown')) {
-      document.querySelectorAll('.nav-dropdown.open').forEach(function (d) {
-        d.classList.remove('open');
-      });
+  Promise.all([
+    fetch('/api/me').then(r => (r.ok ? r.json() : null)).catch(() => null),
+    fetch('/api/app-name').then(r => (r.ok ? r.json() : null)).catch(() => null)
+  ]).then(([me, app]) => {
+    const appName = (app && app.appName && String(app.appName).trim()) || 'SHADOW_AI';
+    const isAdmin = !!(me && me.role === 'admin');
+    const existing = document.querySelector('.app-header');
+    if (existing) existing.outerHTML = buildHeader(appName, isAdmin);
+    else document.body.insertAdjacentHTML('afterbegin', buildHeader(appName, isAdmin));
+
+    if (document.title && document.title.indexOf('ShadowAI') !== -1) {
+      document.title = document.title.replace(/ShadowAI/g, appName.replace(/_/g, ' '));
     }
+    wireInteractions();
   });
-
-  // Apply configured app name to header logo and page title
-  fetch('/api/app-name')
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) {
-      if (!d || !d.appName) return;
-      const name = String(d.appName).trim();
-      if (!name) return;
-      const logo = document.querySelector('.logo');
-      if (logo) logo.textContent = name;
-      if (document.title && document.title.indexOf('ShadowAI') !== -1) {
-        document.title = document.title.replace(/ShadowAI/g, name.replace(/_/g, ' '));
-      }
-    })
-    .catch(function () {});
-
-  // Hide admin-only nav items for non-admin users
-  fetch('/api/me')
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) {
-      // Ensure My Data appears in menu for all authenticated users.
-      var headerNav = document.querySelector('.header-nav');
-      if (headerNav && !headerNav.querySelector('a.nav-link[href="/my-data"]')) {
-        var accountLink = headerNav.querySelector('a.nav-link[href="/profile"]');
-        var myData = document.createElement('a');
-        myData.href = '/my-data';
-        myData.className = 'nav-link';
-        myData.textContent = 'MY DATA';
-        if (window.location.pathname === '/my-data') myData.classList.add('active');
-        if (accountLink && accountLink.parentNode) accountLink.parentNode.insertBefore(myData, accountLink);
-        else headerNav.appendChild(myData);
-      }
-      if (d && d.role === 'admin') return; // admins see everything
-      // Hide SYSTEM dropdown and EDITOR link
-      document.querySelectorAll('.header-nav .nav-dropdown').forEach(function (el) {
-        el.style.display = 'none';
-      });
-      document.querySelectorAll('.header-nav a.nav-link[href="/editor"]').forEach(function (el) {
-        el.style.display = 'none';
-      });
-    })
-    .catch(function () {});
 })();
