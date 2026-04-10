@@ -1495,7 +1495,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       return respondChatContent(
         `Bot link code: \`${token.code}\`\n\n` +
         `In Telegram/Discord/Matrix bot chat, send:\n` +
-        `\`/verify ${token.code}\`\n\n` +
+        `\`/verifyme ${token.code}\`\n\n` +
         `This code expires in 10 minutes.`
       );
     }
