@@ -195,6 +195,26 @@
     setStatus('Model capability detected: max tokens set to ' + cap);
   }
 
+  async function fetchAndApplyModelCapability(modelName) {
+    const key = (modelName || '').trim();
+    if (!key) return;
+    const url = mainUrlEl.value.trim() || 'http://localhost:11434';
+    try {
+      const res = await fetch('/api/ollama/model-capability?url=' + encodeURIComponent(url) + '&model=' + encodeURIComponent(key));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      const cap = Number(data.contextWindow || 0);
+      if (!cap || cap <= 0) return;
+      const numPredictEl = document.getElementById('ollamaNumPredict');
+      if (!numPredictEl) return;
+      numPredictEl.max = String(cap);
+      numPredictEl.value = String(cap);
+      setStatus('Model capability detected: max tokens set to ' + cap);
+    } catch (_) {
+      applyModelCapability(key);
+    }
+  }
+
   if (repairProjectMemoryBtn) {
     repairProjectMemoryBtn.addEventListener('click', async () => {
       repairProjectMemoryBtn.disabled = true;
@@ -254,16 +274,16 @@
       mainModelList.addEventListener('change', () => {
         if (mainModelList.value) {
           mainModelEl.value = mainModelList.value;
-          applyModelCapability(mainModelList.value);
+          fetchAndApplyModelCapability(mainModelList.value);
         }
       });
-      applyModelCapability(mainModelEl.value);
+      fetchAndApplyModelCapability(mainModelEl.value);
       setStatus('Loaded ' + (data.models?.length || 0) + ' models');
     } catch (e) {
       setStatus(e.message, true);
     }
   });
-  mainModelEl.addEventListener('change', () => applyModelCapability(mainModelEl.value));
+  mainModelEl.addEventListener('change', () => fetchAndApplyModelCapability(mainModelEl.value));
 
   function getRagFromDom() {
     return {

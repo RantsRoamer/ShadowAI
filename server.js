@@ -1314,6 +1314,19 @@ app.get('/api/ollama/models', async (req, res) => {
   }
 });
 
+app.get('/api/ollama/model-capability', async (req, res) => {
+  const url = req.query.url || getConfig().ollama.mainUrl;
+  const model = (req.query.model || '').toString().trim();
+  if (!model) return res.status(400).json({ error: 'model is required' });
+  try {
+    const contextWindow = await getModelContextWindow(url, model);
+    res.json({ model, contextWindow: Number(contextWindow) || 0 });
+  } catch (e) {
+    logger.warn('GET /api/ollama/model-capability:', e.message);
+    res.status(502).json({ error: e.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Heartbeat
 // ---------------------------------------------------------------------------
