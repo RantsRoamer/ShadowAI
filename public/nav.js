@@ -78,6 +78,18 @@
   fetch('/api/me')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
+      // Ensure My Data appears in menu for all authenticated users.
+      var headerNav = document.querySelector('.header-nav');
+      if (headerNav && !headerNav.querySelector('a.nav-link[href="/my-data"]')) {
+        var accountLink = headerNav.querySelector('a.nav-link[href="/profile"]');
+        var myData = document.createElement('a');
+        myData.href = '/my-data';
+        myData.className = 'nav-link';
+        myData.textContent = 'MY DATA';
+        if (window.location.pathname === '/my-data') myData.classList.add('active');
+        if (accountLink && accountLink.parentNode) accountLink.parentNode.insertBefore(myData, accountLink);
+        else headerNav.appendChild(myData);
+      }
       if (d && d.role === 'admin') return; // admins see everything
       // Hide SYSTEM dropdown and EDITOR link
       document.querySelectorAll('.header-nav .nav-dropdown').forEach(function (el) {

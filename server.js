@@ -30,6 +30,7 @@ const projectImport = require('./lib/projectImport.js');
 const ragLib = require('./lib/rag.js');
 const agentStore = require('./lib/agentStore.js');
 const agentRunner = require('./lib/agentRunner.js');
+const myDataFs = require('./lib/myDataFs.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -213,6 +214,7 @@ app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.htm
 app.get('/rag',         (req, res) => res.sendFile(path.join(PUBLIC, 'rag.html')));
 app.get('/projects',    (req, res) => res.sendFile(path.join(PUBLIC, 'projects.html')));
 app.get('/project',     (req, res) => res.sendFile(path.join(PUBLIC, 'project.html')));
+app.get('/my-data',     (req, res) => res.sendFile(path.join(PUBLIC, 'my-data.html')));
 // Admin-only pages
 app.get('/config',      adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'config.html')));
 app.get('/personality', adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'personality.html')));
@@ -1577,7 +1579,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         type: 'function',
         function: {
           name: 'append_memory',
-          description: 'Save a fact to the AI\'s memory (data/memory.md). Use this when the user asks you to remember something (e.g. their name, a preference). Memory is then included in your context on the next turn. Do not ask the user to run /read or /write—call this tool.',
+          description: 'Save a durable user fact to memory (user-scoped memory.md). Use when asked to remember something and also proactively when a stable, future-useful fact appears naturally (identity, preferences, important dates, goals). Avoid transient details. Do not ask the user to run /read or /write—call this tool.',
           parameters: {
             type: 'object',
             required: ['text'],
@@ -1929,6 +1931,75 @@ app.put('/api/file', (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     logger.warn('PUT /api/file:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// User-scoped "My Data" file access
+// ---------------------------------------------------------------------------
+app.get('/api/my-data/files', (req, res) => {
+  try {
+    const username = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    if (!username) return res.status(401).json({ error: 'Not authenticated' });
+    res.json({ files: myDataFs.listUserFiles(username, req.query.path || '.') });
+  } catch (e) {
+    logger.warn('GET /api/my-data/files:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.get('/api/my-data/file', (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ error: 'path required' });
+  try {
+    const username = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    if (!username) return res.status(401).json({ error: 'Not authenticated' });
+    res.json({ path: filePath, content: myDataFs.readUserFile(username, filePath) });
+  } catch (e) {
+    logger.warn('GET /api/my-data/file:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.put('/api/my-data/file', (req, res) => {
+  const { path: filePath, content } = req.body || {};
+  if (!filePath || content === undefined) return res.status(400).json({ error: 'path and content required' });
+  try {
+    const username = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    if (!username) return res.status(401).json({ error: 'Not authenticated' });
+    myDataFs.writeUserFile(username, filePath, content);
+    res.json({ ok: true });
+  } catch (e) {
+    logger.warn('PUT /api/my-data/file:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.post('/api/my-data/download', async (req, res) => {
+  try {
+    const username = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    if (!username) return res.status(401).json({ error: 'Not authenticated' });
+    const paths = Array.isArray(req.body && req.body.paths) ? req.body.paths : [];
+    const out = await myDataFs.queueZipDownload(username, paths);
+    res.json({ ok: true, id: out.id, fileName: out.fileName, bytes: out.bytes, url: `/api/my-data/download/${out.id}` });
+  } catch (e) {
+    logger.warn('POST /api/my-data/download:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
+app.get('/api/my-data/download/:id', (req, res) => {
+  try {
+    const username = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    if (!username) return res.status(401).json({ error: 'Not authenticated' });
+    const row = myDataFs.getDownloadMeta(req.params.id, username);
+    if (!row) return res.status(404).json({ error: 'Download not found' });
+    res.download(row.zipPath, row.fileName, () => {
+      myDataFs.deleteDownload(req.params.id);
+    });
+  } catch (e) {
+    logger.warn('GET /api/my-data/download/:id:', e.message);
     res.status(400).json({ error: e.message });
   }
 });
