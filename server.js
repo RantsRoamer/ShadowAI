@@ -1130,7 +1130,10 @@ app.put('/api/config', (req, res) => {
     if (updates.ollama && typeof updates.ollama === 'object') {
       const prev = config.ollama || {};
       const next = updates.ollama;
+      // Preserve fields not sent by every client (num_ctx, visionModel, etc.)
       config.ollama = {
+        ...prev,
+        ...next,
         mainUrl: next.mainUrl !== undefined ? String(next.mainUrl).trim() : (prev.mainUrl || 'http://localhost:11434'),
         mainModel: next.mainModel !== undefined ? String(next.mainModel).trim() : (prev.mainModel || 'llama3.2'),
         temperature: next.temperature !== undefined ? Number(next.temperature) : (prev.temperature ?? 0.7),
