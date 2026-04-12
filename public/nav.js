@@ -13,7 +13,7 @@
   function buildHeader(appName, isAdmin) {
     const systemMenu = isAdmin ? `
       <div class="nav-dropdown">
-        <span class="nav-link nav-dropdown-toggle${PATH.startsWith('/config') || PATH.startsWith('/personality') || PATH.startsWith('/heartbeat') || PATH.startsWith('/agents') || PATH.startsWith('/pipelines') || PATH.startsWith('/autoagent') || PATH.startsWith('/users') ? ' has-active' : ''}">SYSTEM</span>
+        <span class="nav-link nav-dropdown-toggle${PATH.startsWith('/config') || PATH.startsWith('/personality') || PATH.startsWith('/heartbeat') || PATH.startsWith('/agents') || PATH.startsWith('/pipelines') || PATH.startsWith('/autoagent') || PATH.startsWith('/users') || PATH.startsWith('/editor') ? ' has-active' : ''}">SYSTEM</span>
         <div class="nav-dropdown-menu">
           ${navLink('/config', 'CONFIG')}
           ${navLink('/personality', 'PERSONALITY')}
@@ -22,9 +22,9 @@
           ${navLink('/pipelines', 'PIPELINES')}
           ${navLink('/autoagent', 'AUTOAGENT')}
           ${navLink('/users', 'USERS')}
+          ${navLink('/editor', 'EDITOR')}
         </div>
       </div>` : '';
-    const editorLink = isAdmin ? navLink('/editor', 'EDITOR') : '';
 
     return `
       <header class="app-header">
@@ -38,7 +38,6 @@
           ${navLink('/skills', 'SKILLS')}
           ${navLink('/rag', 'KNOWLEDGE')}
           ${systemMenu}
-          ${editorLink}
           ${navLink('/my-data', 'MY DATA')}
           ${navLink('/profile', 'ACCOUNT')}
           <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
