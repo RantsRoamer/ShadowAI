@@ -12,6 +12,7 @@
   let eventsCursor = null;
   let pollTimer = null;
   let inflight = false;
+  let isAdmin = false;
 
   function esc(s) {
     return String(s || '')
@@ -37,6 +38,15 @@
     return data;
   }
 
+  async function loadMe() {
+    try {
+      const me = await apiJson('/api/me');
+      isAdmin = !!(me && me.role === 'admin');
+    } catch (_) {
+      isAdmin = false;
+    }
+  }
+
   function renderTasks(tasks) {
     if (!Array.isArray(tasks) || tasks.length === 0) {
       setEmpty(tasksEl, 'No active tasks.');
@@ -51,6 +61,29 @@
       const priority = (t.priority != null && t.priority !== '') ? pill('prio: ' + t.priority) : '';
       const updatedAt = t.updatedAt ? new Date(t.updatedAt).toLocaleString() : '';
       const goal = esc(t.goal || '');
+      const pa = t && t.pendingApproval ? t.pendingApproval : null;
+      const approvalDetails = (t.status === 'awaiting_approval' && pa)
+        ? `<div class="cc-approval">
+             <div class="cc-approval-line"><strong>Needs approval</strong>: <code>${esc(pa.action || '')}</code></div>
+             <div class="cc-approval-line">Args: <code>${esc(JSON.stringify(pa.args || {}).slice(0, 300))}</code></div>
+           </div>`
+        : '';
+
+      const actions = isAdmin
+        ? (t.status === 'awaiting_approval'
+            ? `<div class="cc-actions" data-task-id="${esc(t.id)}">
+                 <button class="btn btn-small cc-approve-btn" data-action="approve" data-id="${esc(t.id)}">APPROVE</button>
+                 <input class="cc-reject-reason" type="text" placeholder="Rejection reason..." />
+                 <button class="btn btn-small btn-danger cc-reject-btn" data-action="reject" data-id="${esc(t.id)}">REJECT</button>
+               </div>`
+            : (t.status === 'blocked'
+                ? `<div class="cc-actions" data-task-id="${esc(t.id)}">
+                     <button class="btn btn-small cc-unblock-btn" data-action="unblock" data-id="${esc(t.id)}">UNBLOCK</button>
+                   </div>`
+                : ''))
+        : (t.status === 'awaiting_approval' || t.status === 'blocked'
+            ? `<div class="cc-actions-note">This task needs admin action. Open <a href="/autoagent">/autoagent</a>.</div>`
+            : '');
       return `
         <div class="cc-card">
           <div class="cc-card-title">
@@ -63,6 +96,8 @@
             ${t.id ? pill('id: ' + t.id.slice(0, 8)) : ''}
           </div>
           <div class="cc-card-body">${goal}</div>
+          ${approvalDetails}
+          ${actions}
         </div>
       `;
     }).join('');
@@ -225,7 +260,39 @@
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') dispatchMission();
   });
 
-  refreshAll().then(startPolling);
+  if (tasksEl) {
+    tasksEl.addEventListener('click', async (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('button[data-action]');
+      if (!btn) return;
+      const action = btn.getAttribute('data-action');
+      const id = btn.getAttribute('data-id');
+      if (!action || !id) return;
+      if (!isAdmin) return;
+      try {
+        if (action === 'approve') {
+          await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/approve`, { method: 'POST' });
+        } else if (action === 'reject') {
+          const wrap = btn.closest('.cc-actions');
+          const reason = wrap && wrap.querySelector ? (wrap.querySelector('.cc-reject-reason')?.value || '') : '';
+          await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/reject`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+          });
+        } else if (action === 'unblock') {
+          await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/unblock`, { method: 'POST' });
+        }
+        await refreshAll();
+      } catch (err) {
+        if (lastDispatchEl) {
+          lastDispatchEl.hidden = false;
+          lastDispatchEl.textContent = `Action failed: ${err.message}`;
+        }
+      }
+    });
+  }
+
+  loadMe().then(() => refreshAll().then(startPolling));
   window.addEventListener('beforeunload', stopPolling);
 })();
 
