@@ -83,6 +83,9 @@
   const tasksEl = document.getElementById('ccTasks');
   const eventsEl = document.getElementById('ccEvents');
   const missionsEl = document.getElementById('ccMissions');
+  const missionControlEl = document.getElementById('ccMissionControl');
+  const mcMonitorsEl = document.getElementById('ccMcMonitors');
+  const mcCrewEl = document.getElementById('ccMcCrew');
   const lastDispatchEl = document.getElementById('ccLastDispatch');
   const workingSummaryEl = document.getElementById('ccWorkingSummary');
   const pinnedFactsEl = document.getElementById('ccPinnedFacts');
@@ -107,6 +110,7 @@
   let isAdmin = false;
   let eventPollFailures = 0;
   let latestMissions = [];
+  let latestEvents = [];
 
   function esc(s) {
     return String(s || '')
@@ -189,6 +193,148 @@
     if (r.includes('memory')) return 'cc-avatar-role-memory_curator';
     if (r.includes('triage') || r.includes('coord')) return 'cc-avatar-role-triage';
     return '';
+  }
+
+  function hashToInt(str) {
+    const s = String(str || '');
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function rolePrefix(role) {
+    const r = String(role || '').toLowerCase();
+    if (r.includes('research')) return 'AURORA';
+    if (r.includes('coder') || r.includes('dev') || r.includes('code')) return 'VECTOR';
+    if (r.includes('ops') || r.includes('operator')) return 'ATLAS';
+    if (r.includes('plan')) return 'ORION';
+    if (r.includes('memory')) return 'MNEMOSYNE';
+    if (r.includes('triage') || r.includes('coord')) return 'COMMAND';
+    return 'AGENT';
+  }
+
+  function agentCodename(role, seed) {
+    const n = (hashToInt(`${role}|${seed}`) % 9) + 1;
+    return `${rolePrefix(role)}-${n}`;
+  }
+
+  function getLastLogLine(task, types) {
+    const want = Array.isArray(types) ? types : [types];
+    const log = Array.isArray(task && task.log) ? task.log : [];
+    for (let i = log.length - 1; i >= 0; i--) {
+      const e = log[i];
+      if (!e || !want.includes(e.type)) continue;
+      const txt = String(e.content || '').trim();
+      if (txt) return txt.slice(0, 220);
+    }
+    return '';
+  }
+
+  function renderMissionControl(activeTasks, events) {
+    if (!missionControlEl || !mcMonitorsEl || !mcCrewEl) return;
+    if (!cinematicOn) {
+      missionControlEl.style.display = '';
+      return;
+    }
+
+    const tasks = Array.isArray(activeTasks) ? activeTasks : [];
+    const evs = Array.isArray(events) ? events : [];
+    const byRole = new Map();
+    for (const t of tasks) {
+      const role = String(t && t.role ? t.role : 'unknown');
+      if (!byRole.has(role)) byRole.set(role, []);
+      byRole.get(role).push(t);
+    }
+
+    const monitors = [
+      { id: 'queue', title: 'TASK QUEUE', role: null },
+      { id: 'research', title: 'RESEARCH GRID', role: 'research' },
+      { id: 'ops', title: 'OPS CONSOLE', role: 'ops' },
+      { id: 'events', title: 'HIVE FEED', role: null }
+    ];
+
+    function monitorBody(m) {
+      if (m.id === 'queue') {
+        const top = tasks.slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))).slice(0, 8);
+        if (top.length === 0) return 'No active tasks.';
+        return top.map((t) => {
+          const r = t.role ? String(t.role) : '—';
+          const st = t.status ? String(t.status) : '—';
+          const ttl = (t.title || t.goal || t.id || '').toString().slice(0, 46);
+          return `${r.padEnd(10).slice(0, 10)}  ${st.padEnd(10).slice(0, 10)}  ${ttl}`;
+        }).join('\n');
+      }
+
+      if (m.id === 'events') {
+        const top = evs.slice(0, 8);
+        if (top.length === 0) return 'No recent hive events.';
+        return top.map((e) => {
+          const type = String(e.type || 'event').slice(0, 24);
+          const msg = String(e.message || '').trim().slice(0, 70);
+          return `${type.padEnd(24)}  ${msg}`;
+        }).join('\n');
+      }
+
+      const candidates = tasks.filter((t) => String(t && t.role ? t.role : '') === String(m.role));
+      const top = candidates
+        .slice()
+        .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+        .slice(0, 5);
+      if (top.length === 0) return 'IDLE';
+
+      return top.map((t) => {
+        const st = t.status ? String(t.status) : '—';
+        const name = agentCodename(t.role, t.id);
+        const line = getLastLogLine(t, ['action', 'approval_request', 'thought', 'result']);
+        const ttl = (t.title || t.goal || t.id || '').toString().slice(0, 54);
+        return `${name.padEnd(11).slice(0, 11)}  ${st.padEnd(10).slice(0, 10)}  ${ttl}${line ? '\n  ↳ ' + line : ''}`;
+      }).join('\n\n');
+    }
+
+    mcMonitorsEl.innerHTML = monitors.map((m) => {
+      const isOnline = (m.role
+        ? (tasks.some((t) => String(t.role || '') === String(m.role)))
+        : (tasks.length > 0 || evs.length > 0));
+      return `
+        <div class="cc-monitor">
+          <div class="cc-monitor-header">
+            <div class="cc-monitor-title">${esc(m.title)}</div>
+            <div class="cc-monitor-light ${isOnline ? 'cc-online' : ''}"></div>
+          </div>
+          <div class="cc-monitor-body">${esc(monitorBody(m))}</div>
+        </div>
+      `;
+    }).join('');
+
+    const crew = tasks
+      .slice()
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+      .slice(0, 8)
+      .map((t) => {
+        const role = String(t.role || 'unknown');
+        const name = agentCodename(role, t.id);
+        const avatarClass = roleToAvatarClass(role);
+        const avatarLetter = roleToAvatarLetter(role);
+        const busy = ['executing', 'planning', 'queued', 'learning'].includes(String(t.status || ''));
+        const taskTitle = String(t.title || t.goal || '').trim();
+        return `
+          <div class="cc-crew-agent ${busy ? 'cc-busy' : ''}">
+            <span class="cc-avatar ${avatarClass}">${esc(avatarLetter)}</span>
+            <div class="cc-crew-meta">
+              <div class="cc-crew-name">${esc(name)} ${t.role ? `<span class="cc-pill">${esc(role)}</span>` : ''}</div>
+              <div class="cc-crew-task">${esc(taskTitle || '(no task title)')}</div>
+            </div>
+          </div>
+        `;
+      });
+
+    mcCrewEl.innerHTML = `
+      <div class="cc-crew-title">CREW</div>
+      <div class="cc-crew-list">${crew.length ? crew.join('') : '<div class="cc-empty">No active crew.</div>'}</div>
+    `;
   }
 
   function openReportModal(mission) {
@@ -458,9 +604,12 @@
       if (pinnedFactsEl) pinnedFactsEl.textContent = renderPinnedFacts(snap.pinned || {});
       renderTasks(snap.activeTasks || []);
       renderMissions(snap.missions || []);
+      renderMissionControl(snap.activeTasks || [], latestEvents || []);
       try {
         const ev = await apiJson('/api/hivemind/events?limit=40');
         renderEvents(ev.events || []);
+        latestEvents = Array.isArray(ev.events) ? ev.events.slice() : [];
+        renderMissionControl(snap.activeTasks || [], latestEvents || []);
         if (ev.cursor) eventsCursor = ev.cursor;
         eventPollFailures = 0;
       } catch (evErr) {
@@ -492,6 +641,7 @@
       const ev = await apiJson('/api/hivemind/events' + q);
       if (ev.cursor) eventsCursor = ev.cursor;
       eventPollFailures = 0;
+      latestEvents = Array.isArray(ev.events) ? ev.events.slice() : [];
       if (Array.isArray(ev.events) && ev.events.length > 0) {
         // Fetch full snapshot if there were new events (cheap enough).
         await refreshAll();
