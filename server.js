@@ -38,6 +38,7 @@ const commandCenterAdmin = require('./lib/commandCenter/adminControls.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
+const SERVER_INSTANCE_ID = crypto.randomUUID();
 
 // ---------------------------------------------------------------------------
 // Security headers (helmet)
@@ -2317,7 +2318,8 @@ app.post('/api/agent/tasks/:id/pause', requireAdmin, (req, res) => {
       pendingApproval: null,
       log
     });
-    res.json({ ok: true });
+    const updated = agentStore.getTask(req.params.id);
+    res.json({ ok: true, serverInstanceId: SERVER_INSTANCE_ID, status: updated ? updated.status : null });
   } catch (e) {
     logger.error('POST /api/agent/tasks/:id/pause:', e.message);
     res.status(500).json({ error: e.message });
@@ -2368,6 +2370,7 @@ app.get('/api/hivemind/snapshot', async (req, res) => {
 
     const activeTasks = activeIndex.map(e => agentStore.getTask(e.id)).filter(Boolean);
     res.json({
+      serverInstanceId: SERVER_INSTANCE_ID,
       ...snap,
       missions,
       activeTasks
@@ -2438,6 +2441,7 @@ app.get('/api/command-center/status', requireAdmin, (req, res) => {
     const cfg = getConfig();
     res.json({
       ok: true,
+      serverInstanceId: SERVER_INSTANCE_ID,
       agent: { paused: !!(cfg.agent && cfg.agent.paused) },
       runner: agentRunner.getRunnerState()
     });

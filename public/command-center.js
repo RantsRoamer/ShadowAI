@@ -108,8 +108,9 @@
       const paused = st && st.agent && st.agent.paused;
       const running = st && st.runner && st.runner.running;
       const inflight = st && st.runner && typeof st.runner.inFlight === 'number' ? st.runner.inFlight : 0;
-      setRunnerStatus(`config.paused=${paused ? 'true' : 'false'} | runner.running=${running ? 'true' : 'false'} | inFlight=${inflight}`);
-      logDebug(`status ok: paused=${paused} running=${running} inFlight=${inflight}`);
+      const sid = st && st.serverInstanceId ? String(st.serverInstanceId).slice(0, 8) : '?';
+      setRunnerStatus(`server=${sid} | config.paused=${paused ? 'true' : 'false'} | runner.running=${running ? 'true' : 'false'} | inFlight=${inflight}`);
+      logDebug(`status ok: server=${sid} paused=${paused} running=${running} inFlight=${inflight}`);
     } catch (e) {
       setRunnerStatus('Error: ' + e.message);
       setText(lastErrorEl, e.message);
@@ -380,11 +381,12 @@
           await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/unblock`, { method: 'POST' });
         } else if (action === 'pause') {
           const reason = window.prompt('Pause reason (optional):', '') || '';
-          await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/pause`, {
+          const out = await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/pause`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ reason })
           });
+          logDebug(`pause ok: task=${id.slice(0, 8)} newStatus=${out && out.status ? out.status : '?'}`);
         } else if (action === 'delete') {
           const ok = window.confirm('Delete this task? This cannot be undone.');
           if (!ok) return;
