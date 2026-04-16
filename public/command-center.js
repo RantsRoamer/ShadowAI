@@ -66,12 +66,17 @@
   const resumeBtn = document.getElementById('ccResumeBtn');
   const resumeConfirm = document.getElementById('ccResumeConfirm');
   const runnerStatusEl = document.getElementById('ccRunnerStatus');
+  const reportModalEl = document.getElementById('ccReportModal');
+  const reportCloseBtn = document.getElementById('ccReportClose');
+  const reportBodyEl = document.getElementById('ccReportBody');
+  const reportTitleEl = document.getElementById('ccReportTitle');
 
   let eventsCursor = null;
   let pollTimer = null;
   let inflight = false;
   let isAdmin = false;
   let eventPollFailures = 0;
+  let latestMissions = [];
 
   function esc(s) {
     return String(s || '')
@@ -126,6 +131,65 @@
   function setDangerStatus(msg) {
     if (!dangerStatus) return;
     dangerStatus.textContent = String(msg || '');
+  }
+
+  function escapeHtml(s) {
+    return esc(s);
+  }
+
+  function openReportModal(mission) {
+    if (!reportModalEl || !reportBodyEl || !mission) return;
+    const report = mission.finalReport || {};
+    const payload = report.payload || {};
+    const tasks = Array.isArray(payload.tasks) ? payload.tasks : [];
+    const statusCounts = payload.statusCounts || {};
+    const summary = report.summary || mission.summary || '';
+    const headline = report.headline || mission.title || mission.id || 'Mission Report';
+
+    if (reportTitleEl) reportTitleEl.textContent = String(headline);
+
+    const countsText = Object.keys(statusCounts).length
+      ? Object.entries(statusCounts).map(([k, v]) => `${k}: ${v}`).join(' | ')
+      : 'No status counts';
+
+    const taskBlocks = tasks.length
+      ? tasks.map((t, idx) => `
+          <div class="cc-report-section">
+            <div class="cc-report-title">TASK ${idx + 1} — ${escapeHtml(t.title || t.id || '')}</div>
+            <div>Status: ${escapeHtml(t.status || 'unknown')} ${t.role ? `| Role: ${escapeHtml(t.role)}` : ''}</div>
+            <div>${escapeHtml(t.lastNote || '(no note)')}</div>
+          </div>
+        `).join('')
+      : '<div class="cc-report-section"><div class="cc-report-title">TASKS</div><div>No task payload found.</div></div>';
+
+    reportBodyEl.innerHTML = `
+      <div class="cc-report-section">
+        <div class="cc-report-title">HEADLINE</div>
+        <div>${escapeHtml(headline)}</div>
+      </div>
+      <div class="cc-report-section">
+        <div class="cc-report-title">SUMMARY</div>
+        <div>${escapeHtml(summary || '(none)')}</div>
+      </div>
+      <div class="cc-report-section">
+        <div class="cc-report-title">OUTCOME</div>
+        <div>${escapeHtml(report.outcome || 'unknown')}</div>
+      </div>
+      <div class="cc-report-section">
+        <div class="cc-report-title">STATUS COUNTS</div>
+        <div>${escapeHtml(countsText)}</div>
+      </div>
+      ${taskBlocks}
+      <div class="cc-report-section">
+        <div class="cc-report-title">RAW PAYLOAD</div>
+        <pre class="cc-report-json">${escapeHtml(JSON.stringify(report, null, 2))}</pre>
+      </div>
+    `;
+    reportModalEl.hidden = false;
+  }
+
+  function closeReportModal() {
+    if (reportModalEl) reportModalEl.hidden = true;
   }
 
   function setRunnerStatus(text) {
@@ -259,6 +323,7 @@
       setEmpty(missionsEl, 'No mission reports yet.');
       return;
     }
+    latestMissions = missions.slice();
     const completed = missions
       .filter((m) => m && m.finalReport)
       .slice()
@@ -282,6 +347,9 @@
             ${m.id ? pill('mission: ' + String(m.id).slice(0, 14)) : ''}
           </div>
           <div class="cc-card-body">${esc(report.summary || '')}</div>
+          <div class="cc-actions">
+            <button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>
+          </div>
         </div>
       `;
     }).join('');
@@ -473,6 +541,26 @@
         setText(lastErrorEl, err.message);
         logDebug('task action error: ' + err.message);
       }
+    });
+  }
+
+  if (missionsEl) {
+    missionsEl.addEventListener('click', (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('button[data-action="view-report"]');
+      if (!btn) return;
+      const missionId = btn.getAttribute('data-mission-id');
+      if (!missionId) return;
+      const mission = latestMissions.find((m) => String(m && m.id) === String(missionId));
+      if (!mission) return;
+      openReportModal(mission);
+    });
+  }
+
+  if (reportCloseBtn) reportCloseBtn.addEventListener('click', closeReportModal);
+  if (reportModalEl) {
+    reportModalEl.addEventListener('click', (e) => {
+      const target = e.target;
+      if (target && target.getAttribute && target.getAttribute('data-close') === '1') closeReportModal();
     });
   }
 
