@@ -261,6 +261,10 @@
   flex-wrap: wrap;
 }
 
+.cc-approval-actions {
+  margin-top: 6px;
+}
+
 .cc-reject-reason {
   min-width: 220px;
   flex: 1;

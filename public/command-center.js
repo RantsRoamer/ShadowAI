@@ -101,17 +101,34 @@
         : '';
 
       const actions = isAdmin
-        ? (t.status === 'awaiting_approval'
-            ? `<div class="cc-actions" data-task-id="${esc(t.id)}">
-                 <button class="btn btn-small cc-approve-btn" data-action="approve" data-id="${esc(t.id)}">APPROVE</button>
-                 <input class="cc-reject-reason" type="text" placeholder="Rejection reason..." />
-                 <button class="btn btn-small btn-danger cc-reject-btn" data-action="reject" data-id="${esc(t.id)}">REJECT</button>
-               </div>`
-            : (t.status === 'blocked'
-                ? `<div class="cc-actions" data-task-id="${esc(t.id)}">
-                     <button class="btn btn-small cc-unblock-btn" data-action="unblock" data-id="${esc(t.id)}">UNBLOCK</button>
-                   </div>`
-                : ''))
+        ? (() => {
+            const base = `
+              <div class="cc-actions" data-task-id="${esc(t.id)}">
+                <button class="btn btn-small" data-action="view" data-id="${esc(t.id)}">VIEW LOG</button>
+                <button class="btn btn-small" data-action="pause" data-id="${esc(t.id)}">PAUSE</button>
+                <button class="btn btn-small btn-danger" data-action="delete" data-id="${esc(t.id)}">DELETE</button>
+              </div>
+            `;
+            if (t.status === 'awaiting_approval') {
+              return `
+                ${base}
+                <div class="cc-actions cc-approval-actions" data-task-id="${esc(t.id)}">
+                  <button class="btn btn-small" data-action="approve" data-id="${esc(t.id)}">APPROVE</button>
+                  <input class="cc-reject-reason" type="text" placeholder="Rejection reason..." />
+                  <button class="btn btn-small btn-danger" data-action="reject" data-id="${esc(t.id)}">REJECT</button>
+                </div>
+              `;
+            }
+            if (t.status === 'blocked') {
+              return `
+                ${base}
+                <div class="cc-actions" data-task-id="${esc(t.id)}">
+                  <button class="btn btn-small" data-action="unblock" data-id="${esc(t.id)}">UNBLOCK</button>
+                </div>
+              `;
+            }
+            return base;
+          })()
         : (t.status === 'awaiting_approval' || t.status === 'blocked'
             ? `<div class="cc-actions-note">This task needs admin action. Open <a href="/autoagent">/autoagent</a>.</div>`
             : '');
@@ -313,6 +330,33 @@
           });
         } else if (action === 'unblock') {
           await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/unblock`, { method: 'POST' });
+        } else if (action === 'pause') {
+          const reason = window.prompt('Pause reason (optional):', '') || '';
+          await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/pause`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+          });
+        } else if (action === 'delete') {
+          const ok = window.confirm('Delete this task? This cannot be undone.');
+          if (!ok) return;
+          await fetch(`/api/agent/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        } else if (action === 'view') {
+          const task = await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}`);
+          const lines = [];
+          lines.push(`Title: ${task.title}`);
+          lines.push(`Status: ${task.status}`);
+          if (task.role) lines.push(`Role: ${task.role}`);
+          lines.push('');
+          lines.push('Goal:');
+          lines.push(task.goal || '');
+          lines.push('');
+          lines.push('Recent log:');
+          const log = Array.isArray(task.log) ? task.log.slice(-40) : [];
+          for (const entry of log) {
+            lines.push(`[${entry.ts || ''}] [${entry.type || ''}] ${entry.content || ''}`.trim());
+          }
+          window.alert(lines.join('\n').slice(0, 12000));
         }
         await refreshAll({ force: true });
       } catch (err) {

@@ -2301,6 +2301,29 @@ app.post('/api/agent/tasks/:id/unblock', requireAdmin, (req, res) => {
   }
 });
 
+app.post('/api/agent/tasks/:id/pause', requireAdmin, (req, res) => {
+  try {
+    const task = agentStore.getTask(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Not found' });
+    const reason = req.body && req.body.reason != null ? String(req.body.reason) : '';
+    const log = Array.isArray(task.log) ? task.log : [];
+    log.push({
+      ts: new Date().toISOString(),
+      type: 'thought',
+      content: 'Task paused by admin.' + (reason.trim() ? ' Reason: ' + reason.trim() : '')
+    });
+    agentStore.updateTask(req.params.id, {
+      status: 'blocked',
+      pendingApproval: null,
+      log
+    });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/agent/tasks/:id/pause:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/agent/config', requireAdmin, (req, res) => {
   try {
     const cfg = getConfig();
