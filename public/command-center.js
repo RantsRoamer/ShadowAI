@@ -158,6 +158,12 @@
             <div class="cc-report-title">TASK ${idx + 1} — ${escapeHtml(t.title || t.id || '')}</div>
             <div>Status: ${escapeHtml(t.status || 'unknown')} ${t.role ? `| Role: ${escapeHtml(t.role)}` : ''}</div>
             <div>${escapeHtml(t.lastNote || '(no note)')}</div>
+            <div class="cc-report-title" style="margin-top:8px;">EVIDENCE</div>
+            <pre class="cc-report-json">${escapeHtml(
+              Array.isArray(t.evidence) && t.evidence.length > 0
+                ? t.evidence.join('\n\n---\n\n')
+                : '(no concrete evidence captured)'
+            )}</pre>
           </div>
         `).join('')
       : '<div class="cc-report-section"><div class="cc-report-title">TASKS</div><div>No task payload found.</div></div>';
