@@ -6,6 +6,7 @@
   const debugLogEl = document.getElementById('ccDebugLog');
   const debugSectionEl = document.querySelector('.cc-debug');
   const debugToggleBtn = document.getElementById('ccDebugToggle');
+  const cinematicToggleEl = document.getElementById('ccCinematicToggle');
 
   function setText(el, v) {
     if (!el) return;
@@ -47,6 +48,35 @@
     });
   }
   setDebugVisible(loadDebugVisible());
+  const CINEMATIC_KEY = 'shadow.commandcenter.cinematic';
+  let cinematicOn = false;
+
+  function setCinematicMode(on) {
+    cinematicOn = !!on;
+    try { localStorage.setItem(CINEMATIC_KEY, cinematicOn ? '1' : '0'); } catch (_) {}
+    if (cinematicToggleEl) cinematicToggleEl.checked = cinematicOn;
+    if (document.body) {
+      document.body.classList.toggle('cc-cinematic-on', cinematicOn);
+    }
+  }
+
+  function loadCinematicMode() {
+    try {
+      const raw = localStorage.getItem(CINEMATIC_KEY);
+      if (raw == null) return false;
+      return raw === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  if (cinematicToggleEl) {
+    cinematicToggleEl.addEventListener('change', () => {
+      setCinematicMode(!!cinematicToggleEl.checked);
+    });
+  }
+  setCinematicMode(loadCinematicMode());
+
   const input = document.getElementById('ccInput');
   const sendBtn = document.getElementById('ccSendBtn');
   const refreshBtn = document.getElementById('ccRefreshBtn');
@@ -135,6 +165,30 @@
 
   function escapeHtml(s) {
     return esc(s);
+  }
+
+  function roleToAvatarLetter(role) {
+    const r = String(role || '').toLowerCase();
+    if (!r) return '?';
+    if (r.includes('research')) return 'R';
+    if (r.includes('coder') || r.includes('dev') || r.includes('code')) return 'C';
+    if (r.includes('ops') || r.includes('operator')) return 'O';
+    if (r.includes('plan')) return 'P';
+    if (r.includes('memory')) return 'M';
+    if (r.includes('triage') || r.includes('coord')) return 'T';
+    return r.charAt(0).toUpperCase();
+  }
+
+  function roleToAvatarClass(role) {
+    const r = String(role || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    if (!r) return '';
+    if (r.includes('research')) return 'cc-avatar-role-research';
+    if (r.includes('coder') || r.includes('dev') || r.includes('code')) return 'cc-avatar-role-coder';
+    if (r.includes('ops') || r.includes('operator')) return 'cc-avatar-role-ops';
+    if (r.includes('plan')) return 'cc-avatar-role-planner';
+    if (r.includes('memory')) return 'cc-avatar-role-memory_curator';
+    if (r.includes('triage') || r.includes('coord')) return 'cc-avatar-role-triage';
+    return '';
   }
 
   function openReportModal(mission) {
@@ -280,10 +334,16 @@
         : (t.status === 'awaiting_approval' || t.status === 'blocked'
             ? `<div class="cc-actions-note">This task needs admin action. Open <a href="/autoagent">/autoagent</a>.</div>`
             : '');
+      const avatarClass = roleToAvatarClass(t.role);
+      const avatarLetter = roleToAvatarLetter(t.role);
+      const statusClass = String(t.status || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_');
       return `
-        <div class="cc-card">
+        <div class="cc-card cc-card-task cc-card-task-status-${statusClass}">
           <div class="cc-card-title">
-            <div>${title}</div>
+            <div class="cc-card-title-main">
+              <span class="cc-avatar ${avatarClass}">${esc(avatarLetter)}</span>
+              <div>${title}</div>
+            </div>
             <div>${pill(status)}</div>
           </div>
           <div class="cc-card-meta">
@@ -354,9 +414,12 @@
         `
         : `<button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>`;
       return `
-        <div class="cc-card">
+        <div class="cc-card cc-card-mission">
           <div class="cc-card-title">
-            <div>${esc(report.headline || m.title || m.id)}</div>
+            <div class="cc-card-title-main">
+              <span class="cc-avatar cc-avatar-role-planner">M</span>
+              <div>${esc(report.headline || m.title || m.id)}</div>
+            </div>
             <div>${pill(report.outcome || 'complete')}</div>
           </div>
           <div class="cc-card-meta">

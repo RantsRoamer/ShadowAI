@@ -6,8 +6,10 @@
 
 .cc-header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
@@ -20,6 +22,84 @@
 .cc-subtitle {
   opacity: 0.75;
   font-size: 13px;
+}
+
+.cc-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-toggle-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.cc-toggle-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  opacity: 0.9;
+}
+
+.cc-toggle-sub {
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.cc-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.cc-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cc-switch-track {
+  width: 42px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  box-sizing: border-box;
+  transition: background 0.18s ease-out, border-color 0.18s ease-out;
+}
+
+.cc-switch-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  transform: translateX(0);
+  transition: transform 0.18s ease-out, box-shadow 0.18s ease-out, background 0.18s ease-out;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.55);
+}
+
+.cc-switch input:checked + .cc-switch-track {
+  background: radial-gradient(circle at 20% 0, #66ffe1, #1b9bff 50%, #6240ff 100%);
+  border-color: rgba(102, 255, 225, 0.7);
+}
+
+.cc-switch input:checked + .cc-switch-track .cc-switch-thumb {
+  transform: translateX(18px);
+  background: #020b16;
+  box-shadow: 0 0 6px rgba(102, 255, 225, 0.9);
+}
+
+@media (max-width: 900px) {
+  .cc-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .cc-compose {
@@ -248,6 +328,7 @@
   border-radius: 10px;
   padding: 10px 10px;
   background: rgba(0, 0, 0, 0.18);
+  transition: transform 0.16s ease-out, box-shadow 0.16s ease-out, border-color 0.16s ease-out, background 0.16s ease-out;
 }
 
 .cc-card-title {
@@ -256,6 +337,87 @@
   gap: 10px;
   font-size: 13px;
   margin-bottom: 6px;
+}
+
+.cc-card-title-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-avatar {
+  display: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-size: 12px;
+  font-weight: 600;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 30% 0, #ffffff, #d0f7ff 40%, #7fd8ff 100%);
+  color: #020b16;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+}
+
+.cc-avatar-role-research {
+  background: radial-gradient(circle at 30% 0, #ffffff, #c4e0ff 40%, #4fa8ff 100%);
+}
+
+.cc-avatar-role-coder {
+  background: radial-gradient(circle at 30% 0, #ffffff, #d5ffe9 40%, #4fe88e 100%);
+}
+
+.cc-avatar-role-ops {
+  background: radial-gradient(circle at 30% 0, #ffffff, #ffe6c7 40%, #ff9a3a 100%);
+}
+
+.cc-avatar-role-planner {
+  background: radial-gradient(circle at 30% 0, #ffffff, #f4d6ff 40%, #c36bff 100%);
+}
+
+.cc-avatar-role-memory_curator {
+  background: radial-gradient(circle at 30% 0, #ffffff, #fff0d6 40%, #ffce4a 100%);
+}
+
+.cc-avatar-role-triage {
+  background: radial-gradient(circle at 30% 0, #ffffff, #ffd4d4 40%, #ff5c5c 100%);
+}
+
+@keyframes cc-avatar-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(102, 255, 225, 0.65); }
+  70% { box-shadow: 0 0 0 8px rgba(102, 255, 225, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(102, 255, 225, 0); }
+}
+
+.cc-cinematic-on .cc-avatar {
+  display: inline-flex;
+}
+
+.cc-cinematic-on .cc-card.cc-card-task {
+  border-color: rgba(102, 255, 225, 0.55);
+  background: radial-gradient(circle at 0% 0%, rgba(102, 255, 225, 0.12), rgba(0, 0, 0, 0.2) 55%, rgba(0, 0, 0, 0.35));
+}
+
+.cc-cinematic-on .cc-card.cc-card-task:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.7);
+}
+
+.cc-cinematic-on .cc-card.cc-card-task-status-executing .cc-avatar,
+.cc-cinematic-on .cc-card.cc-card-task-status-planning .cc-avatar,
+.cc-cinematic-on .cc-card.cc-card-task-status-queued .cc-avatar {
+  animation: cc-avatar-pulse 1.9s ease-out infinite;
+}
+
+.cc-cinematic-on .cc-card.cc-card-mission {
+  border-color: rgba(123, 179, 255, 0.55);
+  background: radial-gradient(circle at 100% 0%, rgba(123, 179, 255, 0.16), rgba(0, 0, 0, 0.2) 55%, rgba(0, 0, 0, 0.35));
+}
+
+.cc-cinematic-on .cc-card.cc-card-mission:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.7);
 }
 
 .cc-pill {
