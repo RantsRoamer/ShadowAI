@@ -1,4 +1,24 @@
 (function () {
+  const jsLoadedEl = document.getElementById('ccJsLoaded');
+  const lastActionEl = document.getElementById('ccLastAction');
+  const lastApiEl = document.getElementById('ccLastApi');
+  const lastErrorEl = document.getElementById('ccLastError');
+  const debugLogEl = document.getElementById('ccDebugLog');
+
+  function setText(el, v) {
+    if (!el) return;
+    el.textContent = String(v == null ? '' : v);
+  }
+
+  function logDebug(line) {
+    if (!debugLogEl) return;
+    const ts = new Date().toISOString();
+    debugLogEl.textContent = (debugLogEl.textContent ? debugLogEl.textContent + '\n' : '') + `[${ts}] ${line}`;
+    debugLogEl.scrollTop = debugLogEl.scrollHeight;
+  }
+
+  setText(jsLoadedEl, 'YES');
+  logDebug('command-center.js loaded');
   const input = document.getElementById('ccInput');
   const sendBtn = document.getElementById('ccSendBtn');
   const refreshBtn = document.getElementById('ccRefreshBtn');
@@ -40,18 +60,33 @@
   }
 
   async function apiJson(url, opts) {
+    setText(lastApiEl, url);
     const res = await fetch(url, opts);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || res.statusText || 'Request failed');
+    const contentType = (res.headers.get('content-type') || '').toLowerCase();
+    let data = {};
+    let rawText = '';
+    if (contentType.includes('application/json')) {
+      data = await res.json().catch(() => ({}));
+    } else {
+      rawText = await res.text().catch(() => '');
+      data = { _raw: rawText };
+    }
+    if (!res.ok) {
+      const msg = (data && data.error) ? data.error : (rawText ? rawText.slice(0, 200) : res.statusText);
+      throw new Error(msg || 'Request failed');
+    }
     return data;
   }
 
   async function loadMe() {
     try {
+      setText(lastActionEl, 'loadMe');
       const me = await apiJson('/api/me');
       isAdmin = !!(me && me.role === 'admin');
+      logDebug(`/api/me ok, isAdmin=${isAdmin}`);
     } catch (_) {
       isAdmin = false;
+      logDebug('/api/me failed (not logged in or server error)');
     }
   }
 
@@ -68,13 +103,17 @@
   async function refreshRunnerStatus() {
     if (!isAdmin) return;
     try {
+      setText(lastActionEl, 'refreshRunnerStatus');
       const st = await apiJson('/api/command-center/status');
       const paused = st && st.agent && st.agent.paused;
       const running = st && st.runner && st.runner.running;
       const inflight = st && st.runner && typeof st.runner.inFlight === 'number' ? st.runner.inFlight : 0;
       setRunnerStatus(`config.paused=${paused ? 'true' : 'false'} | runner.running=${running ? 'true' : 'false'} | inFlight=${inflight}`);
+      logDebug(`status ok: paused=${paused} running=${running} inFlight=${inflight}`);
     } catch (e) {
       setRunnerStatus('Error: ' + e.message);
+      setText(lastErrorEl, e.message);
+      logDebug('status error: ' + e.message);
     }
   }
 
@@ -231,6 +270,7 @@
     if (inflight && !force) return;
     inflight = true;
     try {
+      setText(lastActionEl, 'refreshAll');
       const snap = await apiJson('/api/hivemind/snapshot');
       if (workingSummaryEl) workingSummaryEl.textContent = renderSummary(snap.workingSummary || '');
       if (pinnedFactsEl) pinnedFactsEl.textContent = renderPinnedFacts(snap.pinned || {});
@@ -239,12 +279,15 @@
       const ev = await apiJson('/api/hivemind/events?limit=40');
       renderEvents(ev.events || []);
       if (ev.cursor) eventsCursor = ev.cursor;
+      await refreshRunnerStatus();
     } catch (e) {
       setEmpty(tasksEl, 'Error loading tasks: ' + e.message);
       setEmpty(eventsEl, 'Error loading events: ' + e.message);
       if (missionsEl) setEmpty(missionsEl, 'Error loading mission reports: ' + e.message);
       if (workingSummaryEl) workingSummaryEl.textContent = 'Error: ' + e.message;
       if (pinnedFactsEl) pinnedFactsEl.textContent = 'Error: ' + e.message;
+      setText(lastErrorEl, e.message);
+      logDebug('refreshAll error: ' + e.message);
     } finally {
       inflight = false;
     }
@@ -271,6 +314,7 @@
     inflight = true;
     sendBtn.disabled = true;
     try {
+      setText(lastActionEl, 'dispatchMission');
       const out = await apiJson('/api/command-center/dispatch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -281,12 +325,15 @@
         lastDispatchEl.hidden = false;
         lastDispatchEl.textContent = out.summary || ('Dispatched mission ' + (out.missionId || ''));
       }
+      logDebug('dispatch ok: ' + (out.missionId || ''));
       await refreshAll();
     } catch (e) {
       if (lastDispatchEl) {
         lastDispatchEl.hidden = false;
         lastDispatchEl.textContent = 'Dispatch failed: ' + e.message;
       }
+      setText(lastErrorEl, e.message);
+      logDebug('dispatch error: ' + e.message);
     } finally {
       inflight = false;
       sendBtn.disabled = false;
@@ -318,6 +365,7 @@
       if (!action || !id) return;
       if (!isAdmin) return;
       try {
+        setText(lastActionEl, `task:${action}`);
         if (action === 'approve') {
           await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/approve`, { method: 'POST' });
         } else if (action === 'reject') {
@@ -340,7 +388,11 @@
         } else if (action === 'delete') {
           const ok = window.confirm('Delete this task? This cannot be undone.');
           if (!ok) return;
-          await fetch(`/api/agent/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          const r = await fetch(`/api/agent/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          if (!r.ok) {
+            const raw = await r.text().catch(() => '');
+            throw new Error(raw || r.statusText || 'Delete failed');
+          }
         } else if (action === 'view') {
           const task = await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}`);
           const lines = [];
@@ -364,6 +416,8 @@
           lastDispatchEl.hidden = false;
           lastDispatchEl.textContent = `Action failed: ${err.message}`;
         }
+        setText(lastErrorEl, err.message);
+        logDebug('task action error: ' + err.message);
       }
     });
   }
@@ -376,6 +430,7 @@
       if (!isAdmin) { setDangerStatus('Admin only.'); return; }
       const confirm = String(stopConfirm && stopConfirm.value ? stopConfirm.value : '').trim();
       try {
+        setText(lastActionEl, 'stopAll');
         setDangerStatus('Stopping all agents...');
         await apiJson('/api/command-center/stop-all', {
           method: 'POST',
@@ -387,6 +442,8 @@
         await refreshAll({ force: true });
       } catch (e) {
         setDangerStatus('Stop failed: ' + e.message);
+        setText(lastErrorEl, e.message);
+        logDebug('stop error: ' + e.message);
       }
     });
   }
@@ -396,6 +453,7 @@
       if (!isAdmin) { setDangerStatus('Admin only.'); return; }
       const confirm = String(clearConfirm && clearConfirm.value ? clearConfirm.value : '').trim();
       try {
+        setText(lastActionEl, 'clearAllMemory');
         setDangerStatus('Clearing all memory...');
         await apiJson('/api/command-center/clear-all-memory', {
           method: 'POST',
@@ -407,6 +465,8 @@
         await refreshAll({ force: true });
       } catch (e) {
         setDangerStatus('Clear failed: ' + e.message);
+        setText(lastErrorEl, e.message);
+        logDebug('clear error: ' + e.message);
       }
     });
   }
@@ -416,6 +476,7 @@
       if (!isAdmin) { setDangerStatus('Admin only.'); return; }
       const confirm = String(resumeConfirm && resumeConfirm.value ? resumeConfirm.value : '').trim();
       try {
+        setText(lastActionEl, 'resumeAgents');
         setDangerStatus('Resuming agents...');
         await apiJson('/api/command-center/resume-agents', {
           method: 'POST',
@@ -427,6 +488,8 @@
         await refreshAll({ force: true });
       } catch (e) {
         setDangerStatus('Resume failed: ' + e.message);
+        setText(lastErrorEl, e.message);
+        logDebug('resume error: ' + e.message);
       }
     });
   }

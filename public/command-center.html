@@ -117,6 +117,20 @@
       </div>
       <div id="ccDangerStatus" class="cc-actions-note"></div>
     </section>
+
+    <section class="cc-panel cc-debug">
+      <div class="cc-panel-header">
+        <h2>DEBUG</h2>
+        <div class="cc-panel-sub">Client-side status (for troubleshooting)</div>
+      </div>
+      <div class="cc-debug-grid">
+        <div class="cc-debug-item"><strong>JS loaded:</strong> <span id="ccJsLoaded">—</span></div>
+        <div class="cc-debug-item"><strong>Last action:</strong> <span id="ccLastAction">—</span></div>
+        <div class="cc-debug-item"><strong>Last API:</strong> <span id="ccLastApi">—</span></div>
+        <div class="cc-debug-item"><strong>Last error:</strong> <span id="ccLastError">—</span></div>
+      </div>
+      <pre id="ccDebugLog" class="cc-debug-log"></pre>
+    </section>
   </main>
 
   <script src="/static/nav.js"></script>
