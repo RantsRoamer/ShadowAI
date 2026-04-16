@@ -201,6 +201,10 @@
   white-space: pre-wrap;
 }
 
+.cc-debug-collapsed #ccDebugBody {
+  display: none;
+}
+
 .cc-panel-header {
   display: flex;
   align-items: baseline;

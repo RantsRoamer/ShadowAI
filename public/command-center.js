@@ -4,6 +4,8 @@
   const lastApiEl = document.getElementById('ccLastApi');
   const lastErrorEl = document.getElementById('ccLastError');
   const debugLogEl = document.getElementById('ccDebugLog');
+  const debugSectionEl = document.querySelector('.cc-debug');
+  const debugToggleBtn = document.getElementById('ccDebugToggle');
 
   function setText(el, v) {
     if (!el) return;
@@ -19,6 +21,32 @@
 
   setText(jsLoadedEl, 'YES');
   logDebug('command-center.js loaded');
+  const DEBUG_VIS_KEY = 'shadow.commandcenter.debug.visible';
+
+  function setDebugVisible(visible) {
+    if (!debugSectionEl || !debugToggleBtn) return;
+    debugSectionEl.classList.toggle('cc-debug-collapsed', !visible);
+    debugToggleBtn.textContent = visible ? 'HIDE' : 'SHOW';
+    try { localStorage.setItem(DEBUG_VIS_KEY, visible ? '1' : '0'); } catch (_) {}
+  }
+
+  function loadDebugVisible() {
+    try {
+      const raw = localStorage.getItem(DEBUG_VIS_KEY);
+      if (raw == null) return true;
+      return raw === '1';
+    } catch (_) {
+      return true;
+    }
+  }
+
+  if (debugToggleBtn) {
+    debugToggleBtn.addEventListener('click', () => {
+      const currentlyVisible = !debugSectionEl.classList.contains('cc-debug-collapsed');
+      setDebugVisible(!currentlyVisible);
+    });
+  }
+  setDebugVisible(loadDebugVisible());
   const input = document.getElementById('ccInput');
   const sendBtn = document.getElementById('ccSendBtn');
   const refreshBtn = document.getElementById('ccRefreshBtn');
