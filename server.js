@@ -2393,6 +2393,29 @@ app.get('/api/hivemind/events', (req, res) => {
   }
 });
 
+app.delete('/api/command-center/missions/:id', requireAdmin, (req, res) => {
+  try {
+    const missionId = req.params && req.params.id ? String(req.params.id).trim() : '';
+    if (!missionId) return res.status(400).json({ error: 'mission id is required' });
+    const snap = hiveStore.getSnapshot();
+    const missions = Array.isArray(snap.missions) ? snap.missions : [];
+    const before = missions.length;
+    const nextMissions = missions.filter((m) => String(m && m.id ? m.id : '') !== missionId);
+    if (nextMissions.length === before) return res.status(404).json({ error: 'Mission report not found' });
+    hiveStore.updateSnapshot({ missions: nextMissions });
+    hiveStore.appendEvent({
+      type: 'mission_report_deleted',
+      source: 'command_center',
+      missionId,
+      message: 'Mission report deleted by admin'
+    });
+    res.json({ ok: true, deleted: 1, missionId });
+  } catch (e) {
+    logger.error('DELETE /api/command-center/missions/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/command-center/dispatch', async (req, res) => {
   try {
     const text = req.body && req.body.text != null ? String(req.body.text).trim() : '';

@@ -342,6 +342,12 @@
     missionsEl.innerHTML = completed.map((m) => {
       const report = m.finalReport || {};
       const when = m.completedAt ? new Date(m.completedAt).toLocaleString() : '';
+      const actions = isAdmin
+        ? `
+          <button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>
+          <button class="btn btn-small btn-danger" data-action="delete-report" data-mission-id="${esc(m.id || '')}">DELETE REPORT</button>
+        `
+        : `<button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>`;
       return `
         <div class="cc-card">
           <div class="cc-card-title">
@@ -354,7 +360,7 @@
           </div>
           <div class="cc-card-body">${esc(report.summary || '')}</div>
           <div class="cc-actions">
-            <button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>
+            ${actions}
           </div>
         </div>
       `;
@@ -551,14 +557,32 @@
   }
 
   if (missionsEl) {
-    missionsEl.addEventListener('click', (e) => {
-      const btn = e.target && e.target.closest && e.target.closest('button[data-action="view-report"]');
+    missionsEl.addEventListener('click', async (e) => {
+      const btn = e.target && e.target.closest && e.target.closest('button[data-action]');
       if (!btn) return;
+      const action = btn.getAttribute('data-action');
       const missionId = btn.getAttribute('data-mission-id');
-      if (!missionId) return;
-      const mission = latestMissions.find((m) => String(m && m.id) === String(missionId));
-      if (!mission) return;
-      openReportModal(mission);
+      if (!action || !missionId) return;
+      if (action === 'view-report') {
+        const mission = latestMissions.find((m) => String(m && m.id) === String(missionId));
+        if (!mission) return;
+        openReportModal(mission);
+        return;
+      }
+      if (action === 'delete-report') {
+        if (!isAdmin) return;
+        const ok = window.confirm('Delete this mission report? This cannot be undone.');
+        if (!ok) return;
+        try {
+          setText(lastActionEl, 'mission:delete-report');
+          await apiJson(`/api/command-center/missions/${encodeURIComponent(missionId)}`, { method: 'DELETE' });
+          logDebug(`delete report ok: mission=${missionId.slice(0, 12)}`);
+          await refreshAll({ force: true });
+        } catch (err) {
+          setText(lastErrorEl, err.message);
+          logDebug('delete report error: ' + err.message);
+        }
+      }
     });
   }
 
