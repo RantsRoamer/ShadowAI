@@ -2357,10 +2357,15 @@ const ACTIVE_TASK_STATUSES = new Set([
   'queued', 'planning', 'executing', 'learning', 'awaiting_approval', 'blocked'
 ]);
 
+function getScopeUser(req) {
+  return (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+}
+
 app.get('/api/hivemind/snapshot', async (req, res) => {
   try {
-    const missions = await missionReporter.finalizeCompletedMissions();
-    const snap = hiveStore.getSnapshot();
+    const scopeUser = getScopeUser(req);
+    const missions = await missionReporter.finalizeCompletedMissions({ scopeUser });
+    const snap = hiveStore.getSnapshot({ scopeUser });
     const index = agentStore.listTasks();
     const activeIndex = index
       .filter(e => e && ACTIVE_TASK_STATUSES.has(e.status))
@@ -2368,7 +2373,9 @@ app.get('/api/hivemind/snapshot', async (req, res) => {
       .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
       .slice(0, 30);
 
-    const activeTasks = activeIndex.map(e => agentStore.getTask(e.id)).filter(Boolean);
+    const activeTasks = activeIndex
+      .map(e => agentStore.getTask(e.id))
+      .filter((t) => t && String(t.ownerUser || '') === String(scopeUser || ''));
     res.json({
       serverInstanceId: SERVER_INSTANCE_ID,
       ...snap,
@@ -2383,9 +2390,10 @@ app.get('/api/hivemind/snapshot', async (req, res) => {
 
 app.get('/api/hivemind/events', (req, res) => {
   try {
+    const scopeUser = getScopeUser(req);
     const since = req.query.since ? String(req.query.since) : null;
     const limit = req.query.limit != null ? Number(req.query.limit) : 100;
-    const out = hiveStore.listRecentEvents({ since, limit });
+    const out = hiveStore.listRecentEvents({ since, limit, scopeUser });
     res.json(out);
   } catch (e) {
     logger.error('GET /api/hivemind/events:', e.message);
@@ -2395,20 +2403,25 @@ app.get('/api/hivemind/events', (req, res) => {
 
 app.delete('/api/command-center/missions/:id', requireAdmin, (req, res) => {
   try {
+    const scopeUser = getScopeUser(req);
     const missionId = req.params && req.params.id ? String(req.params.id).trim() : '';
     if (!missionId) return res.status(400).json({ error: 'mission id is required' });
-    const snap = hiveStore.getSnapshot();
+    const snap = hiveStore.getSnapshot({ scopeUser });
     const missions = Array.isArray(snap.missions) ? snap.missions : [];
     const before = missions.length;
     const nextMissions = missions.filter((m) => String(m && m.id ? m.id : '') !== missionId);
     if (nextMissions.length === before) return res.status(404).json({ error: 'Mission report not found' });
-    hiveStore.updateSnapshot({ missions: nextMissions });
-    hiveStore.appendEvent({
-      type: 'mission_report_deleted',
-      source: 'command_center',
-      missionId,
-      message: 'Mission report deleted by admin'
-    });
+    hiveStore.updateSnapshot({ missions: nextMissions }, { scopeUser });
+    hiveStore.appendEvent(
+      {
+        type: 'mission_report_deleted',
+        source: 'command_center',
+        missionId,
+        user: scopeUser || null,
+        message: 'Mission report deleted by admin'
+      },
+      { scopeUser }
+    );
     res.json({ ok: true, deleted: 1, missionId });
   } catch (e) {
     logger.error('DELETE /api/command-center/missions/:id:', e.message);
