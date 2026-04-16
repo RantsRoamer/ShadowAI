@@ -33,6 +33,7 @@ const agentRunner = require('./lib/agentRunner.js');
 const myDataFs = require('./lib/myDataFs.js');
 const hiveStore = require('./lib/hiveMind/store.js');
 const commandCenter = require('./lib/commandCenter/coordinator.js');
+const missionReporter = require('./lib/commandCenter/missionReporter.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -2330,8 +2331,9 @@ const ACTIVE_TASK_STATUSES = new Set([
   'queued', 'planning', 'executing', 'learning', 'awaiting_approval', 'blocked'
 ]);
 
-app.get('/api/hivemind/snapshot', (req, res) => {
+app.get('/api/hivemind/snapshot', async (req, res) => {
   try {
+    const missions = await missionReporter.finalizeCompletedMissions();
     const snap = hiveStore.getSnapshot();
     const index = agentStore.listTasks();
     const activeIndex = index
@@ -2343,6 +2345,7 @@ app.get('/api/hivemind/snapshot', (req, res) => {
     const activeTasks = activeIndex.map(e => agentStore.getTask(e.id)).filter(Boolean);
     res.json({
       ...snap,
+      missions,
       activeTasks
     });
   } catch (e) {

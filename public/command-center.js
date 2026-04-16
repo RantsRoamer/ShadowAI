@@ -4,6 +4,7 @@
   const refreshBtn = document.getElementById('ccRefreshBtn');
   const tasksEl = document.getElementById('ccTasks');
   const eventsEl = document.getElementById('ccEvents');
+  const missionsEl = document.getElementById('ccMissions');
   const lastDispatchEl = document.getElementById('ccLastDispatch');
   const workingSummaryEl = document.getElementById('ccWorkingSummary');
   const pinnedFactsEl = document.getElementById('ccPinnedFacts');
@@ -96,6 +97,40 @@
     }).join('');
   }
 
+  function renderMissions(missions) {
+    if (!missionsEl) return;
+    if (!Array.isArray(missions) || missions.length === 0) {
+      setEmpty(missionsEl, 'No mission reports yet.');
+      return;
+    }
+    const completed = missions
+      .filter((m) => m && m.finalReport)
+      .slice()
+      .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''))
+      .slice(0, 12);
+    if (completed.length === 0) {
+      setEmpty(missionsEl, 'No completed mission reports yet.');
+      return;
+    }
+    missionsEl.innerHTML = completed.map((m) => {
+      const report = m.finalReport || {};
+      const when = m.completedAt ? new Date(m.completedAt).toLocaleString() : '';
+      return `
+        <div class="cc-card">
+          <div class="cc-card-title">
+            <div>${esc(report.headline || m.title || m.id)}</div>
+            <div>${pill(report.outcome || 'complete')}</div>
+          </div>
+          <div class="cc-card-meta">
+            ${when ? pill('completed: ' + when) : ''}
+            ${m.id ? pill('mission: ' + String(m.id).slice(0, 14)) : ''}
+          </div>
+          <div class="cc-card-body">${esc(report.summary || '')}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderSummary(text) {
     const t = String(text || '').trim();
     if (!t) return '—';
@@ -116,12 +151,14 @@
       if (workingSummaryEl) workingSummaryEl.textContent = renderSummary(snap.workingSummary || '');
       if (pinnedFactsEl) pinnedFactsEl.textContent = renderPinnedFacts(snap.pinned || {});
       renderTasks(snap.activeTasks || []);
+      renderMissions(snap.missions || []);
       const ev = await apiJson('/api/hivemind/events?limit=40');
       renderEvents(ev.events || []);
       if (ev.cursor) eventsCursor = ev.cursor;
     } catch (e) {
       setEmpty(tasksEl, 'Error loading tasks: ' + e.message);
       setEmpty(eventsEl, 'Error loading events: ' + e.message);
+      if (missionsEl) setEmpty(missionsEl, 'Error loading mission reports: ' + e.message);
       if (workingSummaryEl) workingSummaryEl.textContent = 'Error: ' + e.message;
       if (pinnedFactsEl) pinnedFactsEl.textContent = 'Error: ' + e.message;
     } finally {
