@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ShadowAI — Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/command-center.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-left">
+      <a href="/dashboard" class="logo">SHADOW_AI</a>
+    </div>
+    <nav class="header-nav">
+      <a href="/dashboard" class="nav-link">DASHBOARD</a>
+      <span class="nav-link active">COMMAND CENTER</span>
+      <a href="/app" class="nav-link">CHAT</a>
+      <a href="/projects" class="nav-link">PROJECTS</a>
+      <a href="/skills" class="nav-link">SKILLS</a>
+      <a href="/rag" class="nav-link">KNOWLEDGE</a>
+      <a href="/profile" class="nav-link">ACCOUNT</a>
+      <button type="button" id="logoutBtn" class="btn btn-small">LOGOUT</button>
+    </nav>
+  </header>
+
+  <main class="cc-main">
+    <div class="cc-header">
+      <h1 class="cc-title">COMMAND CENTER</h1>
+      <div class="cc-subtitle">High-level instructions → routed to specialized agents (always background-run)</div>
+    </div>
+
+    <section class="cc-compose">
+      <div class="cc-compose-row">
+        <textarea id="ccInput" class="cc-input" rows="3" placeholder="Give the hive a mission... (text only)"></textarea>
+        <button id="ccSendBtn" class="btn cc-send">DISPATCH</button>
+      </div>
+      <div class="cc-compose-hint">
+        Tip: include constraints like “use existing Shadow patterns”, “keep it lightweight”, or “do not refactor core”.
+      </div>
+      <div id="ccLastDispatch" class="cc-last-dispatch" hidden></div>
+    </section>
+
+    <div class="cc-summary-grid">
+      <section class="cc-panel cc-panel-compact">
+        <div class="cc-panel-header">
+          <h2>HIVE SUMMARY</h2>
+          <div class="cc-panel-sub">Curated snapshot</div>
+        </div>
+        <div id="ccWorkingSummary" class="cc-summary"></div>
+      </section>
+      <section class="cc-panel cc-panel-compact">
+        <div class="cc-panel-header">
+          <h2>PINNED FACTS</h2>
+          <div class="cc-panel-sub">High-importance memory</div>
+        </div>
+        <div id="ccPinnedFacts" class="cc-summary"></div>
+      </section>
+    </div>
+
+    <div class="cc-grid">
+      <section class="cc-panel">
+        <div class="cc-panel-header">
+          <h2>ACTIVE TASKS</h2>
+          <button id="ccRefreshBtn" class="btn btn-small">REFRESH</button>
+        </div>
+        <div id="ccTasks" class="cc-tasks"></div>
+      </section>
+
+      <section class="cc-panel">
+        <div class="cc-panel-header">
+          <h2>HIVE EVENTS</h2>
+          <div class="cc-panel-sub">Most recent first</div>
+        </div>
+        <div id="ccEvents" class="cc-events"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/nav.js"></script>
+  <script src="/static/command-center.js"></script>
+</body>
+</html>
+

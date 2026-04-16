@@ -33,6 +33,7 @@
         </div>
         <nav class="header-nav">
           ${navLink('/dashboard', 'DASHBOARD')}
+          ${navLink('/command-center', 'COMMAND CENTER')}
           ${navLink('/app', 'CHAT')}
           ${navLink('/projects', 'PROJECTS')}
           ${navLink('/skills', 'SKILLS')}

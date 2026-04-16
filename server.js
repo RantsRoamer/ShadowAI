@@ -31,6 +31,8 @@ const ragLib = require('./lib/rag.js');
 const agentStore = require('./lib/agentStore.js');
 const agentRunner = require('./lib/agentRunner.js');
 const myDataFs = require('./lib/myDataFs.js');
+const hiveStore = require('./lib/hiveMind/store.js');
+const commandCenter = require('./lib/commandCenter/coordinator.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -214,6 +216,7 @@ app.get('/skills',      (req, res) => res.sendFile(path.join(PUBLIC, 'skills.htm
 app.get('/rag',         (req, res) => res.sendFile(path.join(PUBLIC, 'rag.html')));
 app.get('/projects',    (req, res) => res.sendFile(path.join(PUBLIC, 'projects.html')));
 app.get('/project',     (req, res) => res.sendFile(path.join(PUBLIC, 'project.html')));
+app.get('/command-center', (req, res) => res.sendFile(path.join(PUBLIC, 'command-center.html')));
 app.get('/my-data',     (req, res) => res.sendFile(path.join(PUBLIC, 'my-data.html')));
 // Admin-only pages
 app.get('/config',      adminPageGuard, (req, res) => res.sendFile(path.join(PUBLIC, 'config.html')));
@@ -2316,6 +2319,60 @@ app.put('/api/agent/config', requireAdmin, (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     logger.error('PUT /api/agent/config:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Command Center + Hive Mind
+// ---------------------------------------------------------------------------
+const ACTIVE_TASK_STATUSES = new Set([
+  'queued', 'planning', 'executing', 'learning', 'awaiting_approval', 'blocked'
+]);
+
+app.get('/api/hivemind/snapshot', (req, res) => {
+  try {
+    const snap = hiveStore.getSnapshot();
+    const index = agentStore.listTasks();
+    const activeIndex = index
+      .filter(e => e && ACTIVE_TASK_STATUSES.has(e.status))
+      .slice()
+      .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+      .slice(0, 30);
+
+    const activeTasks = activeIndex.map(e => agentStore.getTask(e.id)).filter(Boolean);
+    res.json({
+      ...snap,
+      activeTasks
+    });
+  } catch (e) {
+    logger.error('GET /api/hivemind/snapshot:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/hivemind/events', (req, res) => {
+  try {
+    const since = req.query.since ? String(req.query.since) : null;
+    const limit = req.query.limit != null ? Number(req.query.limit) : 100;
+    const out = hiveStore.listRecentEvents({ since, limit });
+    res.json(out);
+  } catch (e) {
+    logger.error('GET /api/hivemind/events:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/command-center/dispatch', async (req, res) => {
+  try {
+    const text = req.body && req.body.text != null ? String(req.body.text).trim() : '';
+    if (!text) return res.status(400).json({ error: 'text is required' });
+    const scopeUser = (req.currentUser && req.currentUser.username) || (req.session && req.session.user) || '';
+    const out = await commandCenter.dispatchMission(text, { user: scopeUser || '' });
+    const summary = `Mission "${out.title}" dispatched: ${out.tasks.length} task(s) queued.`;
+    res.json({ ok: true, missionId: out.missionId, summary, ...out });
+  } catch (e) {
+    logger.error('POST /api/command-center/dispatch:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
