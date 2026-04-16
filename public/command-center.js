@@ -43,6 +43,7 @@
   let pollTimer = null;
   let inflight = false;
   let isAdmin = false;
+  let eventPollFailures = 0;
 
   function esc(s) {
     return String(s || '')
@@ -281,9 +282,20 @@
       if (pinnedFactsEl) pinnedFactsEl.textContent = renderPinnedFacts(snap.pinned || {});
       renderTasks(snap.activeTasks || []);
       renderMissions(snap.missions || []);
-      const ev = await apiJson('/api/hivemind/events?limit=40');
-      renderEvents(ev.events || []);
-      if (ev.cursor) eventsCursor = ev.cursor;
+      try {
+        const ev = await apiJson('/api/hivemind/events?limit=40');
+        renderEvents(ev.events || []);
+        if (ev.cursor) eventsCursor = ev.cursor;
+        eventPollFailures = 0;
+      } catch (evErr) {
+        eventPollFailures += 1;
+        logDebug('events fetch error: ' + evErr.message);
+        // Keep the rest of the page functional even if events endpoint is flaky/proxied.
+        if (eventPollFailures >= 3) {
+          stopPolling();
+          logDebug('events polling disabled after repeated failures');
+        }
+      }
       await refreshRunnerStatus();
     } catch (e) {
       setEmpty(tasksEl, 'Error loading tasks: ' + e.message);
@@ -303,12 +315,18 @@
       const q = eventsCursor ? ('?since=' + encodeURIComponent(eventsCursor) + '&limit=40') : '?limit=40';
       const ev = await apiJson('/api/hivemind/events' + q);
       if (ev.cursor) eventsCursor = ev.cursor;
+      eventPollFailures = 0;
       if (Array.isArray(ev.events) && ev.events.length > 0) {
         // Fetch full snapshot if there were new events (cheap enough).
         await refreshAll();
       }
-    } catch (_) {
-      // ignore transient poll errors
+    } catch (e) {
+      eventPollFailures += 1;
+      logDebug('poll events error: ' + e.message);
+      if (eventPollFailures >= 3) {
+        stopPolling();
+        logDebug('events polling disabled after repeated failures');
+      }
     }
   }
 
@@ -413,7 +431,12 @@
           }
           window.alert(lines.join('\n').slice(0, 12000));
         }
-        await refreshAll({ force: true });
+        try {
+          await refreshAll({ force: true });
+        } catch (refreshErr) {
+          // refreshAll now handles most errors internally; keep action success visible.
+          logDebug('post-action refresh warning: ' + refreshErr.message);
+        }
       } catch (err) {
         if (lastDispatchEl) {
           lastDispatchEl.hidden = false;
