@@ -171,6 +171,70 @@
     return esc(s);
   }
 
+  function formatFinalReportHtml(text) {
+    const raw = String(text || '').replace(/\\r\\n/g, '\\n').trim();
+    if (!raw) return '<div class="cc-report-empty">(none)</div>';
+
+    const lines = raw.split('\\n');
+    const out = [];
+    let paragraph = [];
+    let listItems = [];
+
+    function flushParagraph() {
+      const p = paragraph.join(' ').trim();
+      paragraph = [];
+      if (!p) return;
+      out.push(`<p>${escapeHtml(p)}</p>`);
+    }
+
+    function flushList() {
+      if (!listItems.length) return;
+      const items = listItems.map(li => `<li>${escapeHtml(li)}</li>`).join('');
+      listItems = [];
+      out.push(`<ul>${items}</ul>`);
+    }
+
+    for (const lineRaw of lines) {
+      const line = lineRaw.trimEnd();
+      const t = line.trim();
+
+      // Blank line => paragraph/list break
+      if (!t) {
+        flushList();
+        flushParagraph();
+        continue;
+      }
+
+      // Headings (markdown-ish)
+      const h = t.match(/^(#{1,3})\\s+(.*)$/);
+      if (h) {
+        flushList();
+        flushParagraph();
+        const level = h[1].length;
+        const label = h[2] || '';
+        const tag = level === 1 ? 'h3' : (level === 2 ? 'h4' : 'h5');
+        out.push(`<${tag}>${escapeHtml(label)}</${tag}>`);
+        continue;
+      }
+
+      // Bullets
+      const b = t.match(/^[-*]\\s+(.*)$/);
+      if (b) {
+        flushParagraph();
+        listItems.push(b[1] || '');
+        continue;
+      }
+
+      // Default: accumulate paragraph text (preserve short line breaks as spaces)
+      flushList();
+      paragraph.push(t);
+    }
+
+    flushList();
+    flushParagraph();
+    return `<div class="cc-report-final">${out.join('')}</div>`;
+  }
+
   function roleToAvatarLetter(role) {
     const r = String(role || '').toLowerCase();
     if (!r) return '?';
@@ -231,6 +295,89 @@
       if (txt) return txt.slice(0, 220);
     }
     return '';
+  }
+
+  function taskVisualState(task) {
+    const st = String(task && task.status ? task.status : '').toLowerCase();
+    const waiting = !!(task && task.notBefore && !Number.isNaN(Date.parse(task.notBefore)) && Date.now() < Date.parse(task.notBefore));
+    if (waiting) return 'waiting';
+    if (st === 'awaiting_approval') return 'approval';
+    if (st === 'blocked') return 'blocked';
+    if (st === 'complete') return 'complete';
+    if (st === 'failed') return 'failed';
+    if (st === 'executing' || st === 'planning' || st === 'queued' || st === 'learning') return 'busy';
+    return 'idle';
+  }
+
+  function isRobotRole(role) {
+    const r = String(role || '').toLowerCase();
+    if (r.includes('ops')) return true;
+    if (r.includes('plan')) return true;
+    if (r.includes('triage') || r.includes('coord')) return true;
+    return false; // research/coder/memory => human by default
+  }
+
+  function pixelPalette(role, isRobot) {
+    const r = String(role || '').toLowerCase();
+    const base = {
+      suit: '#2b3a45',
+      accent: '#66ffe1',
+      skin: '#f2c9a0',
+      hair: '#1d1f24',
+      visor: '#93b7ff',
+      metal: '#c9d3de',
+      panel: '#1b2a33'
+    };
+    if (isRobot) {
+      if (r.includes('ops')) return { ...base, accent: '#ff9a3a', visor: '#ffd18a' };
+      if (r.includes('plan')) return { ...base, accent: '#c36bff', visor: '#f4d6ff' };
+      if (r.includes('triage') || r.includes('coord')) return { ...base, accent: '#ff5c5c', visor: '#ffd4d4' };
+      return base;
+    }
+    if (r.includes('research')) return { ...base, accent: '#4fa8ff', visor: '#c4e0ff' };
+    if (r.includes('coder')) return { ...base, accent: '#4fe88e', visor: '#d5ffe9' };
+    if (r.includes('memory')) return { ...base, accent: '#ffce4a', visor: '#fff0d6' };
+    return base;
+  }
+
+  function renderPixelAvatar(role, state) {
+    const isRobot = isRobotRole(role);
+    const p = pixelPalette(role, isRobot);
+    const kindClass = isRobot ? 'cc-pixel--robot' : 'cc-pixel--human';
+    const roleClass = `cc-pixel-role-${String(role || 'unknown').toLowerCase().replace(/[^a-z0-9_]+/g, '_')}`;
+    const stateClass = `cc-pixel-state-${String(state || 'idle')}`;
+
+    // 16x16 pixel art (rectangles). Scales via CSS with crisp edges.
+    // Human: hair + face + suit; Robot: helmet + visor + chassis.
+    const svg = isRobot
+      ? `
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="3" y="2" width="10" height="8" fill="${p.metal}"/>
+          <rect x="4" y="3" width="8" height="6" fill="${p.panel}"/>
+          <rect class="cc-pixel-eye" x="5" y="5" width="6" height="2" fill="${p.visor}"/>
+          <rect x="6" y="6" width="1" height="1" fill="${p.accent}"/>
+          <rect x="9" y="6" width="1" height="1" fill="${p.accent}"/>
+          <rect x="4" y="10" width="8" height="4" fill="${p.suit}"/>
+          <rect x="5" y="11" width="6" height="1" fill="${p.accent}"/>
+          <rect x="2" y="11" width="2" height="3" fill="${p.suit}"/>
+          <rect x="12" y="11" width="2" height="3" fill="${p.suit}"/>
+        </svg>
+      `
+      : `
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <rect x="4" y="2" width="8" height="3" fill="${p.hair}"/>
+          <rect x="4" y="4" width="8" height="5" fill="${p.skin}"/>
+          <rect class="cc-pixel-eye" x="5" y="6" width="2" height="1" fill="#1a1c22"/>
+          <rect class="cc-pixel-eye" x="9" y="6" width="2" height="1" fill="#1a1c22"/>
+          <rect x="4" y="9" width="8" height="1" fill="${p.visor}"/>
+          <rect x="5" y="10" width="6" height="4" fill="${p.suit}"/>
+          <rect x="6" y="11" width="4" height="1" fill="${p.accent}"/>
+          <rect x="3" y="11" width="2" height="3" fill="${p.suit}"/>
+          <rect x="11" y="11" width="2" height="3" fill="${p.suit}"/>
+        </svg>
+      `;
+
+    return `<span class="cc-pixel ${kindClass} ${roleClass} ${stateClass}">${svg}</span>`;
   }
 
   function renderMissionControl(activeTasks, events) {
@@ -316,13 +463,12 @@
       .map((t) => {
         const role = String(t.role || 'unknown');
         const name = agentCodename(role, t.id);
-        const avatarClass = roleToAvatarClass(role);
-        const avatarLetter = roleToAvatarLetter(role);
-        const busy = ['executing', 'planning', 'queued', 'learning'].includes(String(t.status || ''));
+        const vstate = taskVisualState(t);
+        const busy = (vstate === 'busy' || vstate === 'approval');
         const taskTitle = String(t.title || t.goal || '').trim();
         return `
           <div class="cc-crew-agent ${busy ? 'cc-busy' : ''}">
-            <span class="cc-avatar ${avatarClass}">${esc(avatarLetter)}</span>
+            ${renderPixelAvatar(role, vstate)}
             <div class="cc-crew-meta">
               <div class="cc-crew-name">${esc(name)} ${t.role ? `<span class="cc-pill">${esc(role)}</span>` : ''}</div>
               <div class="cc-crew-task">${esc(taskTitle || '(no task title)')}</div>
@@ -370,33 +516,49 @@
       : '<div class="cc-report-section"><div class="cc-report-title">TASKS</div><div>No task payload found.</div></div>';
 
     reportBodyEl.innerHTML = `
-      <div class="cc-report-section">
-        <div class="cc-report-title">HEADLINE</div>
-        <div>${escapeHtml(headline)}</div>
+      <div class="cc-report-section cc-report-hero">
+        <div class="cc-report-hero-top">
+          <div>
+            <div class="cc-report-title">HEADLINE</div>
+            <div class="cc-report-headline">${escapeHtml(headline)}</div>
+          </div>
+          <div class="cc-report-hero-meta">
+            <div>${pill(report.outcome || 'unknown')}</div>
+            <div class="cc-report-muted">${escapeHtml(countsText)}</div>
+          </div>
+        </div>
+        <div class="cc-report-muted">${escapeHtml(summary || '(none)')}</div>
       </div>
-      <div class="cc-report-section">
-        <div class="cc-report-title">SUMMARY</div>
-        <div>${escapeHtml(summary || '(none)')}</div>
-      </div>
+
       <div class="cc-report-section">
         <div class="cc-report-title">FINAL REPORT</div>
-        <div>${escapeHtml(finalReport || '(none)')}</div>
+        ${formatFinalReportHtml(finalReport)}
+        <div class="cc-report-actions">
+          <button class="btn btn-small" type="button" id="ccReportDebugToggle">DEBUG DETAILS</button>
+        </div>
       </div>
-      <div class="cc-report-section">
-        <div class="cc-report-title">OUTCOME</div>
-        <div>${escapeHtml(report.outcome || 'unknown')}</div>
-      </div>
-      <div class="cc-report-section">
-        <div class="cc-report-title">STATUS COUNTS</div>
-        <div>${escapeHtml(countsText)}</div>
-      </div>
-      ${taskBlocks}
-      <div class="cc-report-section">
-        <div class="cc-report-title">RAW PAYLOAD</div>
-        <pre class="cc-report-json">${escapeHtml(JSON.stringify(report, null, 2))}</pre>
+
+      <div class="cc-report-section cc-report-debug" id="ccReportDebug" hidden>
+        <div class="cc-report-title">DEBUG</div>
+        ${taskBlocks}
+        <div class="cc-report-section">
+          <div class="cc-report-title">RAW PAYLOAD</div>
+          <pre class="cc-report-json">${escapeHtml(JSON.stringify(report, null, 2))}</pre>
+        </div>
       </div>
     `;
     reportModalEl.hidden = false;
+
+    try {
+      const toggle = document.getElementById('ccReportDebugToggle');
+      const dbg = document.getElementById('ccReportDebug');
+      if (toggle && dbg) {
+        toggle.addEventListener('click', () => {
+          dbg.hidden = !dbg.hidden;
+          toggle.textContent = dbg.hidden ? 'DEBUG DETAILS' : 'HIDE DEBUG';
+        }, { once: false });
+      }
+    } catch (_) {}
   }
 
   function closeReportModal() {
@@ -433,7 +595,8 @@
     }
     tasksEl.innerHTML = tasks.map(t => {
       const title = esc(t.title || t.goal || t.id);
-      const status = esc(t.status || '—');
+      const waiting = !!(t && t.notBefore && !Number.isNaN(Date.parse(t.notBefore)) && Date.now() < Date.parse(t.notBefore));
+      const status = esc(waiting ? 'waiting' : (t.status || '—'));
       const role = t.role ? pill(t.role) : '';
       const agentId = t.agentId ? pill('agent: ' + t.agentId) : '';
       const parent = t.parentMissionId ? pill('mission: ' + t.parentMissionId) : '';
@@ -441,6 +604,9 @@
       const updatedAt = t.updatedAt ? new Date(t.updatedAt).toLocaleString() : '';
       const goal = esc(t.goal || '');
       const pa = t && t.pendingApproval ? t.pendingApproval : null;
+      const waitNote = waiting && t.waitingFor
+        ? `<div class="cc-actions-note">Waiting for: <code>${esc(String(t.waitingFor).slice(0, 180))}</code></div>`
+        : '';
       const approvalDetails = (t.status === 'awaiting_approval' && pa)
         ? `<div class="cc-approval">
              <div class="cc-approval-line"><strong>Needs approval</strong>: <code>${esc(pa.action || '')}</code></div>
@@ -498,6 +664,7 @@
             ${t.id ? pill('id: ' + t.id.slice(0, 8)) : ''}
           </div>
           <div class="cc-card-body">${goal}</div>
+          ${waitNote}
           ${approvalDetails}
           ${actions}
         </div>
