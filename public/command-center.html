@@ -100,6 +100,12 @@
           <button id="ccStopAllBtn" class="btn btn-small btn-danger">STOP ALL</button>
         </div>
         <div class="cc-danger-card">
+          <div class="cc-danger-title">Resume agents</div>
+          <div class="cc-danger-desc">Re-enables the agent runner (after Stop All). Tasks remain blocked until you manually unblock them.</div>
+          <input id="ccResumeConfirm" class="cc-danger-input" type="text" placeholder='Type: RESUME' />
+          <button id="ccResumeBtn" class="btn btn-small">RESUME</button>
+        </div>
+        <div class="cc-danger-card">
           <div class="cc-danger-title">Clear all memory</div>
           <div class="cc-danger-desc">Wipes memory stores (freeform, structured, HiveMind, RAG vectors, agent strategy/tasks, project memory).</div>
           <input id="ccClearConfirm" class="cc-danger-input" type="text" placeholder='Type: CLEAR ALL MEMORY' />

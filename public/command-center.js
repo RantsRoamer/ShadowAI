@@ -13,6 +13,8 @@
   const stopConfirm = document.getElementById('ccStopConfirm');
   const clearConfirm = document.getElementById('ccClearConfirm');
   const dangerStatus = document.getElementById('ccDangerStatus');
+  const resumeBtn = document.getElementById('ccResumeBtn');
+  const resumeConfirm = document.getElementById('ccResumeConfirm');
 
   let eventsCursor = null;
   let pollTimer = null;
@@ -340,6 +342,25 @@
         await refreshAll({ force: true });
       } catch (e) {
         setDangerStatus('Clear failed: ' + e.message);
+      }
+    });
+  }
+
+  if (resumeBtn) {
+    resumeBtn.addEventListener('click', async () => {
+      if (!isAdmin) { setDangerStatus('Admin only.'); return; }
+      const confirm = String(resumeConfirm && resumeConfirm.value ? resumeConfirm.value : '').trim();
+      try {
+        setDangerStatus('Resuming agents...');
+        await apiJson('/api/command-center/resume-agents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm })
+        });
+        setDangerStatus('Agent runner resumed.');
+        await refreshAll({ force: true });
+      } catch (e) {
+        setDangerStatus('Resume failed: ' + e.message);
       }
     });
   }

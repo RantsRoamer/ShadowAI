@@ -2386,11 +2386,26 @@ app.post('/api/command-center/stop-all', requireAdmin, (req, res) => {
   try {
     const confirm = req.body && req.body.confirm != null ? String(req.body.confirm).trim() : '';
     if (confirm !== 'STOP ALL') return res.status(400).json({ error: 'Confirmation phrase must be exactly: STOP ALL' });
+    updateConfig({ agent: { paused: true } });
     const result = commandCenterAdmin.stopAllAgents({ markTasksBlocked: true });
     hiveStore.appendEvent({ type: 'admin_stop_all', source: 'command_center', message: 'Admin stopped all agents', payload: result });
     res.json(result);
   } catch (e) {
     logger.error('POST /api/command-center/stop-all:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/command-center/resume-agents', requireAdmin, (req, res) => {
+  try {
+    const confirm = req.body && req.body.confirm != null ? String(req.body.confirm).trim() : '';
+    if (confirm !== 'RESUME') return res.status(400).json({ error: 'Confirmation phrase must be exactly: RESUME' });
+    updateConfig({ agent: { paused: false } });
+    agentRunner.startAgentRunner();
+    hiveStore.appendEvent({ type: 'admin_resume_agents', source: 'command_center', message: 'Admin resumed agent runner' });
+    res.json({ ok: true });
+  } catch (e) {
+    logger.error('POST /api/command-center/resume-agents:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -2541,7 +2556,11 @@ function start() {
 
   heartbeatLib.startHeartbeat();
   pipelineRunner.startScheduler();
-  agentRunner.startAgentRunner();
+  if (config.agent && config.agent.paused) {
+    logger.warn('[AgentRunner] NOT starting — runner is paused in config (agent.paused=true)');
+  } else {
+    agentRunner.startAgentRunner();
+  }
 
   try {
     const telegramBot = require('./lib/telegramBot.js');
