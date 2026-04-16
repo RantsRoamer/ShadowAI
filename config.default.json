@@ -12,7 +12,8 @@
     ]
   },
   "agent": {
-    "paused": false
+    "paused": false,
+    "requireApprovalForFacts": false
   },
   "heartbeat": [],
   "skills": { "enabledIds": [] },

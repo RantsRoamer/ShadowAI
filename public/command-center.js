@@ -144,6 +144,7 @@
     const tasks = Array.isArray(payload.tasks) ? payload.tasks : [];
     const statusCounts = payload.statusCounts || {};
     const summary = report.summary || mission.summary || '';
+    const finalReport = report.finalReport || summary || '';
     const headline = report.headline || mission.title || mission.id || 'Mission Report';
 
     if (reportTitleEl) reportTitleEl.textContent = String(headline);
@@ -176,6 +177,10 @@
       <div class="cc-report-section">
         <div class="cc-report-title">SUMMARY</div>
         <div>${escapeHtml(summary || '(none)')}</div>
+      </div>
+      <div class="cc-report-section">
+        <div class="cc-report-title">FINAL REPORT</div>
+        <div>${escapeHtml(finalReport || '(none)')}</div>
       </div>
       <div class="cc-report-section">
         <div class="cc-report-title">OUTCOME</div>
