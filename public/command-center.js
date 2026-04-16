@@ -32,6 +32,8 @@
   const clearAllBtn = document.getElementById('ccClearAllBtn');
   const stopConfirm = document.getElementById('ccStopConfirm');
   const clearConfirm = document.getElementById('ccClearConfirm');
+  const masterKillBtn = document.getElementById('ccMasterKillBtn');
+  const masterKillConfirm = document.getElementById('ccMasterKillConfirm');
   const dangerStatus = document.getElementById('ccDangerStatus');
   const resumeBtn = document.getElementById('ccResumeBtn');
   const resumeConfirm = document.getElementById('ccResumeConfirm');
@@ -61,7 +63,9 @@
 
   async function apiJson(url, opts) {
     setText(lastApiEl, url);
-    const res = await fetch(url, opts);
+    const headers = { ...(opts && opts.headers ? opts.headers : {}) };
+    if (!headers.Accept) headers.Accept = 'application/json';
+    const res = await fetch(url, { ...(opts || {}), headers, credentials: 'include' });
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
     let data = {};
     let rawText = '';
@@ -492,6 +496,31 @@
         setDangerStatus('Resume failed: ' + e.message);
         setText(lastErrorEl, e.message);
         logDebug('resume error: ' + e.message);
+      }
+    });
+  }
+
+  if (masterKillBtn) {
+    masterKillBtn.addEventListener('click', async () => {
+      if (!isAdmin) { setDangerStatus('Admin only.'); return; }
+      const confirm = String(masterKillConfirm && masterKillConfirm.value ? masterKillConfirm.value : '').trim();
+      try {
+        setText(lastActionEl, 'masterKill');
+        setDangerStatus('Executing MASTER KILL...');
+        const out = await apiJson('/api/command-center/master-kill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm })
+        });
+        const sid = out && out.serverInstanceId ? String(out.serverInstanceId).slice(0, 8) : '?';
+        setDangerStatus(`MASTER KILL complete (server=${sid}).`);
+        logDebug(`master kill ok: server=${sid}`);
+        await refreshRunnerStatus();
+        await refreshAll({ force: true });
+      } catch (e) {
+        setDangerStatus('MASTER KILL failed: ' + e.message);
+        setText(lastErrorEl, e.message);
+        logDebug('master kill error: ' + e.message);
       }
     });
   }

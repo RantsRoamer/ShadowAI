@@ -2467,6 +2467,21 @@ app.post('/api/command-center/clear-all-memory', requireAdmin, (req, res) => {
   }
 });
 
+app.post('/api/command-center/master-kill', requireAdmin, (req, res) => {
+  try {
+    const confirm = req.body && req.body.confirm != null ? String(req.body.confirm).trim() : '';
+    if (confirm !== 'MASTER KILL') return res.status(400).json({ error: 'Confirmation phrase must be exactly: MASTER KILL' });
+    const result = commandCenterAdmin.masterKill();
+    try {
+      hiveStore.appendEvent({ type: 'admin_master_kill', source: 'command_center', message: 'MASTER KILL executed', payload: result });
+    } catch (_) {}
+    res.json({ ...result, serverInstanceId: SERVER_INSTANCE_ID, runner: agentRunner.getRunnerState() });
+  } catch (e) {
+    logger.error('POST /api/command-center/master-kill:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Dashboard
 // ---------------------------------------------------------------------------
