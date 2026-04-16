@@ -8,6 +8,11 @@
   const lastDispatchEl = document.getElementById('ccLastDispatch');
   const workingSummaryEl = document.getElementById('ccWorkingSummary');
   const pinnedFactsEl = document.getElementById('ccPinnedFacts');
+  const stopAllBtn = document.getElementById('ccStopAllBtn');
+  const clearAllBtn = document.getElementById('ccClearAllBtn');
+  const stopConfirm = document.getElementById('ccStopConfirm');
+  const clearConfirm = document.getElementById('ccClearConfirm');
+  const dangerStatus = document.getElementById('ccDangerStatus');
 
   let eventsCursor = null;
   let pollTimer = null;
@@ -45,6 +50,11 @@
     } catch (_) {
       isAdmin = false;
     }
+  }
+
+  function setDangerStatus(msg) {
+    if (!dangerStatus) return;
+    dangerStatus.textContent = String(msg || '');
   }
 
   function renderTasks(tasks) {
@@ -295,5 +305,43 @@
 
   loadMe().then(() => refreshAll().then(startPolling));
   window.addEventListener('beforeunload', stopPolling);
+
+  if (stopAllBtn) {
+    stopAllBtn.addEventListener('click', async () => {
+      if (!isAdmin) { setDangerStatus('Admin only.'); return; }
+      const confirm = String(stopConfirm && stopConfirm.value ? stopConfirm.value : '').trim();
+      try {
+        setDangerStatus('Stopping all agents...');
+        await apiJson('/api/command-center/stop-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm })
+        });
+        setDangerStatus('Stopped. In-flight tasks were paused.');
+        await refreshAll({ force: true });
+      } catch (e) {
+        setDangerStatus('Stop failed: ' + e.message);
+      }
+    });
+  }
+
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', async () => {
+      if (!isAdmin) { setDangerStatus('Admin only.'); return; }
+      const confirm = String(clearConfirm && clearConfirm.value ? clearConfirm.value : '').trim();
+      try {
+        setDangerStatus('Clearing all memory...');
+        await apiJson('/api/command-center/clear-all-memory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm })
+        });
+        setDangerStatus('All memory cleared.');
+        await refreshAll({ force: true });
+      } catch (e) {
+        setDangerStatus('Clear failed: ' + e.message);
+      }
+    });
+  }
 })();
 

@@ -34,6 +34,7 @@ const myDataFs = require('./lib/myDataFs.js');
 const hiveStore = require('./lib/hiveMind/store.js');
 const commandCenter = require('./lib/commandCenter/coordinator.js');
 const missionReporter = require('./lib/commandCenter/missionReporter.js');
+const commandCenterAdmin = require('./lib/commandCenter/adminControls.js');
 
 const app = express();
 const PUBLIC = path.join(__dirname, 'public');
@@ -2376,6 +2377,36 @@ app.post('/api/command-center/dispatch', async (req, res) => {
     res.json({ ok: true, missionId: out.missionId, summary, ...out });
   } catch (e) {
     logger.error('POST /api/command-center/dispatch:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Admin-only dangerous controls
+app.post('/api/command-center/stop-all', requireAdmin, (req, res) => {
+  try {
+    const confirm = req.body && req.body.confirm != null ? String(req.body.confirm).trim() : '';
+    if (confirm !== 'STOP ALL') return res.status(400).json({ error: 'Confirmation phrase must be exactly: STOP ALL' });
+    const result = commandCenterAdmin.stopAllAgents({ markTasksBlocked: true });
+    hiveStore.appendEvent({ type: 'admin_stop_all', source: 'command_center', message: 'Admin stopped all agents', payload: result });
+    res.json(result);
+  } catch (e) {
+    logger.error('POST /api/command-center/stop-all:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/command-center/clear-all-memory', requireAdmin, (req, res) => {
+  try {
+    const confirm = req.body && req.body.confirm != null ? String(req.body.confirm).trim() : '';
+    if (confirm !== 'CLEAR ALL MEMORY') return res.status(400).json({ error: 'Confirmation phrase must be exactly: CLEAR ALL MEMORY' });
+    const result = commandCenterAdmin.clearAllMemory();
+    // hiveStore may have been cleared; best-effort write after wipe.
+    try {
+      hiveStore.appendEvent({ type: 'admin_clear_all_memory', source: 'command_center', message: 'Admin cleared all memory', payload: result });
+    } catch (_) {}
+    res.json(result);
+  } catch (e) {
+    logger.error('POST /api/command-center/clear-all-memory:', e.message);
     res.status(500).json({ error: e.message });
   }
 });

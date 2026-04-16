@@ -109,6 +109,53 @@
   min-height: 220px;
 }
 
+.cc-danger {
+  margin-top: 12px;
+  border-color: rgba(255, 80, 80, 0.25);
+}
+
+.cc-danger-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .cc-danger-grid { grid-template-columns: 1fr; }
+}
+
+.cc-danger-card {
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 80, 80, 0.06);
+}
+
+.cc-danger-title {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  opacity: 0.95;
+}
+
+.cc-danger-desc {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 10px;
+}
+
+.cc-danger-input {
+  width: 100%;
+  margin-bottom: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 12px;
+}
+
 .cc-panel-header {
   display: flex;
   align-items: baseline;

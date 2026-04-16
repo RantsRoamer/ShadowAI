@@ -86,6 +86,28 @@
       </div>
       <div id="ccMissions" class="cc-events"></div>
     </section>
+
+    <section class="cc-panel cc-danger">
+      <div class="cc-panel-header">
+        <h2>DANGER ZONE</h2>
+        <div class="cc-panel-sub">Admin-only controls</div>
+      </div>
+      <div class="cc-danger-grid">
+        <div class="cc-danger-card">
+          <div class="cc-danger-title">Stop all agents</div>
+          <div class="cc-danger-desc">Stops the AutoAgent runner and pauses in-flight tasks.</div>
+          <input id="ccStopConfirm" class="cc-danger-input" type="text" placeholder='Type: STOP ALL' />
+          <button id="ccStopAllBtn" class="btn btn-small btn-danger">STOP ALL</button>
+        </div>
+        <div class="cc-danger-card">
+          <div class="cc-danger-title">Clear all memory</div>
+          <div class="cc-danger-desc">Wipes memory stores (freeform, structured, HiveMind, RAG vectors, agent strategy/tasks, project memory).</div>
+          <input id="ccClearConfirm" class="cc-danger-input" type="text" placeholder='Type: CLEAR ALL MEMORY' />
+          <button id="ccClearAllBtn" class="btn btn-small btn-danger">CLEAR ALL MEMORY</button>
+        </div>
+      </div>
+      <div id="ccDangerStatus" class="cc-actions-note"></div>
+    </section>
   </main>
 
   <script src="/static/nav.js"></script>
