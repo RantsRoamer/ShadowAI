@@ -394,11 +394,8 @@
         } else if (action === 'delete') {
           const ok = window.confirm('Delete this task? This cannot be undone.');
           if (!ok) return;
-          const r = await fetch(`/api/agent/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
-          if (!r.ok) {
-            const raw = await r.text().catch(() => '');
-            throw new Error(raw || r.statusText || 'Delete failed');
-          }
+          await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          logDebug(`delete ok: task=${id.slice(0, 8)}`);
         } else if (action === 'view') {
           const task = await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}`);
           const lines = [];
