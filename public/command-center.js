@@ -15,6 +15,7 @@
   const dangerStatus = document.getElementById('ccDangerStatus');
   const resumeBtn = document.getElementById('ccResumeBtn');
   const resumeConfirm = document.getElementById('ccResumeConfirm');
+  const runnerStatusEl = document.getElementById('ccRunnerStatus');
 
   let eventsCursor = null;
   let pollTimer = null;
@@ -57,6 +58,24 @@
   function setDangerStatus(msg) {
     if (!dangerStatus) return;
     dangerStatus.textContent = String(msg || '');
+  }
+
+  function setRunnerStatus(text) {
+    if (!runnerStatusEl) return;
+    runnerStatusEl.textContent = String(text || '');
+  }
+
+  async function refreshRunnerStatus() {
+    if (!isAdmin) return;
+    try {
+      const st = await apiJson('/api/command-center/status');
+      const paused = st && st.agent && st.agent.paused;
+      const running = st && st.runner && st.runner.running;
+      const inflight = st && st.runner && typeof st.runner.inFlight === 'number' ? st.runner.inFlight : 0;
+      setRunnerStatus(`config.paused=${paused ? 'true' : 'false'} | runner.running=${running ? 'true' : 'false'} | inFlight=${inflight}`);
+    } catch (e) {
+      setRunnerStatus('Error: ' + e.message);
+    }
   }
 
   function renderTasks(tasks) {
@@ -320,6 +339,7 @@
           body: JSON.stringify({ confirm })
         });
         setDangerStatus('Stopped. In-flight tasks were paused.');
+        await refreshRunnerStatus();
         await refreshAll({ force: true });
       } catch (e) {
         setDangerStatus('Stop failed: ' + e.message);
@@ -339,6 +359,7 @@
           body: JSON.stringify({ confirm })
         });
         setDangerStatus('All memory cleared.');
+        await refreshRunnerStatus();
         await refreshAll({ force: true });
       } catch (e) {
         setDangerStatus('Clear failed: ' + e.message);
@@ -358,6 +379,7 @@
           body: JSON.stringify({ confirm })
         });
         setDangerStatus('Agent runner resumed.');
+        await refreshRunnerStatus();
         await refreshAll({ force: true });
       } catch (e) {
         setDangerStatus('Resume failed: ' + e.message);

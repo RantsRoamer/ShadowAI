@@ -2389,7 +2389,7 @@ app.post('/api/command-center/stop-all', requireAdmin, (req, res) => {
     updateConfig({ agent: { paused: true } });
     const result = commandCenterAdmin.stopAllAgents({ markTasksBlocked: true });
     hiveStore.appendEvent({ type: 'admin_stop_all', source: 'command_center', message: 'Admin stopped all agents', payload: result });
-    res.json(result);
+    res.json({ ...result, agent: { paused: !!(getConfig().agent && getConfig().agent.paused) }, runner: agentRunner.getRunnerState() });
   } catch (e) {
     logger.error('POST /api/command-center/stop-all:', e.message);
     res.status(500).json({ error: e.message });
@@ -2403,9 +2403,23 @@ app.post('/api/command-center/resume-agents', requireAdmin, (req, res) => {
     updateConfig({ agent: { paused: false } });
     agentRunner.startAgentRunner();
     hiveStore.appendEvent({ type: 'admin_resume_agents', source: 'command_center', message: 'Admin resumed agent runner' });
-    res.json({ ok: true });
+    res.json({ ok: true, agent: { paused: !!(getConfig().agent && getConfig().agent.paused) }, runner: agentRunner.getRunnerState() });
   } catch (e) {
     logger.error('POST /api/command-center/resume-agents:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/command-center/status', requireAdmin, (req, res) => {
+  try {
+    const cfg = getConfig();
+    res.json({
+      ok: true,
+      agent: { paused: !!(cfg.agent && cfg.agent.paused) },
+      runner: agentRunner.getRunnerState()
+    });
+  } catch (e) {
+    logger.error('GET /api/command-center/status:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
