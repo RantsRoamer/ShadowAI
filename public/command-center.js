@@ -178,8 +178,9 @@
     return facts.map((f) => `- ${String(f)}`).join('\n');
   }
 
-  async function refreshAll() {
-    if (inflight) return;
+  async function refreshAll(opts) {
+    const force = !!(opts && opts.force);
+    if (inflight && !force) return;
     inflight = true;
     try {
       const snap = await apiJson('/api/hivemind/snapshot');
@@ -282,7 +283,7 @@
         } else if (action === 'unblock') {
           await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/unblock`, { method: 'POST' });
         }
-        await refreshAll();
+        await refreshAll({ force: true });
       } catch (err) {
         if (lastDispatchEl) {
           lastDispatchEl.hidden = false;
