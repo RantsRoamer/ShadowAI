@@ -35,6 +35,13 @@
   height: calc(100vh - 56px);
   overflow: hidden;
 }
+
+/* nav.js Open WebUI shell: main fills space below top bar */
+.app-main-wrap > .app-main {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
 .chat-sidebar {
   width: 240px;
   min-width: 240px;

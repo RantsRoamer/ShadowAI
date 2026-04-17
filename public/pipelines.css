@@ -4,6 +4,13 @@
   overflow: hidden;
 }
 
+/* nav.js shell: fill below top bar */
+.app-main-wrap .pipelines-layout {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
 /* Sidebar — pipeline list */
 .pipelines-sidebar {
   width: 220px;
