@@ -409,13 +409,21 @@ body.has-app-shell {
   color: #fff !important;
 }
 
-.app-sidebar-nav {
+/* Scrolls primary links + Administration together so the System block is never pushed off-screen */
+.app-sidebar-scroll {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-sidebar-nav {
+  flex: 0 0 auto;
   padding: 12px 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  overflow-y: auto;
 }
 
 .app-nav-section {
@@ -660,8 +668,20 @@ body.has-app-shell {
     padding: 10px;
   }
 
-  .app-shell.sidebar-collapsed .app-nav-sub {
+  /* Flyout for System links when the rail is collapsed (was display:none — menu looked "gone"); top/left fixed in nav.js */
+  .app-shell.sidebar-collapsed .app-nav-details:not([open]) .app-nav-sub {
     display: none;
+  }
+
+  .app-shell.sidebar-collapsed .app-nav-details[open] .app-nav-sub {
+    display: flex;
+    min-width: 220px;
+    padding: 8px 0;
+    margin: 0;
+    background: var(--ow-sidebar-bg);
+    border: 1px solid var(--ow-sidebar-border);
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
   }
 
   .app-shell.sidebar-collapsed .app-nav-details[open] summary {

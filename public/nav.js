@@ -44,7 +44,7 @@
     const systemBlock = isAdmin ? `
       <div class="app-nav-section">
         <div class="app-nav-section-label">Administration</div>
-        <details class="app-nav-details" ${sysOpen ? 'open' : ''}>
+        <details class="app-nav-details" id="appSystemNavDetails" ${sysOpen ? 'open' : ''}>
           <summary class="app-nav-details-summary">
             ${icon('settings')}
             <span class="app-nav-label">System</span>
@@ -67,16 +67,18 @@
       <div class="app-sidebar-brand">
         <a href="/dashboard" class="app-sidebar-logo">${appName.replace(/_/g, ' ')}</a>
       </div>
-      <nav class="app-sidebar-nav" aria-label="Main">
-        ${navItem('/dashboard', 'Dashboard', 'home')}
-        ${navItem('/command-center', 'Command Center', 'layout')}
-        ${navItem('/app', 'Chat', 'message')}
-        ${navItem('/projects', 'Projects', 'folder')}
-        ${navItem('/skills', 'Skills', 'zap')}
-        ${navItem('/rag', 'Knowledge', 'book')}
-        ${navItem('/my-data', 'My Data', 'database')}
-      </nav>
-      ${systemBlock}
+      <div class="app-sidebar-scroll">
+        <nav class="app-sidebar-nav" aria-label="Main">
+          ${navItem('/dashboard', 'Dashboard', 'home')}
+          ${navItem('/command-center', 'Command Center', 'layout')}
+          ${navItem('/app', 'Chat', 'message')}
+          ${navItem('/projects', 'Projects', 'folder')}
+          ${navItem('/skills', 'Skills', 'zap')}
+          ${navItem('/rag', 'Knowledge', 'book')}
+          ${navItem('/my-data', 'My Data', 'database')}
+        </nav>
+        ${systemBlock}
+      </div>
       <div class="app-sidebar-footer">
         ${navItem('/profile', 'Account', 'user')}
         <button type="button" class="app-nav-item app-nav-logout" id="logoutBtn">
@@ -205,6 +207,44 @@
     });
   }
 
+  /** When the sidebar is collapsed to the icon rail, position the System submenu with fixed so it is not clipped by .app-sidebar-scroll */
+  function wireSystemFlyoutPosition() {
+    const shell = document.querySelector('.app-shell');
+    const details = document.getElementById('appSystemNavDetails');
+    if (!shell || !details) return;
+
+    const mqDesktop = window.matchMedia('(min-width: 901px)');
+
+    function apply() {
+      const sub = details.querySelector('.app-nav-sub');
+      if (!sub) return;
+      const useFixed = mqDesktop.matches && shell.classList.contains('sidebar-collapsed') && details.open;
+      if (!useFixed) {
+        sub.style.removeProperty('position');
+        sub.style.removeProperty('left');
+        sub.style.removeProperty('top');
+        sub.style.removeProperty('z-index');
+        return;
+      }
+      const sum = details.querySelector('.app-nav-details-summary');
+      const r = sum && sum.getBoundingClientRect();
+      if (!r) return;
+      sub.style.position = 'fixed';
+      sub.style.left = 'calc(var(--ow-sidebar-w-collapsed) + 8px)';
+      sub.style.top = `${Math.round(r.top)}px`;
+      sub.style.zIndex = '400';
+    }
+
+    details.addEventListener('toggle', () => requestAnimationFrame(apply));
+    window.addEventListener('resize', apply);
+    window.addEventListener('scroll', apply, true);
+    document.getElementById('appSidebarToggle')?.addEventListener('click', () => {
+      requestAnimationFrame(() => requestAnimationFrame(apply));
+    });
+    mqDesktop.addEventListener('change', apply);
+    requestAnimationFrame(apply);
+  }
+
   function wireLogout() {
     const btn = document.getElementById('logoutBtn');
     if (!btn) return;
@@ -231,5 +271,6 @@
     wireLogout();
     wireSidebarToggle();
     wireDetailsCloseOnNavigate();
+    wireSystemFlyoutPosition();
   });
 })();
