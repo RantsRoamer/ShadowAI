@@ -2489,12 +2489,22 @@ app.get('/api/command-center/status', requireAdmin, (req, res) => {
 
 app.post('/api/command-center/clear-all-memory', requireAdmin, (req, res) => {
   try {
+    const scopeUser = getScopeUser(req);
     const confirm = req.body && req.body.confirm != null ? String(req.body.confirm).trim() : '';
     if (confirm !== 'CLEAR ALL MEMORY') return res.status(400).json({ error: 'Confirmation phrase must be exactly: CLEAR ALL MEMORY' });
-    const result = commandCenterAdmin.clearAllMemory();
+    const result = commandCenterAdmin.clearAllMemory({ scopeUser });
     // hiveStore may have been cleared; best-effort write after wipe.
     try {
-      hiveStore.appendEvent({ type: 'admin_clear_all_memory', source: 'command_center', message: 'Admin cleared all memory', payload: result });
+      hiveStore.appendEvent(
+        {
+          type: 'admin_clear_all_memory',
+          source: 'command_center',
+          user: scopeUser || null,
+          message: 'Admin cleared Command Center scoped memory',
+          payload: result
+        },
+        { scopeUser }
+      );
     } catch (_) {}
     res.json(result);
   } catch (e) {
