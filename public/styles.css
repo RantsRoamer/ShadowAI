@@ -629,6 +629,12 @@ body.has-app-shell {
   flex-direction: column;
 }
 
+/* Chat (/app): main.app-main must stay row (sidebar | content); the rule above wins over .app-main from app.css */
+.app-main-wrap > main.app-main {
+  flex-direction: row;
+  min-width: 0;
+}
+
 .app-main-wrap > main.app-fallback-main {
   overflow: auto;
 }
