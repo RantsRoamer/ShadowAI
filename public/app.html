@@ -54,8 +54,13 @@
     </aside>
     <div class="chat-content">
       <div class="chat-toolbar">
-        <input type="text" id="messageSearch" class="message-search" placeholder="Search in messages..." aria-label="Search in messages" />
+        <input type="text" id="messageSearch" class="message-search" placeholder="Search in this chat…" aria-label="Search in messages" />
       </div>
+      <div id="indexedSearchRow" class="indexed-search-row">
+        <input type="text" id="indexedSearchInput" class="indexed-search-input" placeholder="Search across all your saved chats…" aria-label="Indexed chat search" />
+        <button type="button" id="indexedSearchBtn" class="btn btn-small">Search</button>
+      </div>
+      <div id="indexedSearchResults" class="indexed-search-results" hidden></div>
     <div id="messages" class="messages"></div>
     <div class="input-area">
       <div class="custom-instructions-wrap">

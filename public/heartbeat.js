@@ -20,14 +20,30 @@
     { label: 'Every hour', cron: '0 * * * *' },
     { label: 'Daily 07:00', cron: '0 7 * * *' },
     { label: 'Daily 09:00', cron: '0 9 * * *' },
-    { label: 'Daily 00:00', cron: '0 0 * * *' }
+    { label: 'Daily 00:00', cron: '0 0 * * *' },
+    { label: 'Weekly Mon 09:00', cron: '0 9 * * 1' }
   ];
 
   let jobs = [];
+  /** @type {Record<string, { ok?: boolean, nextRunISO?: string, nextRunLocal?: string, lastRunISO?: string|null, error?: string }>} */
+  let previewById = {};
 
   function setStatus(msg, isError) {
     statusEl.textContent = msg;
     statusEl.style.color = isError ? 'var(--red)' : 'var(--text-dim)';
+  }
+
+  async function refreshSchedulePreview() {
+    previewById = {};
+    try {
+      const pr = await fetch('/api/heartbeat/preview');
+      if (pr.ok) {
+        const pd = await pr.json();
+        (pd.entries || []).forEach((e) => {
+          if (e && e.id) previewById[e.id] = e.preview;
+        });
+      }
+    } catch (_) {}
   }
 
   function escapeHtml(s) {
@@ -39,6 +55,17 @@
 
   function id() {
     return 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function scheduleMetaHtml(j) {
+    const p = previewById[j.id];
+    if (!p) return '';
+    if (!p.ok) {
+      return '<div class="row hb-meta">Invalid schedule: ' + escapeHtml(p.error || 'unknown') + '</div>';
+    }
+    const last = p.lastRunISO ? new Date(p.lastRunISO).toLocaleString() : 'never';
+    const next = p.nextRunLocal || (p.nextRunISO ? new Date(p.nextRunISO).toLocaleString() : '—');
+    return '<div class="row hb-meta"><span>Last run: <strong>' + escapeHtml(last) + '</strong></span><span>Next run: <strong>' + escapeHtml(next) + '</strong></span></div>';
   }
 
   function render() {
@@ -87,11 +114,12 @@
             <label><input type="checkbox" class="job-emailResult" ${j.emailResult ? 'checked' : ''} /> Email result</label>
             <input type="text" class="job-emailSubject" value="${escapeHtml(j.emailSubject || '')}" placeholder="Email subject" style="margin-top:4px;" />
           </div>
-          <div class="form-group job-prompt-fields" style="flex:1; ${j.type !== 'prompt' ? 'display:none' : ''}">
+          <div class="form-group job-prompt-fields" style="flex:1; min-width:220px; ${j.type !== 'prompt' ? 'display:none' : ''}">
             <label>Prompt</label>
-            <input type="text" class="job-prompt" value="${escapeHtml(j.prompt || '')}" placeholder="What should the AI do?" />
+            <textarea class="job-prompt" rows="3" placeholder="What should the AI do?">${escapeHtml(j.prompt || '')}</textarea>
           </div>
         </div>
+        ${scheduleMetaHtml(j)}
         <div class="row">
           <div class="form-group" style="flex:1;">
             <label>Webhook URL (optional)</label>
@@ -196,6 +224,9 @@
       });
       if (!res.ok) throw new Error((await res.json()).error);
       setStatus('Saved. Scheduler updated.');
+      jobs = getJobsFromDom();
+      await refreshSchedulePreview();
+      render();
     } catch (e) {
       setStatus(e.message, true);
     }
@@ -328,6 +359,7 @@
       const data = await res.json();
       jobs = (data.heartbeat || []).map(j => ({ ...j }));
       webhooks = (data.webhooks || []).map(w => ({ ...w }));
+      await refreshSchedulePreview();
       render();
       renderWebhooks();
     } catch (e) {

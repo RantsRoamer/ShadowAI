@@ -13,6 +13,10 @@
   const customInstructionsToggle = document.getElementById('customInstructionsToggle');
   const customInstructionsPanel = document.getElementById('customInstructionsPanel');
   const customInstructionsEnabled = document.getElementById('customInstructionsEnabled');
+  const indexedSearchRow = document.getElementById('indexedSearchRow');
+  const indexedSearchInput = document.getElementById('indexedSearchInput');
+  const indexedSearchBtn = document.getElementById('indexedSearchBtn');
+  const indexedSearchResults = document.getElementById('indexedSearchResults');
 
   let history = [];
   let currentChatId = null;
@@ -111,12 +115,50 @@
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
   }
 
+  function updateIndexedSearchVisibility() {
+    if (!indexedSearchRow) return;
+    const show = !currentChannelOwner;
+    indexedSearchRow.style.display = show ? '' : 'none';
+    if (!show && indexedSearchResults) indexedSearchResults.hidden = true;
+  }
+
+  async function runIndexedSearch() {
+    if (!indexedSearchInput || !indexedSearchResults) return;
+    const q = indexedSearchInput.value.trim();
+    if (!q) {
+      indexedSearchResults.hidden = true;
+      indexedSearchResults.innerHTML = '';
+      return;
+    }
+    indexedSearchResults.hidden = false;
+    indexedSearchResults.textContent = 'Searching…';
+    try {
+      let url = '/api/chat/search?q=' + encodeURIComponent(q);
+      if (currentChatId && !currentChannelOwner) url += '&chatId=' + encodeURIComponent(currentChatId);
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      const list = data.results || [];
+      if (list.length === 0) {
+        indexedSearchResults.innerHTML = '<span>No matches in indexed history.</span>';
+        return;
+      }
+      indexedSearchResults.innerHTML = '<ol>' + list.map((r) =>
+        '<li><span class="idx-title">' + escapeHtml(r.chatTitle) + '</span> · ' + escapeHtml(r.role) +
+        ' · ' + escapeHtml(r.snippet) + (r.snippet && r.snippet.length >= 320 ? '…' : '') + '</li>'
+      ).join('') + '</ol>';
+    } catch (e) {
+      indexedSearchResults.textContent = e.message || 'Search failed';
+    }
+  }
+
   function switchChat(chatId, channelOwner) {
     currentChatId = chatId;
     currentChannelOwner = channelOwner || null;
     document.querySelectorAll('.chat-list li').forEach(li => {
       li.classList.toggle('active', li.dataset.chatId === chatId && (li.dataset.channelOwner || null) === currentChannelOwner);
     });
+    updateIndexedSearchVisibility();
     loadChatHistory(chatId);
   }
 
@@ -157,6 +199,7 @@
       if (!res.ok) throw new Error(data.error || 'Create failed');
       currentChatId = data.id;
       currentChannelOwner = null;
+      updateIndexedSearchVisibility();
       customInstructionsEl.value = '';
       await loadChats();
       document.querySelectorAll('.chat-list li').forEach(li => {
@@ -929,6 +972,15 @@
   });
   sidebarSearchEl.addEventListener('input', filterChatListBySearch);
   messageSearchEl.addEventListener('input', applyMessageSearch);
+  if (indexedSearchBtn) indexedSearchBtn.addEventListener('click', runIndexedSearch);
+  if (indexedSearchInput) {
+    indexedSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        runIndexedSearch();
+      }
+    });
+  }
   document.getElementById('exportChatBtn').addEventListener('click', exportChat);
   logoutBtn.addEventListener('click', async () => {
     await fetch('/api/logout', { method: 'POST' });
@@ -950,5 +1002,8 @@
   }
 
   loadConfig();
-  loadChats().then(() => loadChatHistory(currentChatId));
+  loadChats().then(() => {
+    loadChatHistory(currentChatId);
+    updateIndexedSearchVisibility();
+  });
 })();

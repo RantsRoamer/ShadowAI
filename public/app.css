@@ -167,6 +167,37 @@
   color: var(--text-bright);
 }
 .message-search::placeholder { color: var(--text-dim); }
+.indexed-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.indexed-search-input {
+  flex: 1;
+  min-width: 160px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-bright);
+}
+.indexed-search-results {
+  font-size: 11px;
+  color: var(--text-dim);
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.indexed-search-results ol { margin: 0; padding-left: 18px; }
+.indexed-search-results li { margin-bottom: 6px; }
+.indexed-search-results .idx-title { color: var(--green-bright); }
 .msg.search-hidden { display: none; }
 .msg .msg-actions {
   display: flex;

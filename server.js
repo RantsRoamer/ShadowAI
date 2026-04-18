@@ -24,6 +24,8 @@ const logger = require('./lib/logger.js');
 const systemPrompt = require('./lib/systemPrompt.js');
 const chatRunner = require('./lib/chatRunner.js');
 const { executeSchedulerTool, getSchedulerToolDefinitions } = require('./lib/toolHandlers.js');
+const agentLoopTools = require('./lib/agentLoopTools.js');
+const chatHistorySearch = require('./lib/chatHistorySearch.js');
 const pipelineRunner = require('./lib/pipelineRunner.js');
 const projectStore = require('./lib/projectStore.js');
 const projectImport = require('./lib/projectImport.js');
@@ -1352,6 +1354,23 @@ app.post('/api/heartbeat/run/:id', async (req, res) => {
   }
 });
 
+/** Next/last run times for Heartbeat UI (admin). */
+app.get('/api/heartbeat/preview', (req, res) => {
+  if (!req.currentUser || req.currentUser.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const jobs = getConfig().heartbeat || [];
+  const entries = jobs.map((j) => ({
+    id: j.id,
+    name: j.name,
+    schedule: j.schedule,
+    enabled: j.enabled !== false,
+    type: j.type,
+    preview: heartbeatLib.getJobSchedulePreview(j)
+  }));
+  res.json({ entries });
+});
+
 // ---------------------------------------------------------------------------
 // Webhook receiver (inbound — no session auth, rate-limited)
 // ---------------------------------------------------------------------------
@@ -1469,6 +1488,22 @@ app.put('/api/chat/history', (req, res) => {
   if (effectiveUser === null) return res.status(403).json({ error: 'Forbidden' });
   if (effectiveUser) chatStore.writeChat(effectiveUser, messages, chatId);
   res.json({ ok: true });
+});
+
+/** Full-text search over indexed chat transcripts (same scope as web user session). */
+app.get('/api/chat/search', async (req, res) => {
+  const user = req.session && req.session.user;
+  if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  const q = (req.query.q || '').trim();
+  const chatId = (req.query.chatId || '').trim();
+  if (!q) return res.status(400).json({ error: 'q required' });
+  try {
+    const results = await chatHistorySearch.search(user, q, { limit: 40, chatId: chatId || undefined });
+    res.json({ results });
+  } catch (e) {
+    logger.error('GET /api/chat/search:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -1731,7 +1766,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         fetchUrlTool,
         ...(sendEmailTool ? [sendEmailTool] : []),
         ...skillTools,
-        ...getSchedulerToolDefinitions()
+        ...getSchedulerToolDefinitions(),
+        ...agentLoopTools.getExtraToolDefinitions({ isProjectChat: !!(isProjectChat && projectId) })
       ];
       // For normal chats: allow global memory tools + skills
       // For project chats: allow project-specific memory tool + skills (no global memory tools to keep isolation)
@@ -1840,8 +1876,13 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                   structuredMemory.setMemory(key, value, effectiveUser || user || '');
                   content = `Stored structured memory for key \"${key}\".`;
                 }
-              } else if (['create_skill', 'add_heartbeat_job', 'update_skill', 'update_heartbeat_job', 'list_heartbeat_jobs'].includes(name)) {
+              } else if (['create_skill', 'add_heartbeat_job', 'update_skill', 'update_heartbeat_job', 'list_heartbeat_jobs', 'delete_heartbeat_job'].includes(name)) {
                 content = await executeSchedulerTool(name, args);
+              } else if (agentLoopTools.handles(name)) {
+                content = await agentLoopTools.executeExtra(name, args, {
+                  chatOwnerUser: effectiveUser || user || '',
+                  missionScopeUser: effectiveUser || user || ''
+                });
               } else {
                 const result = await skillsLib.runSkill(name, args);
                 content = typeof result === 'object' ? JSON.stringify(result) : String(result);
@@ -2692,6 +2733,10 @@ function start() {
 
   // Run Ollama health check asynchronously — don't block startup
   checkOllamaHealth().catch(e => logger.warn('Ollama health check error:', e.message));
+
+  setImmediate(() => {
+    chatHistorySearch.reindexAllUsers().catch(e => logger.warn('Chat history FTS index:', e.message));
+  });
 
   return server;
 }
