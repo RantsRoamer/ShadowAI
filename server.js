@@ -27,6 +27,7 @@ const { executeSchedulerTool, getSchedulerToolDefinitions } = require('./lib/too
 const agentLoopTools = require('./lib/agentLoopTools.js');
 const chatHistorySearch = require('./lib/chatHistorySearch.js');
 const pipelineRunner = require('./lib/pipelineRunner.js');
+const pipelineObservability = require('./lib/pipelineObservability.js');
 const projectStore = require('./lib/projectStore.js');
 const projectImport = require('./lib/projectImport.js');
 const ragLib = require('./lib/rag.js');
@@ -990,6 +991,7 @@ app.delete('/api/ui/avatar', (req, res) => {
 });
 
 app.get('/api/config', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const c = getConfig();
   // Never expose credentials — strip passwordHash and email.auth.pass
   res.json({
@@ -1016,6 +1018,15 @@ app.get('/api/config', (req, res) => {
       return out;
     })(),
     ui: c.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' },
+    automation: c.automation || { legacyHeartbeatEnabled: true },
+    observability: (() => {
+      const o = c.observability || {};
+      const safe = JSON.parse(JSON.stringify(o));
+      if (safe.alerts && safe.alerts.webhook) {
+        safe.alerts.webhook = { ...safe.alerts.webhook, secret: safe.alerts.webhook.secret ? '********' : '' };
+      }
+      return safe;
+    })(),
     rag: c.rag || {
       embeddingModel: 'nomic-embed-text',
       chunkSize: 800,
@@ -1190,6 +1201,7 @@ app.post('/api/rag/query', async (req, res) => {
 });
 
 app.put('/api/config', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     const updates = req.body || {};
     if (!updates || typeof updates !== 'object') {
@@ -1242,6 +1254,20 @@ app.put('/api/config', (req, res) => {
     if (updates.rag && typeof updates.rag === 'object') {
       config.rag = { ...(config.rag || {}), ...updates.rag };
     }
+    if (updates.automation && typeof updates.automation === 'object') {
+      config.automation = { ...(config.automation || {}), ...updates.automation };
+    }
+    if (updates.observability && typeof updates.observability === 'object') {
+      config.observability = { ...(config.observability || {}), ...updates.observability };
+      if (updates.observability.alerts && updates.observability.alerts.webhook && updates.observability.alerts.webhook.secret === '********') {
+        const prevSecret = current.observability && current.observability.alerts && current.observability.alerts.webhook
+          ? current.observability.alerts.webhook.secret
+          : '';
+        config.observability.alerts = config.observability.alerts || {};
+        config.observability.alerts.webhook = config.observability.alerts.webhook || {};
+        config.observability.alerts.webhook.secret = prevSecret || '';
+      }
+    }
     if (typeof updates.timezone === 'string') {
       config.timezone = updates.timezone.trim();
     }
@@ -1286,6 +1312,15 @@ app.put('/api/config', (req, res) => {
           return out;
         })(),
         ui: config.ui || { showToolCalls: true, promptLibrary: true, appName: 'SHADOW_AI' },
+        automation: config.automation || { legacyHeartbeatEnabled: true },
+        observability: (() => {
+          const o = config.observability || {};
+          const safe = JSON.parse(JSON.stringify(o));
+          if (safe.alerts && safe.alerts.webhook) {
+            safe.alerts.webhook = { ...safe.alerts.webhook, secret: safe.alerts.webhook.secret ? '********' : '' };
+          }
+          return safe;
+        })(),
         rag: config.rag || {
           embeddingModel: 'nomic-embed-text',
           chunkSize: 800,
@@ -1359,6 +1394,7 @@ app.post('/api/debug/memory/fix', (req, res) => {
 });
 
 app.get('/api/debug/searxng', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const c = getConfig().searxng || {};
   res.json({
     config: { url: c.url || '', enabled: c.enabled === true },
@@ -1367,6 +1403,7 @@ app.get('/api/debug/searxng', (req, res) => {
 });
 
 app.post('/api/debug/searxng', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const query = (req.body && req.body.query) ? String(req.body.query).trim() : 'hello world';
   const c = getConfig().searxng || {};
   const baseUrl = c.url || '';
@@ -1417,6 +1454,7 @@ app.get('/api/ollama/model-capability', async (req, res) => {
 // Heartbeat
 // ---------------------------------------------------------------------------
 app.post('/api/heartbeat/run/:id', async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const id = req.params.id;
   const jobs = (getConfig().heartbeat || []).filter(j => j.id === id);
   if (!jobs.length) return res.status(404).json({ error: 'Job not found' });
@@ -1446,6 +1484,20 @@ app.get('/api/heartbeat/preview', (req, res) => {
   res.json({ entries });
 });
 
+app.post('/api/automation/legacy-heartbeat', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const enabled = !!(req.body && req.body.enabled);
+    const cfg = getConfig();
+    cfg.automation = { ...(cfg.automation || {}), legacyHeartbeatEnabled: enabled };
+    replaceConfig(cfg);
+    res.json({ ok: true, automation: cfg.automation });
+  } catch (e) {
+    logger.error('POST /api/automation/legacy-heartbeat:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Webhook receiver (inbound — no session auth, rate-limited)
 // ---------------------------------------------------------------------------
@@ -1459,6 +1511,20 @@ app.post('/api/webhook/receive/:id', runLimiter, async (req, res) => {
     if (!provided || provided !== webhook.secret) return res.status(401).json({ error: 'Invalid webhook secret' });
   }
   try {
+    const pipelineHandled = await pipelineRunner.runWebhookPipeline(id, req.body || {}, req.headers['x-webhook-secret'] || '');
+    if (pipelineHandled && pipelineHandled.ok) {
+      logger.info('[Webhook] routed to pipeline trigger', id);
+      return res.json({
+        ok: true,
+        mode: 'pipeline',
+        pipelineId: pipelineHandled.pipelineId,
+        runId: pipelineHandled.runId
+      });
+    }
+    if (pipelineHandled && pipelineHandled.status && pipelineHandled.status !== 404) {
+      return res.status(pipelineHandled.status).json({ error: pipelineHandled.error || 'Pipeline webhook failed' });
+    }
+
     const bodyStr = JSON.stringify(req.body || {});
     const context = { body: bodyStr, ...(typeof req.body === 'object' && req.body !== null ? req.body : {}) };
     function subVars(str) {
@@ -1481,6 +1547,25 @@ app.post('/api/webhook/receive/:id', runLimiter, async (req, res) => {
     res.json({ ok: true, result });
   } catch (e) {
     logger.error('[Webhook] receive error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/pipelines/webhook/:id', runLimiter, async (req, res) => {
+  try {
+    const result = await pipelineRunner.runWebhookPipeline(
+      req.params.id,
+      req.body || {},
+      req.headers['x-webhook-secret'] || ''
+    );
+    if (!result.ok) return res.status(result.status || 500).json({ error: result.error || 'Webhook run failed' });
+    res.json({
+      ok: true,
+      pipelineId: result.pipelineId,
+      runId: result.runId
+    });
+  } catch (e) {
+    logger.error('POST /api/pipelines/webhook/:id:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
@@ -2257,6 +2342,7 @@ app.delete('/api/prompts/:id', (req, res) => {
 // Pipelines
 // ---------------------------------------------------------------------------
 app.get('/api/pipelines', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     res.json(pipelineRunner.readPipelines());
   } catch (e) {
@@ -2266,6 +2352,7 @@ app.get('/api/pipelines', (req, res) => {
 });
 
 app.post('/api/pipelines', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     const pipelines = pipelineRunner.readPipelines();
     const pipeline = { id: 'pipe_' + crypto.randomBytes(6).toString('hex'), name: 'New pipeline', enabled: true, lastRunAt: null, nodes: [], connections: [], ...(req.body || {}) };
@@ -2279,6 +2366,7 @@ app.post('/api/pipelines', (req, res) => {
 });
 
 app.put('/api/pipelines/:id', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     const pipelines = pipelineRunner.readPipelines();
     const idx = pipelines.findIndex(p => p.id === req.params.id);
@@ -2293,6 +2381,7 @@ app.put('/api/pipelines/:id', (req, res) => {
 });
 
 app.delete('/api/pipelines/:id', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     const pipelines = pipelineRunner.readPipelines();
     const filtered = pipelines.filter(p => p.id !== req.params.id);
@@ -2306,11 +2395,12 @@ app.delete('/api/pipelines/:id', (req, res) => {
 });
 
 app.post('/api/pipelines/:id/run', runLimiter, async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     const pipelines = pipelineRunner.readPipelines();
     const pipeline = pipelines.find(p => p.id === req.params.id);
     if (!pipeline) return res.status(404).json({ error: 'Pipeline not found' });
-    const context = await pipelineRunner.runPipeline(pipeline);
+    const context = await pipelineRunner.runPipeline(pipeline, { triggerType: 'manual', source: 'api' });
     const now = new Date().toISOString();
     const idx = pipelines.findIndex(p => p.id === req.params.id);
     if (idx !== -1) { pipelines[idx] = { ...pipelines[idx], lastRunAt: now }; pipelineRunner.writePipelines(pipelines); }
@@ -2318,6 +2408,139 @@ app.post('/api/pipelines/:id/run', runLimiter, async (req, res) => {
   } catch (e) {
     logger.error('POST /api/pipelines/:id/run:', e.message);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/api/pipelines/webhook-triggers', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json({ triggers: pipelineRunner.getWebhookTriggers() });
+  } catch (e) {
+    logger.error('GET /api/pipelines/webhook-triggers:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/observability/summary', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json(pipelineObservability.getSummary());
+  } catch (e) {
+    logger.error('GET /api/observability/summary:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/observability/runs', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json(pipelineObservability.listRuns(req.query || {}));
+  } catch (e) {
+    logger.error('GET /api/observability/runs:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/observability/runs/:id', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const run = pipelineObservability.getRun(req.params.id);
+    if (!run) return res.status(404).json({ error: 'Run not found' });
+    const events = pipelineObservability.listEvents({ runId: req.params.id, limit: 1000, offset: 0 }).items;
+    const deliveries = pipelineObservability.listDeliveries({ runId: req.params.id, limit: 1000, offset: 0 }).items;
+    res.json({ run, events, deliveries });
+  } catch (e) {
+    logger.error('GET /api/observability/runs/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/observability/events', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json(pipelineObservability.listEvents(req.query || {}));
+  } catch (e) {
+    logger.error('GET /api/observability/events:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/observability/deliveries', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json(pipelineObservability.listDeliveries(req.query || {}));
+  } catch (e) {
+    logger.error('GET /api/observability/deliveries:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/observability/alerts', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json(pipelineObservability.listAlerts(req.query || {}));
+  } catch (e) {
+    logger.error('GET /api/observability/alerts:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/pipelines/migrate/heartbeat/:id', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const cfg = getConfig();
+    const job = (cfg.heartbeat || []).find((j) => j.id === req.params.id);
+    if (!job) return res.status(404).json({ error: 'Heartbeat job not found' });
+    const pipeline = {
+      id: 'pipe_' + crypto.randomBytes(6).toString('hex'),
+      name: '[Migrated] ' + (job.name || 'job'),
+      enabled: job.enabled !== false,
+      lastRunAt: job.lastRunAt || null,
+      nodes: [
+        { id: 'n_trigger', type: 'trigger', triggerType: 'schedule', schedule: job.schedule || '* * * * *', label: 'Migrated trigger', x: 80, y: 120 },
+        job.type === 'skill'
+          ? { id: 'n_action', type: 'skill', skillId: job.skillId || '', args: job.args || {}, outputVar: 'result', x: 320, y: 120 }
+          : { id: 'n_action', type: 'prompt', prompt: job.prompt || '', outputVar: 'result', x: 320, y: 120 }
+      ],
+      connections: [{ from: 'n_trigger', to: 'n_action' }]
+    };
+    const pipelines = pipelineRunner.readPipelines();
+    pipelines.push(pipeline);
+    pipelineRunner.writePipelines(pipelines);
+    res.status(201).json({ ok: true, pipeline });
+  } catch (e) {
+    logger.error('POST /api/pipelines/migrate/heartbeat/:id:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/pipelines/migrate/webhook/:id', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const cfg = getConfig();
+    const hook = (cfg.webhooks || []).find((w) => w.id === req.params.id);
+    if (!hook) return res.status(404).json({ error: 'Webhook not found' });
+    const webhookId = hook.id || ('wh_' + crypto.randomBytes(4).toString('hex'));
+    const pipeline = {
+      id: 'pipe_' + crypto.randomBytes(6).toString('hex'),
+      name: '[Migrated webhook] ' + (hook.name || webhookId),
+      enabled: hook.enabled !== false,
+      lastRunAt: null,
+      nodes: [
+        { id: 'n_trigger', type: 'trigger', triggerType: 'webhook', webhookId, webhookSecret: hook.secret || '', label: 'Migrated webhook', x: 80, y: 120 },
+        hook.action === 'skill'
+          ? { id: 'n_action', type: 'skill', skillId: hook.skillId || '', args: {}, outputVar: 'result', x: 320, y: 120 }
+          : { id: 'n_action', type: 'prompt', prompt: hook.prompt || '{{payload}}', outputVar: 'result', x: 320, y: 120 }
+      ],
+      connections: [{ from: 'n_trigger', to: 'n_action' }]
+    };
+    const pipelines = pipelineRunner.readPipelines();
+    pipelines.push(pipeline);
+    pipelineRunner.writePipelines(pipelines);
+    res.status(201).json({ ok: true, pipeline, webhookUrl: '/api/pipelines/webhook/' + encodeURIComponent(webhookId) });
+  } catch (e) {
+    logger.error('POST /api/pipelines/migrate/webhook/:id:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -2696,6 +2919,7 @@ app.get('/api/dashboard', async (req, res) => {
     const PIPELINES_PATH = path.join(__dirname, 'data', 'pipelines.json');
     let pipelines = [];
     try { if (fs.existsSync(PIPELINES_PATH)) pipelines = JSON.parse(fs.readFileSync(PIPELINES_PATH, 'utf8')); } catch (_) {}
+    const observabilitySummary = pipelineObservability.getSummary();
 
     // Skills
     skillsLib.ensureEnabledSkillsLoaded();
@@ -2726,6 +2950,7 @@ app.get('/api/dashboard', async (req, res) => {
       },
       webhooks: { total: webhookList.length, enabled: webhookList.filter(w => w.enabled !== false).length },
       pipelines: { total: pipelines.length, enabled: pipelines.filter(p => p.enabled !== false).length },
+      observability: observabilitySummary,
       skills: { total: allSkills.length, enabled: allSkills.filter(s => s.enabled).length },
       memory: { freeformLines, structuredKeys },
       ollama: { connected: ollamaConnected, url: config.ollama.mainUrl, model: config.ollama.mainModel }

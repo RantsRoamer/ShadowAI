@@ -110,7 +110,7 @@
   // Render pipeline node div
   // ---------------------------------------------------------------------------
   function typeLabel(type) {
-    const labels = { trigger: 'TRIGGER', skill: 'SKILL', prompt: 'AI PROMPT', email: 'EMAIL', webhook_out: 'WEBHOOK OUT' };
+    const labels = { trigger: 'TRIGGER', skill: 'SKILL', prompt: 'AI PROMPT', if: 'CONDITION', email: 'EMAIL', webhook_out: 'WEBHOOK OUT' };
     return labels[type] || type.toUpperCase();
   }
 
@@ -119,6 +119,7 @@
       case 'trigger':  return node.triggerType === 'schedule' ? (node.schedule || 'no schedule') : (node.triggerType || 'manual');
       case 'skill':    return node.skillId || '(no skill)';
       case 'prompt':   return (node.prompt || '').slice(0, 40) + ((node.prompt || '').length > 40 ? '…' : '');
+      case 'if':       return (node.expression || '').slice(0, 40) || 'context.payload.ok === true';
       case 'email':    return node.subject || '(no subject)';
       case 'webhook_out': return (node.url || '').slice(0, 35);
       default:         return '';
@@ -139,7 +140,16 @@
           // Finish connection
           if (connectingFrom !== node.id) {
             if (!current.connections.some(c => c.from === connectingFrom && c.to === node.id)) {
-              current.connections.push({ from: connectingFrom, to: node.id });
+              let condition = null;
+              const fromNode = current.nodes.find((n) => n.id === connectingFrom);
+              if (fromNode && fromNode.type === 'if') {
+                const pick = prompt('Condition branch for this edge? Type "true" or "false" (blank defaults to true):', 'true');
+                if (pick != null) {
+                  const norm = String(pick).trim().toLowerCase();
+                  condition = norm === 'false' ? 'false' : 'true';
+                }
+              }
+              current.connections.push({ from: connectingFrom, to: node.id, condition });
               redrawConnections();
             }
           }
@@ -294,6 +304,13 @@
           <label>Cron schedule</label>
           <input type="text" id="cfg-schedule" value="${escapeHtml(node.schedule || '')}" placeholder="0 8 * * *" />
         </div>
+        <div class="cfg-group" id="cfg-webhook-wrap" ${node.triggerType !== 'webhook' ? 'style="display:none"' : ''}>
+          <label>Webhook ID</label>
+          <input type="text" id="cfg-webhookId" value="${escapeHtml(node.webhookId || '')}" placeholder="orders-created" />
+          <label>Webhook secret (optional)</label>
+          <input type="text" id="cfg-webhookSecret" value="${escapeHtml(node.webhookSecret || '')}" placeholder="shared-secret" />
+          <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">POST /api/pipelines/webhook/${escapeHtml(node.webhookId || '<id>')}</div>
+        </div>
         <div class="cfg-group"><label>Label</label>
           <input type="text" id="cfg-label" value="${escapeHtml(node.label || '')}" placeholder="Trigger" />
         </div>
@@ -317,6 +334,15 @@
         </div>
         <div class="cfg-group"><label>Output variable</label>
           <input type="text" id="cfg-outputVar" value="${escapeHtml(node.outputVar || '')}" placeholder="summary" />
+        </div>
+      `;
+    } else if (node.type === 'if') {
+      fields = `
+        <div class="cfg-group"><label>Expression (JS, context available as \`context\`)</label>
+          <textarea id="cfg-expression" placeholder="context.payload.total > 1000">${escapeHtml(node.expression || '')}</textarea>
+        </div>
+        <div class="cfg-group"><label>Hint</label>
+          <div style="font-size:10px;color:var(--text-dim)">Connect this node to next nodes and assign each edge to true/false when prompted.</div>
         </div>
       `;
     } else if (node.type === 'email') {
@@ -358,6 +384,8 @@
       triggerTypeEl.addEventListener('change', () => {
         const wrap = document.getElementById('cfg-schedule-wrap');
         if (wrap) wrap.style.display = triggerTypeEl.value === 'schedule' ? '' : 'none';
+        const webhookWrap = document.getElementById('cfg-webhook-wrap');
+        if (webhookWrap) webhookWrap.style.display = triggerTypeEl.value === 'webhook' ? '' : 'none';
       });
     }
 
@@ -379,6 +407,10 @@
       if (sc) node.schedule = sc.value;
       const lb = document.getElementById('cfg-label');
       if (lb) node.label = lb.value;
+      const wid = document.getElementById('cfg-webhookId');
+      if (wid) node.webhookId = wid.value.trim();
+      const ws = document.getElementById('cfg-webhookSecret');
+      if (ws) node.webhookSecret = ws.value;
     } else if (node.type === 'skill') {
       const si = document.getElementById('cfg-skillId');
       if (si) node.skillId = si.value;
@@ -391,6 +423,9 @@
       if (pr) node.prompt = pr.value;
       const ov = document.getElementById('cfg-outputVar');
       if (ov) node.outputVar = ov.value;
+    } else if (node.type === 'if') {
+      const ex = document.getElementById('cfg-expression');
+      if (ex) node.expression = ex.value;
     } else if (node.type === 'email') {
       const su = document.getElementById('cfg-subject');
       if (su) node.subject = su.value;
@@ -577,6 +612,8 @@
     addNode({ type: 'skill', skillId: '', args: {}, outputVar: 'result' }));
   document.getElementById('addPromptBtn').addEventListener('click', () =>
     addNode({ type: 'prompt', prompt: 'Summarize: {{result}}', outputVar: 'summary' }));
+  document.getElementById('addIfBtn').addEventListener('click', () =>
+    addNode({ type: 'if', expression: 'context.payload && context.payload.ok === true' }));
   document.getElementById('addEmailBtn').addEventListener('click', () =>
     addNode({ type: 'email', subject: 'Pipeline result', body: '{{summary}}' }));
   document.getElementById('addWebhookOutBtn').addEventListener('click', () =>

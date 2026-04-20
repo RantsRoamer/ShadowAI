@@ -69,6 +69,11 @@
         <p class="dash-card-value" id="projectsValue">—</p>
         <p class="dash-card-sub" id="projectsSub">—</p>
       </div>
+      <div class="dash-card">
+        <p class="dash-card-title">OBSERVABILITY</p>
+        <p class="dash-card-value" id="obsRunHealth">—</p>
+        <p class="dash-card-sub" id="obsRunSub">runs (24h)</p>
+      </div>
     </div>
 
     <div class="dash-row dash-row-three">
@@ -94,6 +99,27 @@
         <ul class="dash-list" id="recentProjects">
           <li><span class="dash-empty">Loading...</span></li>
         </ul>
+      </div>
+    </div>
+
+    <div class="dashboard-section">
+      <h2>PIPELINE OBSERVABILITY</h2>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        <label style="font-size:11px;color:var(--text-dim);">Status</label>
+        <select id="obsStatusFilter" class="input" style="min-width:120px;">
+          <option value="">All</option>
+          <option value="success">Success</option>
+          <option value="failed">Failed</option>
+          <option value="running">Running</option>
+        </select>
+        <button type="button" id="obsRefreshBtn" class="btn btn-small">Refresh</button>
+      </div>
+      <ul class="dash-list" id="pipelineRuns">
+        <li><span class="dash-empty">Loading...</span></li>
+      </ul>
+      <div id="runDrilldown" style="margin-top:12px;display:none;">
+        <h3 style="font-size:11px;color:var(--text-dim);margin:0 0 6px 0;">RUN DRILLDOWN</h3>
+        <pre id="runDrilldownBody" style="background:var(--bg-main);border:1px solid var(--border);padding:10px;max-height:280px;overflow:auto;font-size:11px;"></pre>
       </div>
     </div>
 

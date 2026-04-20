@@ -1,4 +1,5 @@
 (function () {
+  let lastRuns = [];
   function relativeTime(iso) {
     if (!iso) return '—';
     const diff = Date.now() - new Date(iso).getTime();
@@ -73,6 +74,12 @@
         projectsValue.textContent = d.projects.total;
         projectsSub.textContent = d.projects.total === 1 ? 'project' : 'projects';
       }
+      if (d.observability && d.observability.health) {
+        const obsRunHealth = document.getElementById('obsRunHealth');
+        const obsRunSub = document.getElementById('obsRunSub');
+        if (obsRunHealth) obsRunHealth.textContent = String(d.observability.health.last24FailedRuns || 0);
+        if (obsRunSub) obsRunSub.textContent = 'failed of ' + String(d.observability.health.last24Runs || 0) + ' runs (24h)';
+      }
 
       // Recent chats
       const recentChats = document.getElementById('recentChats');
@@ -120,5 +127,64 @@
     }
   }
 
+  async function loadObservability() {
+    const status = (document.getElementById('obsStatusFilter') || {}).value || '';
+    const params = new URLSearchParams({ limit: '20', offset: '0' });
+    if (status) params.set('status', status);
+    const list = document.getElementById('pipelineRuns');
+    if (!list) return;
+    try {
+      const res = await fetch('/api/observability/runs?' + params.toString());
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();
+      lastRuns = Array.isArray(data.items) ? data.items : [];
+      if (lastRuns.length === 0) {
+        list.innerHTML = '<li><span class="dash-empty">No runs found.</span></li>';
+        return;
+      }
+      list.innerHTML = lastRuns.map((r) => `
+        <li>
+          <span class="dash-item-title">${escapeHtml(r.pipelineName || r.pipelineId)}</span>
+          <span class="dash-item-meta">${escapeHtml(r.status)} · ${relativeTime(r.startedAt)}</span>
+          <a href="#" data-run-id="${escapeHtml(r.id)}" class="dash-item-action">[Details]</a>
+        </li>
+      `).join('');
+      list.querySelectorAll('a[data-run-id]').forEach((a) => {
+        a.addEventListener('click', async (e) => {
+          e.preventDefault();
+          await openRunDrilldown(a.getAttribute('data-run-id'));
+        });
+      });
+    } catch (e) {
+      list.innerHTML = '<li><span class="dash-empty">Failed to load observability: ' + escapeHtml(e.message) + '</span></li>';
+    }
+  }
+
+  async function openRunDrilldown(runId) {
+    const panel = document.getElementById('runDrilldown');
+    const body = document.getElementById('runDrilldownBody');
+    if (!panel || !body) return;
+    try {
+      const res = await fetch('/api/observability/runs/' + encodeURIComponent(runId));
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();
+      panel.style.display = 'block';
+      body.textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      panel.style.display = 'block';
+      body.textContent = 'Failed to load run details: ' + e.message;
+    }
+  }
+
+  const obsStatusFilter = document.getElementById('obsStatusFilter');
+  if (obsStatusFilter) {
+    obsStatusFilter.addEventListener('change', () => { loadObservability(); });
+  }
+  const obsRefreshBtn = document.getElementById('obsRefreshBtn');
+  if (obsRefreshBtn) {
+    obsRefreshBtn.addEventListener('click', () => { load(); loadObservability(); });
+  }
+
   load();
+  loadObservability();
 })();

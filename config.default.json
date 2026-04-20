@@ -19,6 +19,23 @@
     "chatHistorySearch": true,
     "subagentMissions": true
   },
+  "automation": {
+    "legacyHeartbeatEnabled": true
+  },
+  "observability": {
+    "retention": {
+      "runs": 500,
+      "events": 5000,
+      "deliveries": 2000,
+      "alerts": 1000
+    },
+    "alerts": {
+      "enabled": false,
+      "minSeverity": "error",
+      "email": { "enabled": false },
+      "webhook": { "enabled": false, "url": "", "secret": "" }
+    }
+  },
   "heartbeat": [],
   "skills": { "enabledIds": [] },
   "searxng": { "url": "", "enabled": false },
