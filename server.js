@@ -33,6 +33,7 @@ const ragLib = require('./lib/rag.js');
 const agentStore = require('./lib/agentStore.js');
 const agentRunner = require('./lib/agentRunner.js');
 const myDataFs = require('./lib/myDataFs.js');
+const { buildMessagesWithAttachments } = require('./lib/chatAttachments.js');
 const hiveStore = require('./lib/hiveMind/store.js');
 const commandCenter = require('./lib/commandCenter/coordinator.js');
 const missionReporter = require('./lib/commandCenter/missionReporter.js');
@@ -1031,6 +1032,27 @@ app.get('/api/config', (req, res) => {
 const multer = require('multer');
 const RAG_UPLOAD_DIR = path.join(__dirname, 'data', 'rag-uploads');
 const ragUpload = multer({ dest: RAG_UPLOAD_DIR });
+const chatUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    files: 8,
+    fileSize: 15 * 1024 * 1024
+  }
+});
+
+function isImageUpload(file) {
+  const name = String(file && file.originalname ? file.originalname : '').toLowerCase();
+  const type = String(file && file.mimetype ? file.mimetype : '').toLowerCase();
+  return type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name);
+}
+
+function isDocUpload(file) {
+  const name = String(file && file.originalname ? file.originalname : '').toLowerCase();
+  const type = String(file && file.mimetype ? file.mimetype : '').toLowerCase();
+  if (type === 'application/pdf') return true;
+  if (type.startsWith('text/')) return true;
+  return /\.(pdf|txt|md|markdown|docx?|csv)$/i.test(name);
+}
 
 app.post('/api/rag/upload', ragUpload.single('file'), async (req, res) => {
   try {
@@ -1069,6 +1091,59 @@ app.post('/api/rag/upload', ragUpload.single('file'), async (req, res) => {
   } catch (e) {
     logger.error('POST /api/rag/upload:', e.message);
     res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/chat/attachments', chatUpload.array('files', 8), async (req, res) => {
+  try {
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded.' });
+    }
+    const attachments = [];
+    const errors = [];
+    for (const file of files) {
+      const name = file.originalname || file.filename || 'file';
+      if (isImageUpload(file)) {
+        const raw = Buffer.isBuffer(file.buffer) ? file.buffer.toString('base64') : '';
+        if (!raw) {
+          errors.push(`${name}: image data was empty`);
+          continue;
+        }
+        attachments.push({
+          kind: 'image',
+          name,
+          mimeType: file.mimetype || 'image/*',
+          dataBase64: projectImport.normalizeImageBase64(raw)
+        });
+        continue;
+      }
+      if (isDocUpload(file)) {
+        try {
+          const text = await ragLib.extractFileText(file.buffer, name, file.mimetype || '');
+          if (!text || !text.trim()) {
+            errors.push(`${name}: no text could be extracted`);
+            continue;
+          }
+          attachments.push({
+            kind: 'document',
+            name,
+            text: String(text).trim().slice(0, 120000)
+          });
+        } catch (e) {
+          errors.push(`${name}: ${e.message}`);
+        }
+        continue;
+      }
+      errors.push(`${name}: unsupported type`);
+    }
+    if (attachments.length === 0) {
+      return res.status(400).json({ error: 'No supported attachments were processed.', details: errors });
+    }
+    res.json({ attachments, errors });
+  } catch (e) {
+    logger.error('POST /api/chat/attachments:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -1510,7 +1585,7 @@ app.get('/api/chat/search', async (req, res) => {
 // Main chat endpoint (streaming + tool calls)
 // ---------------------------------------------------------------------------
 app.post('/api/chat', chatLimiter, async (req, res) => {
-  const { messages, agentId, stream: wantStream, chatId: bodyChatId, customInstructions, channelChatOwner, projectId: bodyProjectId } = req.body || {};
+  const { messages, attachments, agentId, stream: wantStream, chatId: bodyChatId, customInstructions, channelChatOwner, projectId: bodyProjectId } = req.body || {};
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' });
   }
@@ -1603,7 +1678,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
     role: 'system',
     content: systemContent
   };
-  let fullMessages = [systemPromptMsg, ...messages];
+  let fullMessages = [systemPromptMsg, ...buildMessagesWithAttachments(messages, attachments)];
 
   // RAG trigger: if the latest user message starts with #rag, run a retrieval
   // query and inject the top-k chunks into context.

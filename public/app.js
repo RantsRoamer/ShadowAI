@@ -17,6 +17,8 @@
   const indexedSearchInput = document.getElementById('indexedSearchInput');
   const indexedSearchBtn = document.getElementById('indexedSearchBtn');
   const indexedSearchResults = document.getElementById('indexedSearchResults');
+  const attachmentInput = document.getElementById('attachmentInput');
+  const attachmentList = document.getElementById('attachmentList');
 
   let history = [];
   let currentChatId = null;
@@ -25,6 +27,7 @@
   let abortController = null;
   let customInstructionsSaveTimeout = null;
   let uiSettings = { showToolCalls: true, promptLibrary: true };
+  let pendingFiles = [];
 
   async function loadChats() {
     try {
@@ -525,10 +528,51 @@
     sendBtn.style.display = processing ? 'none' : '';
     stopBtn.style.display = processing ? '' : 'none';
     userInput.disabled = processing;
+    attachmentInput.disabled = processing;
     userInput.placeholder = processing ? 'Waiting for response…' : 'Tell me something ....';
   }
 
-  async function sendMessageOnly() {
+  function renderAttachmentList() {
+    if (!attachmentList) return;
+    if (!pendingFiles.length) {
+      attachmentList.hidden = true;
+      attachmentList.innerHTML = '';
+      return;
+    }
+    attachmentList.hidden = false;
+    attachmentList.innerHTML = '';
+    pendingFiles.forEach((file, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'attachment-chip';
+      chip.innerHTML = '<span class="attachment-chip-name" title="' + escapeHtml(file.name) + '">' + escapeHtml(file.name) + '</span><button type="button" title="Remove">×</button>';
+      chip.querySelector('button').addEventListener('click', () => {
+        pendingFiles.splice(idx, 1);
+        renderAttachmentList();
+      });
+      attachmentList.appendChild(chip);
+    });
+  }
+
+  async function uploadAttachmentsIfNeeded() {
+    if (!pendingFiles.length) return [];
+    const form = new FormData();
+    pendingFiles.forEach((f) => form.append('files', f));
+    const res = await fetch('/api/chat/attachments', { method: 'POST', body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to process attachments');
+    pendingFiles = [];
+    if (attachmentInput) attachmentInput.value = '';
+    renderAttachmentList();
+    return Array.isArray(data.attachments) ? data.attachments : [];
+  }
+
+  function buildUserPreview(text, attachments) {
+    if (!attachments || attachments.length === 0) return text;
+    const list = attachments.map((a) => '- ' + (a.name || (a.kind === 'image' ? 'image' : 'document'))).join('\n');
+    return (text ? text + '\n\n' : '') + 'Attached files:\n' + list;
+  }
+
+  async function sendMessageOnly(attachmentsForTurn) {
     const agentId = agentSelect.value || undefined;
     const customInstructions = customInstructionsEnabled.checked ? (customInstructionsEl.value || '').trim() : '';
     setProcessing(true);
@@ -537,7 +581,14 @@
     let full = '';
 
     try {
-      const body = { messages: history, agentId, stream: true, chatId: currentChatId, customInstructions };
+      const body = {
+        messages: history,
+        attachments: Array.isArray(attachmentsForTurn) ? attachmentsForTurn : [],
+        agentId,
+        stream: true,
+        chatId: currentChatId,
+        customInstructions
+      };
       if (currentChannelOwner) body.channelChatOwner = currentChannelOwner;
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -940,14 +991,28 @@
 
   async function send() {
     const text = userInput.value.trim();
-    if (!text) return;
-    userInput.value = '';
-    addMessage('user', text);
-    history.push({ role: 'user', content: text });
+    const hasFiles = pendingFiles.length > 0;
+    if (!text && !hasFiles) return;
+    if (text.startsWith('/') && hasFiles) {
+      addMessage('assistant', 'Attachments are only supported for normal chat messages, not slash commands.', true);
+      return;
+    }
 
     if (await runCommand(text)) return;
 
-    sendMessageOnly();
+    let attachments = [];
+    try {
+      attachments = await uploadAttachmentsIfNeeded();
+    } catch (e) {
+      addMessage('assistant', e.message || 'Attachment upload failed.', true);
+      return;
+    }
+    const userText = text || 'Please analyze the attached files.';
+    userInput.value = '';
+    addMessage('user', buildUserPreview(userText, attachments));
+    history.push({ role: 'user', content: userText, attachments: attachments.map(a => ({ kind: a.kind, name: a.name || '' })) });
+
+    sendMessageOnly(attachments);
   }
 
   sendBtn.addEventListener('click', send);
@@ -958,6 +1023,15 @@
       send();
     }
   });
+  if (attachmentInput) {
+    attachmentInput.addEventListener('change', () => {
+      const files = Array.from(attachmentInput.files || []);
+      if (!files.length) return;
+      pendingFiles = pendingFiles.concat(files);
+      attachmentInput.value = '';
+      renderAttachmentList();
+    });
+  }
   customInstructionsEl.addEventListener('input', saveCustomInstructionsDebounced);
   customInstructionsEl.addEventListener('blur', () => {
     if (customInstructionsSaveTimeout) { clearTimeout(customInstructionsSaveTimeout); customInstructionsSaveTimeout = null; }

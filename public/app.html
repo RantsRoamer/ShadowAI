@@ -78,10 +78,13 @@
       </div>
       <div class="input-row">
         <textarea id="userInput" rows="2" placeholder="Tell me something ...."></textarea>
+        <label for="attachmentInput" class="btn btn-small" title="Attach images or documents">ATTACH</label>
+        <input id="attachmentInput" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.md,.markdown,.csv" hidden />
         <button type="button" id="promptsBtn" class="btn btn-small" title="Prompt library">PROMPTS</button>
         <button type="button" id="stopBtn" class="btn btn-stop" title="Stop generation" style="display:none;">STOP</button>
         <button type="button" id="sendBtn" class="btn send-btn">SEND</button>
       </div>
+      <div id="attachmentList" class="attachment-list" hidden></div>
       <div class="input-hint">
         <span>Run code: <code>/run js &lt;code&gt;</code> or <code>/run py &lt;code&gt;</code></span>
         <span>File: <code>/read path</code> · <code>/write path</code> · <code>/list [path]</code></span>
