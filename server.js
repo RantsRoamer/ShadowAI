@@ -1909,7 +1909,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         type: 'function',
         function: {
           name: 'append_project_memory',
-          description: 'Save or update a section in this project\'s memory file. ALWAYS provide a sectionTitle — this is the canonical heading under which the information is stored. Calling with the same sectionTitle replaces that section entirely, so never invent a new title for existing information (e.g. always use "Budget" not "Updated Budget"). Do NOT include a "Last Updated" line in your text — that is managed automatically. Use concise, consistent titles like "Overview", "Timeline", "Budget", "Key Contacts", "Requirements", "Decisions".',
+          description: 'Save or update a section in this project\'s memory file. ALWAYS provide a sectionTitle — this is the canonical heading under which the information is stored. Calling with the same sectionTitle replaces that section entirely, so never invent a new title for existing information (e.g. always use "Budget" not "Updated Budget"). Do NOT include a "Last Updated" line in your text — that is managed automatically. Use concise, consistent titles like "Overview", "Timeline", "Budget", "Key Contacts", "Requirements", "Decisions". After writing, you must trust tool output over assumptions; do not claim memory was updated unless the tool reports success.',
           parameters: {
             type: 'object',
             required: ['text', 'sectionTitle'],
@@ -1917,6 +1917,17 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               text: { type: 'string', description: 'The content to store under this section. Plain text or markdown. Do not include a Last Updated line.' },
               sectionTitle: { type: 'string', description: 'The section heading. Use a short, consistent noun phrase (e.g. "Budget", "Timeline", "Requirements"). Reusing an existing title overwrites that section.' }
             }
+          }
+        }
+      } : null;
+      const readProjectMemoryTool = (isProjectChat && projectId) ? {
+        type: 'function',
+        function: {
+          name: 'read_project_memory',
+          description: 'Read the current project memory text exactly as stored on disk. Use this to verify recent updates before making claims.',
+          parameters: {
+            type: 'object',
+            properties: {}
           }
         }
       } : null;
@@ -1934,6 +1945,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       const tools = isProjectChat && projectId
         ? [
             ...(appendProjectMemoryTool ? [appendProjectMemoryTool] : []),
+            ...(readProjectMemoryTool ? [readProjectMemoryTool] : []),
             ...commonTools
           ]
         : [
@@ -1983,8 +1995,23 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               } else if (name === 'append_project_memory' && projectId) {
                 const text = args.text != null ? String(args.text).trim() : '';
                 const sectionTitle = args.sectionTitle != null ? String(args.sectionTitle).trim() : null;
-                if (text) projectStore.appendProjectMemory(projectId, text, sectionTitle || undefined);
-                content = text ? 'Saved to project memory.' : 'No text provided.';
+                if (!text) {
+                  content = 'Error: No text provided.';
+                } else if (!sectionTitle) {
+                  content = 'Error: sectionTitle is required.';
+                } else {
+                  const ok = projectStore.appendProjectMemory(projectId, text, sectionTitle || undefined);
+                  if (!ok) {
+                    content = 'Error: failed to persist project memory.';
+                  } else {
+                    const persisted = projectStore.readProjectMemory(projectId);
+                    const excerpt = persisted.length > 1500 ? persisted.slice(-1500) : persisted;
+                    content = 'Saved to project memory in section "' + sectionTitle + '". Verification excerpt:\n' + excerpt;
+                  }
+                }
+              } else if (name === 'read_project_memory' && projectId) {
+                const persisted = projectStore.readProjectMemory(projectId);
+                content = persisted || '(Project memory is empty.)';
               } else if (name === 'web_search') {
                 const query = args.query != null ? String(args.query).trim() : '';
                 if (!query) content = 'No query provided.';

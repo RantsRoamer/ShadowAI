@@ -1,1 +1,49 @@
-[]
+[
+  {
+    "id": "pipe_test_webhook",
+    "name": "Webhook test",
+    "enabled": true,
+    "nodes": [
+      {
+        "id": "n_trigger",
+        "type": "trigger",
+        "triggerType": "webhook",
+        "webhookId": "test-hook",
+        "webhookSecret": "abc123"
+      },
+      {
+        "id": "n_if",
+        "type": "if",
+        "expression": "context.payload.total > 10"
+      },
+      {
+        "id": "n_true",
+        "type": "if",
+        "expression": "true",
+        "outputVar": "branchTrue"
+      },
+      {
+        "id": "n_false",
+        "type": "if",
+        "expression": "false",
+        "outputVar": "branchFalse"
+      }
+    ],
+    "connections": [
+      {
+        "from": "n_trigger",
+        "to": "n_if"
+      },
+      {
+        "from": "n_if",
+        "to": "n_true",
+        "condition": "true"
+      },
+      {
+        "from": "n_if",
+        "to": "n_false",
+        "condition": "false"
+      }
+    ]
+  }
+]
