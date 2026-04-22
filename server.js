@@ -2158,6 +2158,7 @@ app.post('/api/channel/chat', chatLimiter, async (req, res) => {
 // Code execution
 // ---------------------------------------------------------------------------
 app.post('/api/run', runLimiter, async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const { language, code, timeout } = req.body || {};
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ error: 'code required' });
@@ -2176,6 +2177,7 @@ app.post('/api/run', runLimiter, async (req, res) => {
 // File access (self-update)
 // ---------------------------------------------------------------------------
 app.get('/api/files', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   try {
     res.json({ files: listFiles(req.query.path || '.') });
   } catch (e) {
@@ -2185,6 +2187,7 @@ app.get('/api/files', (req, res) => {
 });
 
 app.get('/api/file', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const filePath = req.query.path;
   if (!filePath) return res.status(400).json({ error: 'path required' });
   try {
@@ -2196,6 +2199,7 @@ app.get('/api/file', (req, res) => {
 });
 
 app.put('/api/file', (req, res) => {
+  if (!requireAdmin(req, res)) return;
   const { path: filePath, content } = req.body || {};
   if (!filePath || content === undefined) {
     return res.status(400).json({ error: 'path and content required' });
@@ -2398,7 +2402,13 @@ app.put('/api/pipelines/:id', (req, res) => {
     const pipelines = pipelineRunner.readPipelines();
     const idx = pipelines.findIndex(p => p.id === req.params.id);
     if (idx === -1) return res.status(404).json({ error: 'Pipeline not found' });
-    pipelines[idx] = { ...pipelines[idx], ...(req.body || {}), id: req.params.id };
+    const body = req.body || {};
+    const ALLOWED_PIPELINE_FIELDS = ['name', 'enabled', 'nodes', 'connections', 'description'];
+    const updates = {};
+    for (const key of ALLOWED_PIPELINE_FIELDS) {
+      if (body[key] !== undefined) updates[key] = body[key];
+    }
+    pipelines[idx] = { ...pipelines[idx], ...updates, id: req.params.id };
     pipelineRunner.writePipelines(pipelines);
     res.json({ ok: true, pipeline: pipelines[idx] });
   } catch (e) {
