@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { prepareMemoryForReport } = require('../lib/projectReport.js');
+const { prepareMemoryForReport, excerptLatest } = require('../lib/projectReport.js');
 
 test('prepareMemoryForReport keeps latest financial summary variant', () => {
   const memory = [
@@ -35,4 +35,14 @@ test('prepareMemoryForReport keeps latest financial summary variant', () => {
   assert.equal(financialSummaryCount, 1);
   assert.match(out, /\$7,500/);
   assert.doesNotMatch(out, /\$1,500 \| \$16,250/);
+});
+
+test('excerptLatest keeps newest text window for long memory', () => {
+  const older = 'OLD-SECTION '.repeat(300);
+  const latest = 'LATEST-BUDGET-VALUE $7,500 paid $10,250 remaining';
+  const combined = `${older}\n\n${latest}`;
+  const out = excerptLatest(combined, 120);
+  assert.match(out, /LATEST-BUDGET-VALUE/);
+  assert.ok(out.startsWith('…'));
+  assert.ok(out.length <= 121);
 });
