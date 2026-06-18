@@ -75,9 +75,8 @@ cd ShadowAI
 docker build -t shadowai:latest .
 docker run -d --name shadowai -p 9090:9090 \
   -v shadowai-data:/app/data \
-  # (Linux) share host timezone with container so local time matches host
-  -v /etc/localtime:/etc/localtime:ro \
-  -v /etc/timezone:/etc/timezone:ro \
+  -e HOST=0.0.0.0 \
+  -e PORT=9090 \
   -e OLLAMA_URL=http://host.docker.internal:11434 \
   -e OLLAMA_MODEL=llama3.2 \
   shadowai:latest

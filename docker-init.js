@@ -48,6 +48,10 @@ function applyAlways(obj, key, value) {
   }
 }
 
+function inDocker() {
+  try { return fs.existsSync('/.dockerenv'); } catch (_) { return false; }
+}
+
 const {
   OLLAMA_URL, OLLAMA_MODEL,
   ADMIN_USER, ADMIN_PASSWORD,
@@ -59,13 +63,26 @@ config.ollama = config.ollama || {};
 applyIfEmpty(config.ollama, 'mainUrl', OLLAMA_URL);
 applyIfEmpty(config.ollama, 'mainModel', OLLAMA_MODEL);
 
+config.server = config.server || {};
 if (PORT !== undefined && PORT !== '') {
-  config.server = config.server || {};
   applyAlways(config.server, 'port', parseInt(PORT, 10));
 }
 if (HOST !== undefined && HOST !== '') {
-  config.server = config.server || {};
   applyAlways(config.server, 'host', HOST);
+}
+
+// Inside Docker the app must listen on 0.0.0.0 or published ports will not reach it.
+if (inDocker()) {
+  const listenHost = String(config.server.host || '').trim().toLowerCase();
+  if (!listenHost || listenHost === '127.0.0.1' || listenHost === 'localhost') {
+    config.server.host = '0.0.0.0';
+    changed = true;
+    console.log('[docker-init] Bind address set to 0.0.0.0 (required for Docker port mapping)');
+  }
+  if (!config.server.port || Number(config.server.port) <= 0) {
+    config.server.port = 9090;
+    changed = true;
+  }
 }
 config.auth = config.auth || {};
 applyIfEmpty(config.auth, 'username', ADMIN_USER);
@@ -88,3 +105,7 @@ if (changed) {
 } else {
   console.log('[docker-init] No env var overrides to apply');
 }
+
+const listenHost = config.server?.host || '0.0.0.0';
+const listenPort = config.server?.port || 9090;
+console.log(`[docker-init] Server will listen on http://${listenHost}:${listenPort}`);
