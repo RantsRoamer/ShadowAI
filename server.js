@@ -1225,11 +1225,17 @@ app.put('/api/config', (req, res) => {
     if (updates.ollama && typeof updates.ollama === 'object') {
       const prev = config.ollama || {};
       const next = updates.ollama;
+      const provider = next.provider !== undefined
+        ? (String(next.provider).toLowerCase() === 'vllm' ? 'vllm' : 'ollama')
+        : (prev.provider === 'vllm' ? 'vllm' : 'ollama');
+      const defaultUrl = provider === 'vllm' ? 'http://localhost:8000' : 'http://localhost:11434';
       // Preserve fields not sent by every client (num_ctx, visionModel, etc.)
       config.ollama = {
         ...prev,
         ...next,
-        mainUrl: next.mainUrl !== undefined ? String(next.mainUrl).trim() : (prev.mainUrl || 'http://localhost:11434'),
+        provider,
+        apiKey: next.apiKey !== undefined ? String(next.apiKey) : (prev.apiKey || ''),
+        mainUrl: next.mainUrl !== undefined ? String(next.mainUrl).trim() : (prev.mainUrl || defaultUrl),
         mainModel: next.mainModel !== undefined ? String(next.mainModel).trim() : (prev.mainModel || 'llama3.2'),
         temperature: next.temperature !== undefined ? Number(next.temperature) : (prev.temperature ?? 0.7),
         num_predict: next.num_predict !== undefined ? Number(next.num_predict) : (prev.num_predict ?? 2048),

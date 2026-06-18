@@ -83,7 +83,16 @@
   }
 
   if (llmProviderEl) {
-    llmProviderEl.addEventListener('change', syncLlmProviderUi);
+    llmProviderEl.addEventListener('change', () => {
+      const provider = getLlmProvider();
+      const url = mainUrlEl.value.trim();
+      const ollamaDefault = 'http://localhost:11434';
+      const vllmDefault = 'http://localhost:8000';
+      if (!url || url === ollamaDefault || url === vllmDefault) {
+        mainUrlEl.value = defaultLlmUrl(provider);
+      }
+      syncLlmProviderUi();
+    });
   }
 
   async function loadConfig() {
@@ -413,37 +422,43 @@
     };
     if (password) auth.passwordHash = password;
 
-    const config = {
-      server: {
-        host: hostEl.value.trim() || '0.0.0.0',
-        port: Math.max(1, Math.min(65535, parseInt(portEl.value, 10) || 9090))
-      },
-      timezone: timezoneEl.value.trim() || '',
-      auth: auth,
-      ollama: {
-        provider: getLlmProvider(),
-        mainUrl: mainUrlEl.value.trim() || defaultLlmUrl(getLlmProvider()),
-        mainModel: mainModelEl.value.trim() || (getLlmProvider() === 'vllm' ? '' : 'llama3.2'),
-        apiKey: llmApiKeyEl ? llmApiKeyEl.value.trim() : '',
-        temperature: parseFloat(document.getElementById('ollamaTemperature').value) || 0.7,
-        num_predict: parseInt(document.getElementById('ollamaNumPredict').value, 10) || 2048
-      },
-      searxng: {
-        url: document.getElementById('searxngUrl').value.trim() || '',
-        enabled: document.getElementById('searxngEnabled').checked
-      },
-      email: getEmailFromDom(),
-      channels: getChannelsFromDom(),
-      ui: {
-        appName: (document.getElementById('appName').value || '').trim() || 'SHADOW_AI',
-        showToolCalls: document.getElementById('showToolCalls').checked,
-        promptLibrary: document.getElementById('promptLibrary').checked
-      },
-      rag: getRagFromDom()
-    };
-
     setStatus('Saving...');
     try {
+      const cfgRes = await fetch('/api/config');
+      if (!cfgRes.ok) throw new Error('Could not load current config');
+      const current = await cfgRes.json();
+      const provider = getLlmProvider();
+
+      const config = {
+        server: {
+          host: hostEl.value.trim() || '0.0.0.0',
+          port: Math.max(1, Math.min(65535, parseInt(portEl.value, 10) || 9090))
+        },
+        timezone: timezoneEl.value.trim() || '',
+        auth: auth,
+        ollama: {
+          ...(current.ollama || {}),
+          provider,
+          mainUrl: mainUrlEl.value.trim() || defaultLlmUrl(provider),
+          mainModel: mainModelEl.value.trim() || (provider === 'vllm' ? '' : 'llama3.2'),
+          apiKey: llmApiKeyEl ? llmApiKeyEl.value.trim() : '',
+          temperature: parseFloat(document.getElementById('ollamaTemperature').value) || 0.7,
+          num_predict: parseInt(document.getElementById('ollamaNumPredict').value, 10) || 2048
+        },
+        searxng: {
+          url: document.getElementById('searxngUrl').value.trim() || '',
+          enabled: document.getElementById('searxngEnabled').checked
+        },
+        email: getEmailFromDom(),
+        channels: getChannelsFromDom(),
+        ui: {
+          appName: (document.getElementById('appName').value || '').trim() || 'SHADOW_AI',
+          showToolCalls: document.getElementById('showToolCalls').checked,
+          promptLibrary: document.getElementById('promptLibrary').checked
+        },
+        rag: getRagFromDom()
+      };
+
       const res = await fetch('/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
