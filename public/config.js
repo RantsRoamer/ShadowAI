@@ -68,7 +68,44 @@
   }
 
   function getLlmProvider() {
-    return (llmProviderEl && llmProviderEl.value === 'vllm') ? 'vllm' : 'ollama';
+    const el = document.getElementById('llmProvider');
+    return el && el.value === 'vllm' ? 'vllm' : 'ollama';
+  }
+
+  function getLlmSettingsFromDom() {
+    const provider = getLlmProvider();
+    return {
+      provider,
+      mainUrl: mainUrlEl.value.trim() || defaultLlmUrl(provider),
+      mainModel: mainModelEl.value.trim() || (provider === 'vllm' ? '' : 'llama3.2'),
+      apiKey: llmApiKeyEl ? llmApiKeyEl.value.trim() : '',
+      temperature: parseFloat(document.getElementById('ollamaTemperature').value) || 0.7,
+      num_predict: parseInt(document.getElementById('ollamaNumPredict').value, 10) || 2048
+    };
+  }
+
+  function applyOllamaToDom(ollama) {
+    const o = ollama || {};
+    const providerEl = document.getElementById('llmProvider');
+    if (providerEl) providerEl.value = o.provider === 'vllm' ? 'vllm' : 'ollama';
+    mainUrlEl.value = o.mainUrl ?? defaultLlmUrl(getLlmProvider());
+    mainModelEl.value = o.mainModel ?? (getLlmProvider() === 'vllm' ? '' : 'llama3.2');
+    if (llmApiKeyEl) llmApiKeyEl.value = o.apiKey ?? '';
+    document.getElementById('ollamaTemperature').value = o.temperature ?? 0.7;
+    document.getElementById('ollamaNumPredict').value = o.num_predict ?? 2048;
+    syncLlmProviderUi();
+  }
+
+  async function saveLlmSettings() {
+    const res = await fetch('/api/config/llm', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(getLlmSettingsFromDom())
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    if (data.ollama) applyOllamaToDom(data.ollama);
+    return data.ollama;
   }
 
   function defaultLlmUrl(provider) {
@@ -83,7 +120,7 @@
   }
 
   if (llmProviderEl) {
-    llmProviderEl.addEventListener('change', () => {
+    llmProviderEl.addEventListener('change', async () => {
       const provider = getLlmProvider();
       const url = mainUrlEl.value.trim();
       const ollamaDefault = 'http://localhost:11434';
@@ -92,6 +129,13 @@
         mainUrlEl.value = defaultLlmUrl(provider);
       }
       syncLlmProviderUi();
+      setStatus('Saving provider...');
+      try {
+        await saveLlmSettings();
+        setStatus('Provider saved.');
+      } catch (e) {
+        setStatus(e.message, true);
+      }
     });
   }
 
@@ -103,13 +147,7 @@
     portEl.value = c.server?.port ?? 9090;
     timezoneEl.value = c.timezone ?? '';
     usernameEl.value = c.auth?.username ?? 'admin';
-    if (llmProviderEl) llmProviderEl.value = c.ollama?.provider === 'vllm' ? 'vllm' : 'ollama';
-    mainUrlEl.value = c.ollama?.mainUrl ?? defaultLlmUrl(getLlmProvider());
-    mainModelEl.value = c.ollama?.mainModel ?? (getLlmProvider() === 'vllm' ? '' : 'llama3.2');
-    if (llmApiKeyEl) llmApiKeyEl.value = c.ollama?.apiKey ?? '';
-    syncLlmProviderUi();
-    document.getElementById('ollamaTemperature').value = c.ollama?.temperature ?? 0.7;
-    document.getElementById('ollamaNumPredict').value = c.ollama?.num_predict ?? 2048;
+    applyOllamaToDom(c.ollama);
     document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
     document.getElementById('searxngEnabled').checked = c.searxng?.enabled === true;
     const e = c.email || {};
@@ -424,10 +462,7 @@
 
     setStatus('Saving...');
     try {
-      const cfgRes = await fetch('/api/config');
-      if (!cfgRes.ok) throw new Error('Could not load current config');
-      const current = await cfgRes.json();
-      const provider = getLlmProvider();
+      await saveLlmSettings();
 
       const config = {
         server: {
@@ -436,15 +471,6 @@
         },
         timezone: timezoneEl.value.trim() || '',
         auth: auth,
-        ollama: {
-          ...(current.ollama || {}),
-          provider,
-          mainUrl: mainUrlEl.value.trim() || defaultLlmUrl(provider),
-          mainModel: mainModelEl.value.trim() || (provider === 'vllm' ? '' : 'llama3.2'),
-          apiKey: llmApiKeyEl ? llmApiKeyEl.value.trim() : '',
-          temperature: parseFloat(document.getElementById('ollamaTemperature').value) || 0.7,
-          num_predict: parseInt(document.getElementById('ollamaNumPredict').value, 10) || 2048
-        },
         searxng: {
           url: document.getElementById('searxngUrl').value.trim() || '',
           enabled: document.getElementById('searxngEnabled').checked
@@ -472,13 +498,7 @@
         portEl.value = c.server?.port ?? 9090;
         timezoneEl.value = c.timezone ?? '';
         usernameEl.value = c.auth?.username ?? 'admin';
-        if (llmProviderEl) llmProviderEl.value = c.ollama?.provider === 'vllm' ? 'vllm' : 'ollama';
-        mainUrlEl.value = c.ollama?.mainUrl ?? defaultLlmUrl(getLlmProvider());
-        mainModelEl.value = c.ollama?.mainModel ?? (getLlmProvider() === 'vllm' ? '' : 'llama3.2');
-        if (llmApiKeyEl) llmApiKeyEl.value = c.ollama?.apiKey ?? '';
-        syncLlmProviderUi();
-        document.getElementById('ollamaTemperature').value = c.ollama?.temperature ?? 0.7;
-        document.getElementById('ollamaNumPredict').value = c.ollama?.num_predict ?? 2048;
+        applyOllamaToDom(c.ollama);
         document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
         document.getElementById('searxngEnabled').checked = c.searxng?.enabled === true;
         const e = c.email || {};

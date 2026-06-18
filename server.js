@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { getConfig, reloadConfig, updateConfig, saveConfig, replaceConfig } = require('./lib/config.js');
+const { getConfig, reloadConfig, updateConfig, saveConfig, replaceConfig, normalizeOllamaConfig } = require('./lib/config.js');
 const { chatStream, chatWithTools, chatJson, listModels, getModelContextWindow, resolveLlm } = require('./lib/llm.js');
 const { authMiddleware, authenticate, listUsers, createUser, updateUser, deleteUser, requireAdmin } = require('./lib/auth.js');
 const { runCode } = require('./lib/runCode.js');
@@ -1037,6 +1037,35 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+/** Save LLM provider / model settings only (used by Config → LLM tab). */
+app.put('/api/config/llm', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const body = req.body || {};
+    const config = getConfig();
+    const prev = config.ollama || {};
+    const provider = body.provider !== undefined
+      ? (String(body.provider).toLowerCase() === 'vllm' ? 'vllm' : 'ollama')
+      : (prev.provider === 'vllm' ? 'vllm' : 'ollama');
+    const defaultUrl = provider === 'vllm' ? 'http://localhost:8000' : 'http://localhost:11434';
+    const merged = normalizeOllamaConfig({
+      ...prev,
+      provider,
+      mainUrl: body.mainUrl !== undefined ? String(body.mainUrl).trim() : (prev.mainUrl || defaultUrl),
+      mainModel: body.mainModel !== undefined ? String(body.mainModel).trim() : (prev.mainModel || ''),
+      apiKey: body.apiKey !== undefined ? String(body.apiKey) : (prev.apiKey || ''),
+      temperature: body.temperature !== undefined ? Number(body.temperature) : (prev.temperature ?? 0.7),
+      num_predict: body.num_predict !== undefined ? Number(body.num_predict) : (prev.num_predict ?? 2048),
+      agents: Array.isArray(prev.agents) ? prev.agents : []
+    });
+    updateConfig({ ollama: merged });
+    res.json({ ok: true, ollama: getConfig().ollama });
+  } catch (e) {
+    logger.error('PUT /api/config/llm:', e.message);
+    res.status(400).json({ error: e.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // RAG (Retrieval-Augmented Generation)
 // ---------------------------------------------------------------------------
@@ -1230,7 +1259,7 @@ app.put('/api/config', (req, res) => {
         : (prev.provider === 'vllm' ? 'vllm' : 'ollama');
       const defaultUrl = provider === 'vllm' ? 'http://localhost:8000' : 'http://localhost:11434';
       // Preserve fields not sent by every client (num_ctx, visionModel, etc.)
-      config.ollama = {
+      config.ollama = normalizeOllamaConfig({
         ...prev,
         ...next,
         provider,
@@ -1240,7 +1269,7 @@ app.put('/api/config', (req, res) => {
         temperature: next.temperature !== undefined ? Number(next.temperature) : (prev.temperature ?? 0.7),
         num_predict: next.num_predict !== undefined ? Number(next.num_predict) : (prev.num_predict ?? 2048),
         agents: Array.isArray(next.agents) ? next.agents : (Array.isArray(prev.agents) ? prev.agents : [])
-      };
+      });
     }
     if (updates.heartbeat && Array.isArray(updates.heartbeat)) config.heartbeat = updates.heartbeat;
     if (updates.webhooks && Array.isArray(updates.webhooks)) config.webhooks = updates.webhooks;
