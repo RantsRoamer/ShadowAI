@@ -43,7 +43,8 @@
       const ollamaStatus = document.getElementById('ollamaStatus');
       const ollamaModel = document.getElementById('ollamaModel');
       if (d.ollama) {
-        ollamaStatus.innerHTML = `<span class="dash-card-dot ${d.ollama.connected ? 'online' : 'offline'}"></span>${d.ollama.connected ? 'Online' : 'Offline'}`;
+        const providerLabel = d.ollama.provider === 'vllm' ? 'vLLM' : 'Ollama';
+        ollamaStatus.innerHTML = `<span class="dash-card-dot ${d.ollama.connected ? 'online' : 'offline'}"></span>${d.ollama.connected ? 'Online' : 'Offline'} (${providerLabel})`;
         ollamaModel.textContent = d.ollama.model || '—';
       }
 

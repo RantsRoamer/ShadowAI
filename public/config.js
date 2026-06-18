@@ -6,6 +6,10 @@
   const passwordEl = document.getElementById('password');
   const mainUrlEl = document.getElementById('mainUrl');
   const mainModelEl = document.getElementById('mainModel');
+  const llmProviderEl = document.getElementById('llmProvider');
+  const llmApiKeyEl = document.getElementById('llmApiKey');
+  const llmApiKeyGroup = document.getElementById('llmApiKeyGroup');
+  const llmUrlLabel = document.getElementById('llmUrlLabel');
   const mainModelList = document.getElementById('mainModelList');
   const fetchMainModelsBtn = document.getElementById('fetchMainModels');
   const saveBtn = document.getElementById('configSaveBtn');
@@ -63,6 +67,25 @@
     avatarImg.src = url;
   }
 
+  function getLlmProvider() {
+    return (llmProviderEl && llmProviderEl.value === 'vllm') ? 'vllm' : 'ollama';
+  }
+
+  function defaultLlmUrl(provider) {
+    return provider === 'vllm' ? 'http://localhost:8000' : 'http://localhost:11434';
+  }
+
+  function syncLlmProviderUi() {
+    const provider = getLlmProvider();
+    if (llmApiKeyGroup) llmApiKeyGroup.hidden = provider !== 'vllm';
+    if (llmUrlLabel) llmUrlLabel.textContent = provider === 'vllm' ? 'vLLM server URL' : 'Ollama URL';
+    if (mainUrlEl && !mainUrlEl.value.trim()) mainUrlEl.placeholder = defaultLlmUrl(provider);
+  }
+
+  if (llmProviderEl) {
+    llmProviderEl.addEventListener('change', syncLlmProviderUi);
+  }
+
   async function loadConfig() {
     const res = await fetch('/api/config');
     if (!res.ok) return;
@@ -71,8 +94,11 @@
     portEl.value = c.server?.port ?? 9090;
     timezoneEl.value = c.timezone ?? '';
     usernameEl.value = c.auth?.username ?? 'admin';
-    mainUrlEl.value = c.ollama?.mainUrl ?? 'http://localhost:11434';
-    mainModelEl.value = c.ollama?.mainModel ?? 'llama3.2';
+    if (llmProviderEl) llmProviderEl.value = c.ollama?.provider === 'vllm' ? 'vllm' : 'ollama';
+    mainUrlEl.value = c.ollama?.mainUrl ?? defaultLlmUrl(getLlmProvider());
+    mainModelEl.value = c.ollama?.mainModel ?? (getLlmProvider() === 'vllm' ? '' : 'llama3.2');
+    if (llmApiKeyEl) llmApiKeyEl.value = c.ollama?.apiKey ?? '';
+    syncLlmProviderUi();
     document.getElementById('ollamaTemperature').value = c.ollama?.temperature ?? 0.7;
     document.getElementById('ollamaNumPredict').value = c.ollama?.num_predict ?? 2048;
     document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
@@ -198,9 +224,13 @@
   async function fetchAndApplyModelCapability(modelName) {
     const key = (modelName || '').trim();
     if (!key) return;
-    const url = mainUrlEl.value.trim() || 'http://localhost:11434';
+    const url = mainUrlEl.value.trim() || defaultLlmUrl(getLlmProvider());
+    const provider = getLlmProvider();
+    const apiKey = llmApiKeyEl ? llmApiKeyEl.value.trim() : '';
     try {
-      const res = await fetch('/api/ollama/model-capability?url=' + encodeURIComponent(url) + '&model=' + encodeURIComponent(key));
+      let q = 'url=' + encodeURIComponent(url) + '&provider=' + encodeURIComponent(provider);
+      if (apiKey) q += '&apiKey=' + encodeURIComponent(apiKey);
+      const res = await fetch('/api/ollama/model-capability?' + q + '&model=' + encodeURIComponent(key));
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.statusText);
       const cap = Number(data.contextWindow || 0);
@@ -261,10 +291,14 @@
   });
 
   fetchMainModelsBtn.addEventListener('click', async () => {
-    const url = mainUrlEl.value.trim() || 'http://localhost:11434';
+    const provider = getLlmProvider();
+    const url = mainUrlEl.value.trim() || defaultLlmUrl(provider);
+    const apiKey = llmApiKeyEl ? llmApiKeyEl.value.trim() : '';
     setStatus('Fetching...');
     try {
-      const res = await fetch('/api/ollama/models?url=' + encodeURIComponent(url));
+      let q = 'url=' + encodeURIComponent(url) + '&provider=' + encodeURIComponent(provider);
+      if (apiKey) q += '&apiKey=' + encodeURIComponent(apiKey);
+      const res = await fetch('/api/ollama/models?' + q);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.statusText);
       lastModelMeta = data.modelMeta || {};
@@ -387,8 +421,10 @@
       timezone: timezoneEl.value.trim() || '',
       auth: auth,
       ollama: {
-        mainUrl: mainUrlEl.value.trim() || 'http://localhost:11434',
-        mainModel: mainModelEl.value.trim() || 'llama3.2',
+        provider: getLlmProvider(),
+        mainUrl: mainUrlEl.value.trim() || defaultLlmUrl(getLlmProvider()),
+        mainModel: mainModelEl.value.trim() || (getLlmProvider() === 'vllm' ? '' : 'llama3.2'),
+        apiKey: llmApiKeyEl ? llmApiKeyEl.value.trim() : '',
         temperature: parseFloat(document.getElementById('ollamaTemperature').value) || 0.7,
         num_predict: parseInt(document.getElementById('ollamaNumPredict').value, 10) || 2048
       },
@@ -421,8 +457,11 @@
         portEl.value = c.server?.port ?? 9090;
         timezoneEl.value = c.timezone ?? '';
         usernameEl.value = c.auth?.username ?? 'admin';
-        mainUrlEl.value = c.ollama?.mainUrl ?? 'http://localhost:11434';
-        mainModelEl.value = c.ollama?.mainModel ?? 'llama3.2';
+        if (llmProviderEl) llmProviderEl.value = c.ollama?.provider === 'vllm' ? 'vllm' : 'ollama';
+        mainUrlEl.value = c.ollama?.mainUrl ?? defaultLlmUrl(getLlmProvider());
+        mainModelEl.value = c.ollama?.mainModel ?? (getLlmProvider() === 'vllm' ? '' : 'llama3.2');
+        if (llmApiKeyEl) llmApiKeyEl.value = c.ollama?.apiKey ?? '';
+        syncLlmProviderUi();
         document.getElementById('ollamaTemperature').value = c.ollama?.temperature ?? 0.7;
         document.getElementById('ollamaNumPredict').value = c.ollama?.num_predict ?? 2048;
         document.getElementById('searxngUrl').value = c.searxng?.url ?? '';

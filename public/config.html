@@ -47,7 +47,7 @@
       <div class="config-tabs" role="tablist">
         <button type="button" class="config-tab active" data-tab="server" role="tab" aria-selected="true">Server</button>
         <button type="button" class="config-tab" data-tab="auth" role="tab" aria-selected="false">Auth</button>
-        <button type="button" class="config-tab" data-tab="ollama" role="tab" aria-selected="false">Ollama</button>
+        <button type="button" class="config-tab" data-tab="ollama" role="tab" aria-selected="false">LLM</button>
         <button type="button" class="config-tab" data-tab="searxng" role="tab" aria-selected="false">SearXNG</button>
         <button type="button" class="config-tab" data-tab="notifications" role="tab" aria-selected="false">Notifications</button>
         <button type="button" class="config-tab" data-tab="channels" role="tab" aria-selected="false">Channels</button>
@@ -89,10 +89,22 @@
 
       <div id="panel-ollama" class="config-panel" role="tabpanel" hidden>
         <section class="section">
-          <h2>Ollama — Main Brain</h2>
+          <h2>LLM — Main Brain</h2>
           <div class="form-group">
-            <label>Ollama URL</label>
+            <label>Provider</label>
+            <select id="llmProvider">
+              <option value="ollama">Ollama</option>
+              <option value="vllm">vLLM (OpenAI-compatible)</option>
+            </select>
+            <p class="section-desc">Ollama uses its native API. vLLM uses the OpenAI-compatible <code>/v1</code> endpoints (default: <code>http://localhost:8000</code>).</p>
+          </div>
+          <div class="form-group">
+            <label id="llmUrlLabel">Server URL</label>
             <input type="text" id="mainUrl" placeholder="http://localhost:11434" />
+          </div>
+          <div class="form-group" id="llmApiKeyGroup" hidden>
+            <label>API key (optional)</label>
+            <input type="password" id="llmApiKey" placeholder="Bearer token if required" autocomplete="off" />
           </div>
           <div class="form-group">
             <label>Main model</label>
@@ -107,8 +119,9 @@
             <input type="number" id="ollamaTemperature" placeholder="0.7" min="0" max="2" step="0.1" />
           </div>
           <div class="form-group">
-            <label>Max tokens (num_predict)</label>
+            <label>Max tokens</label>
             <input type="number" id="ollamaNumPredict" placeholder="2048" min="1" max="131072" />
+            <p class="section-desc">Ollama: <code>num_predict</code>. vLLM: <code>max_tokens</code>.</p>
           </div>
         </section>
         <section class="section">

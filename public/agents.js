@@ -33,7 +33,16 @@
         </div>
         <div class="row">
           <div class="form-group">
-            <label>Ollama URL (empty = main)</label>
+            <label>Provider</label>
+            <select class="agent-provider">
+              <option value="ollama" ${(a.provider || 'ollama') === 'ollama' ? 'selected' : ''}>Ollama</option>
+              <option value="vllm" ${a.provider === 'vllm' ? 'selected' : ''}>vLLM</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Server URL (empty = main)</label>
             <input type="text" class="agent-url" value="${escapeAttr(a.url || '')}" placeholder="http://localhost:11434" />
           </div>
         </div>
@@ -57,11 +66,12 @@
         const urlInput = div.querySelector('.agent-url');
         const modelInput = div.querySelector('.agent-model');
         const modelSelect = div.querySelector('.agent-model-list');
-        const url = urlInput.value.trim() || 'http://localhost:11434';
+        const provider = div.querySelector('.agent-provider')?.value || 'ollama';
+        const url = urlInput.value.trim() || (provider === 'vllm' ? 'http://localhost:8000' : 'http://localhost:11434');
         const btn = div.querySelector('.agent-fetch-models');
         btn.disabled = true;
         try {
-          const res = await fetch('/api/ollama/models?url=' + encodeURIComponent(url));
+          const res = await fetch('/api/ollama/models?url=' + encodeURIComponent(url) + '&provider=' + encodeURIComponent(provider));
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || res.statusText);
           modelSelect.style.display = 'block';
@@ -82,6 +92,7 @@
     return Array.from(agentsList.querySelectorAll('.agent-block')).map(block => ({
       id: block.querySelector('.agent-id').value.trim() || 'agent',
       name: block.querySelector('.agent-name').value.trim() || 'Agent',
+      provider: block.querySelector('.agent-provider')?.value || 'ollama',
       url: block.querySelector('.agent-url').value.trim() || '',
       model: block.querySelector('.agent-model').value.trim() || '',
       enabled: block.querySelector('.agent-enabled').checked
@@ -107,8 +118,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ollama: {
+            provider: cfg.ollama?.provider || 'ollama',
             mainUrl: cfg.ollama?.mainUrl || 'http://localhost:11434',
             mainModel: cfg.ollama?.mainModel || 'llama3.2',
+            apiKey: cfg.ollama?.apiKey || '',
             temperature: cfg.ollama?.temperature ?? 0.7,
             num_predict: cfg.ollama?.num_predict ?? 2048,
             agents

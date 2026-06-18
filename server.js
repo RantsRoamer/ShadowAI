@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { getConfig, reloadConfig, updateConfig, saveConfig, replaceConfig } = require('./lib/config.js');
-const { ollamaChatStream, ollamaChatWithTools, listModels, getModelContextWindow } = require('./lib/ollama.js');
+const { chatStream, chatWithTools, chatJson, listModels, getModelContextWindow, resolveLlm } = require('./lib/llm.js');
 const { authMiddleware, authenticate, listUsers, createUser, updateUser, deleteUser, requireAdmin } = require('./lib/auth.js');
 const { runCode } = require('./lib/runCode.js');
 const { readFile, writeFile, listFiles } = require('./lib/selfUpdate.js');
@@ -1420,17 +1420,21 @@ app.post('/api/debug/searxng', async (req, res) => {
 // Ollama models
 // ---------------------------------------------------------------------------
 app.get('/api/ollama/models', async (req, res) => {
-  const url = req.query.url || getConfig().ollama.mainUrl;
+  const config = getConfig();
+  const provider = req.query.provider || config.ollama?.provider || 'ollama';
+  const url = req.query.url || config.ollama?.mainUrl;
+  const apiKey = req.query.apiKey || config.ollama?.apiKey || '';
+  const endpoint = { provider, baseUrl: url, apiKey };
   try {
-    const models = await listModels(url);
+    const models = await listModels(endpoint);
     const modelMeta = {};
     await Promise.all(models.map(async (m) => {
       try {
-        const ctx = await getModelContextWindow(url, m);
+        const ctx = await getModelContextWindow({ ...endpoint, model: m }, m);
         if (ctx > 0) modelMeta[m] = { contextWindow: ctx };
       } catch (_) {}
     }));
-    res.json({ models, modelMeta });
+    res.json({ models, modelMeta, provider });
   } catch (e) {
     logger.warn('GET /api/ollama/models:', e.message);
     res.status(502).json({ error: e.message });
@@ -1438,12 +1442,15 @@ app.get('/api/ollama/models', async (req, res) => {
 });
 
 app.get('/api/ollama/model-capability', async (req, res) => {
-  const url = req.query.url || getConfig().ollama.mainUrl;
+  const config = getConfig();
+  const provider = req.query.provider || config.ollama?.provider || 'ollama';
+  const url = req.query.url || config.ollama?.mainUrl;
+  const apiKey = req.query.apiKey || config.ollama?.apiKey || '';
   const model = (req.query.model || '').toString().trim();
   if (!model) return res.status(400).json({ error: 'model is required' });
   try {
-    const contextWindow = await getModelContextWindow(url, model);
-    res.json({ model, contextWindow: Number(contextWindow) || 0 });
+    const contextWindow = await getModelContextWindow({ provider, baseUrl: url, apiKey }, model);
+    res.json({ model, contextWindow: Number(contextWindow) || 0, provider });
   } catch (e) {
     logger.warn('GET /api/ollama/model-capability:', e.message);
     res.status(502).json({ error: e.message });
@@ -1535,10 +1542,8 @@ app.post('/api/webhook/receive/:id', runLimiter, async (req, res) => {
       result = await skillsLib.runSkill(webhook.skillId, req.body || {});
     } else if (webhook.action === 'prompt' && webhook.prompt) {
       const cfg = getConfig();
-      const data = await require('./lib/ollama.js').ollamaChatJson(
-        cfg.ollama.mainUrl, cfg.ollama.mainModel,
-        [{ role: 'user', content: subVars(webhook.prompt) }]
-      );
+      const llm = resolveLlm(cfg);
+      const data = await chatJson(llm, [{ role: 'user', content: subVars(webhook.prompt) }]);
       result = data?.message?.content || '';
     } else {
       result = 'No action configured';
@@ -1721,19 +1726,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   const effectiveUser = resolveChannelUser(user, channelOwner);
   if (effectiveUser === null) return res.status(403).json({ error: 'Forbidden' });
   const config = getConfig();
-  let baseUrl = config.ollama.mainUrl;
-  let model = config.ollama.mainModel;
-  if (agentId && config.ollama.agents) {
-    const agent = config.ollama.agents.find(a => a.id === agentId && a.enabled);
-    if (agent) {
-      baseUrl = agent.url || baseUrl;
-      model = agent.model;
-    }
-  }
-  const ollamaOptions = {};
-  if (config.ollama.temperature != null && config.ollama.temperature !== '') ollamaOptions.temperature = Number(config.ollama.temperature);
-  if (config.ollama.num_predict != null && config.ollama.num_predict !== '') ollamaOptions.num_predict = Number(config.ollama.num_predict);
-  const contextWindow = Number(config.ollama.num_ctx) > 0 ? Number(config.ollama.num_ctx) : 8192;
+  const llm = resolveLlm(config, agentId);
+  const contextWindow = llm.contextWindow;
   function enrichTokenStats(stats) {
     const promptTokens = Number(stats && stats.promptTokens) || 0;
     const evalTokens = Number(stats && stats.evalTokens) || 0;
@@ -1960,7 +1954,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         let finalContent = '';
         let maxRounds = 5;
         while (maxRounds-- > 0) {
-          const data = await ollamaChatWithTools(baseUrl, model, messagesForOllama, tools, ollamaOptions);
+          const data = await chatWithTools(llm, messagesForOllama, tools);
           const msg = data.message || {};
           const toolCalls = msg.tool_calls || [];
           if (toolCalls.length === 0) {
@@ -2075,7 +2069,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                 content = typeof result === 'object' ? JSON.stringify(result) : String(result);
               }
               res.write(`data: ${JSON.stringify({ toolResult: { name, args, result: String(content).slice(0, 500) } })}\n\n`);
-              messagesForOllama.push({ role: 'tool', tool_name: name, content });
+              messagesForOllama.push({ role: 'tool', tool_name: name, tool_call_id: tc.id, content });
             } catch (err) {
               logger.warn(`Tool "${name}" error:`, err.message);
               const errContent = String(err.message);
@@ -2087,7 +2081,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
         assistantContent = finalContent || '';
         if (finalContent) res.write(`data: ${JSON.stringify({ content: finalContent })}\n\n`);
       } else {
-        for await (const chunk of ollamaChatStream(baseUrl, model, fullMessages, ollamaOptions, (meta) => { tokenStats = enrichTokenStats(meta); })) {
+        for await (const chunk of chatStream(llm, fullMessages, {}, (meta) => { tokenStats = enrichTokenStats(meta); })) {
           assistantContent += chunk;
           res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
         }
@@ -2109,9 +2103,8 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
   }
 
   // Non-streaming fallback
-  const { ollamaChatJson } = require('./lib/ollama.js');
   try {
-    const out = await ollamaChatJson(baseUrl, model, fullMessages, ollamaOptions);
+    const out = await chatJson(llm, fullMessages);
     const assistantContent = out.message?.content || '';
     const newHistory = messages.concat([{ role: 'assistant', content: assistantContent }]);
     if (req.session && effectiveUser === user) req.session.chatHistory = newHistory;
@@ -2292,15 +2285,7 @@ app.post('/api/editor/assist', chatLimiter, async (req, res) => {
   }
 
   const config = getConfig();
-  let baseUrl = config.ollama.mainUrl;
-  let model   = config.ollama.mainModel;
-  if (agentId && config.ollama.agents) {
-    const agent = config.ollama.agents.find(a => a.id === agentId && a.enabled);
-    if (agent) { baseUrl = agent.url || baseUrl; model = agent.model; }
-  }
-
-  const ollamaOptions = {};
-  if (config.ollama.temperature != null && config.ollama.temperature !== '') ollamaOptions.temperature = Number(config.ollama.temperature);
+  const llm = resolveLlm(config, agentId);
 
   const fileHint = filePath ? `File: ${filePath}\n` : '';
   const codeBlock = content
@@ -2316,10 +2301,10 @@ app.post('/api/editor/assist', chatLimiter, async (req, res) => {
   res.flushHeaders();
 
   try {
-    for await (const chunk of ollamaChatStream(baseUrl, model, [
+    for await (const chunk of chatStream(llm, [
       { role: 'system', content: systemPrompt },
       { role: 'user',   content: userMessage }
-    ], ollamaOptions)) {
+    ])) {
       res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
     }
     res.write('data: {"done":true}\n\n');
@@ -2974,8 +2959,9 @@ app.get('/api/dashboard', async (req, res) => {
     const recentProjects = projectsList.slice(0, 5);
 
     // Ollama
-    let ollamaConnected = false;
-    try { await listModels(config.ollama.mainUrl); ollamaConnected = true; } catch (_) {}
+    const llmEndpoint = resolveLlm(config);
+    let llmConnected = false;
+    try { await listModels(llmEndpoint); llmConnected = true; } catch (_) {}
 
     res.json({
       chats: { total: chatsTotal, recent: recentChats },
@@ -2990,7 +2976,12 @@ app.get('/api/dashboard', async (req, res) => {
       observability: observabilitySummary,
       skills: { total: allSkills.length, enabled: allSkills.filter(s => s.enabled).length },
       memory: { freeformLines, structuredKeys },
-      ollama: { connected: ollamaConnected, url: config.ollama.mainUrl, model: config.ollama.mainModel }
+      ollama: {
+        connected: llmConnected,
+        provider: llmEndpoint.provider,
+        url: llmEndpoint.baseUrl,
+        model: llmEndpoint.model
+      }
     });
   } catch (e) {
     logger.error('GET /api/dashboard:', e.message);
@@ -3013,15 +3004,17 @@ function migratePasswordIfNeeded() {
   }
 }
 
-/** Warn on startup if Ollama is unreachable */
-async function checkOllamaHealth() {
+/** Warn on startup if the configured LLM backend is unreachable */
+async function checkLlmHealth() {
   const config = getConfig();
+  const llm = resolveLlm(config);
+  const label = llm.provider === 'vllm' ? 'vLLM' : 'Ollama';
   try {
-    await listModels(config.ollama.mainUrl);
-    logger.info('Ollama connection OK:', config.ollama.mainUrl);
+    await listModels(llm);
+    logger.info(`${label} connection OK:`, llm.baseUrl);
   } catch (e) {
-    logger.warn('Cannot connect to Ollama at', config.ollama.mainUrl);
-    logger.warn('  → Check your Ollama URL in Config (/config) or ensure Ollama is running.');
+    logger.warn(`Cannot connect to ${label} at`, llm.baseUrl);
+    logger.warn(`  → Check your LLM settings in Config (/config) or ensure ${label} is running.`);
   }
 }
 
@@ -3069,7 +3062,7 @@ function start() {
   }
 
   // Run Ollama health check asynchronously — don't block startup
-  checkOllamaHealth().catch(e => logger.warn('Ollama health check error:', e.message));
+  checkLlmHealth().catch(e => logger.warn('LLM health check error:', e.message));
 
   setImmediate(() => {
     chatHistorySearch.reindexAllUsers().catch(e => logger.warn('Chat history FTS index:', e.message));
