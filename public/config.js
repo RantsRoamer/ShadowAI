@@ -26,6 +26,7 @@
   const repairProjectMemoryBtn = document.getElementById('repairProjectMemoryBtn');
   const repairProjectMemoryStatusEl = document.getElementById('repairProjectMemoryStatus');
   let lastModelMeta = {};
+  let llmUiSyncing = false;
   document.querySelectorAll('.config-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.getAttribute('data-tab');
@@ -86,14 +87,19 @@
 
   function applyOllamaToDom(ollama) {
     const o = ollama || {};
-    const providerEl = document.getElementById('llmProvider');
-    if (providerEl) providerEl.value = o.provider === 'vllm' ? 'vllm' : 'ollama';
-    mainUrlEl.value = o.mainUrl ?? defaultLlmUrl(getLlmProvider());
-    mainModelEl.value = o.mainModel ?? (getLlmProvider() === 'vllm' ? '' : 'llama3.2');
-    if (llmApiKeyEl) llmApiKeyEl.value = o.apiKey ?? '';
-    document.getElementById('ollamaTemperature').value = o.temperature ?? 0.7;
-    document.getElementById('ollamaNumPredict').value = o.num_predict ?? 2048;
-    syncLlmProviderUi();
+    llmUiSyncing = true;
+    try {
+      const providerEl = document.getElementById('llmProvider');
+      if (providerEl) providerEl.value = o.provider === 'vllm' ? 'vllm' : 'ollama';
+      mainUrlEl.value = o.mainUrl ?? defaultLlmUrl(getLlmProvider());
+      mainModelEl.value = o.mainModel ?? (getLlmProvider() === 'vllm' ? '' : 'llama3.2');
+      if (llmApiKeyEl) llmApiKeyEl.value = o.apiKey ?? '';
+      document.getElementById('ollamaTemperature').value = o.temperature ?? 0.7;
+      document.getElementById('ollamaNumPredict').value = o.num_predict ?? 2048;
+      syncLlmProviderUi();
+    } finally {
+      llmUiSyncing = false;
+    }
   }
 
   async function saveLlmSettings() {
@@ -121,6 +127,7 @@
 
   if (llmProviderEl) {
     llmProviderEl.addEventListener('change', async () => {
+      if (llmUiSyncing) return;
       const provider = getLlmProvider();
       const url = mainUrlEl.value.trim();
       const ollamaDefault = 'http://localhost:11434';
