@@ -368,20 +368,24 @@ input:focus, textarea:focus, select:focus {
 }
 
 body.has-app-shell {
-  overflow-x: hidden;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
   width: 100%;
   position: relative;
+  overflow: hidden;
 }
 
 .app-sidebar {
   width: var(--ow-sidebar-w);
   flex-shrink: 0;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
   background: var(--ow-sidebar-bg);
   border-right: 1px solid var(--ow-sidebar-border);
   display: flex;
@@ -560,9 +564,11 @@ body.has-app-shell {
 .app-main-wrap {
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  overflow: hidden;
   background: var(--bg-dark);
 }
 
@@ -625,18 +631,26 @@ body.has-app-shell {
 .app-main-wrap > main {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  overflow: auto;
 }
 
-/* Chat (/app): main.app-main must stay row (sidebar | content); the rule above wins over .app-main from app.css */
+/* Chat (/app): main.app-main must stay row (sidebar | content); only .messages scrolls */
 .app-main-wrap > main.app-main {
   flex-direction: row;
   min-width: 0;
+  overflow: hidden;
 }
 
 .app-main-wrap > main.app-fallback-main {
   overflow: auto;
+}
+
+/* Project page: keep chat/memory panels inside the viewport */
+.app-main-wrap > main.project-main {
+  overflow: hidden;
 }
 
 /* Desktop: collapsed sidebar (icon rail) */
@@ -736,4 +750,5 @@ body.has-app-shell {
   height: auto !important;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }

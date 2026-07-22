@@ -33,19 +33,23 @@
   max-width: 100%;
   width: 100%;
   height: calc(100vh - 56px);
+  min-height: 0;
   overflow: hidden;
 }
 
-/* nav.js Open WebUI shell: main fills space below top bar */
+/* nav.js Open WebUI shell: main fills space below top bar; do not grow past viewport */
 .app-main-wrap > .app-main {
   height: auto;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 .chat-sidebar {
   width: 240px;
   min-width: 240px;
   flex-shrink: 0;
+  min-height: 0;
+  align-self: stretch;
   background: var(--bg-panel);
   border-right: 1px solid var(--border);
   display: flex;
