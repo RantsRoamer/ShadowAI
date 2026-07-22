@@ -798,6 +798,70 @@
   white-space: pre-wrap;
 }
 
+.cc-log-body {
+  white-space: normal;
+}
+
+.cc-mission-section-label {
+  margin: 14px 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.cc-mission-section-label:first-child {
+  margin-top: 0;
+}
+
+.cc-mission-checklist {
+  margin: 8px 0 0;
+  padding-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.cc-mission-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.cc-card-mission-active {
+  border-color: rgba(102, 255, 225, 0.22);
+}
+
+.cc-log-entries {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.cc-log-entry {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.cc-log-meta {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-bottom: 4px;
+}
+
+.cc-log-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .cc-report-section {
   margin-bottom: 12px;
   padding: 10px;

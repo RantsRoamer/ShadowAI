@@ -156,9 +156,14 @@
       const me = await apiJson('/api/me');
       isAdmin = !!(me && me.role === 'admin');
       logDebug(`/api/me ok, isAdmin=${isAdmin}`);
+      const dangerEl = document.querySelector('.cc-danger');
+      if (dangerEl) dangerEl.hidden = !isAdmin;
+      if (!isAdmin) setDebugVisible(false);
     } catch (_) {
       isAdmin = false;
       logDebug('/api/me failed (not logged in or server error)');
+      const dangerEl = document.querySelector('.cc-danger');
+      if (dangerEl) dangerEl.hidden = true;
     }
   }
 
@@ -172,10 +177,10 @@
   }
 
   function formatFinalReportHtml(text) {
-    const raw = String(text || '').replace(/\\r\\n/g, '\\n').trim();
+    const raw = String(text || '').replace(/\r\n/g, '\n').trim();
     if (!raw) return '<div class="cc-report-empty">(none)</div>';
 
-    const lines = raw.split('\\n');
+    const lines = raw.split('\n');
     const out = [];
     let paragraph = [];
     let listItems = [];
@@ -198,15 +203,13 @@
       const line = lineRaw.trimEnd();
       const t = line.trim();
 
-      // Blank line => paragraph/list break
       if (!t) {
         flushList();
         flushParagraph();
         continue;
       }
 
-      // Headings (markdown-ish)
-      const h = t.match(/^(#{1,3})\\s+(.*)$/);
+      const h = t.match(/^(#{1,3})\s+(.*)$/);
       if (h) {
         flushList();
         flushParagraph();
@@ -217,15 +220,13 @@
         continue;
       }
 
-      // Bullets
-      const b = t.match(/^[-*]\\s+(.*)$/);
+      const b = t.match(/^[-*]\s+(.*)$/);
       if (b) {
         flushParagraph();
         listItems.push(b[1] || '');
         continue;
       }
 
-      // Default: accumulate paragraph text (preserve short line breaks as spaces)
       flushList();
       paragraph.push(t);
     }
@@ -565,6 +566,32 @@
     if (reportModalEl) reportModalEl.hidden = true;
   }
 
+  function openTaskLogModal(task) {
+    const logModal = document.getElementById('ccLogModal');
+    const logTitle = document.getElementById('ccLogTitle');
+    const logBody = document.getElementById('ccLogBody');
+    if (!logModal || !logBody) return;
+    if (logTitle) logTitle.textContent = task.title || task.id || 'Task log';
+    const log = Array.isArray(task.log) ? task.log.slice(-80) : [];
+    const meta = [
+      `<div class="cc-card-meta">${pill(task.status || '—')}${task.role ? ' ' + pill(task.role) : ''}${task.id ? ' ' + pill('id: ' + String(task.id).slice(0, 10)) : ''}</div>`,
+      `<div class="cc-card-body"><strong>Goal</strong><br>${esc(task.goal || '')}</div>`
+    ];
+    const entries = log.length
+      ? `<div class="cc-log-entries">${log.map((entry) => {
+          const ts = entry.ts ? new Date(entry.ts).toLocaleString() : '';
+          return `<div class="cc-log-entry"><div class="cc-log-meta">${esc(ts)} · ${esc(entry.type || 'log')}</div><pre class="cc-log-content">${esc(entry.content || '')}</pre></div>`;
+        }).join('')}</div>`
+      : '<div class="cc-empty">No log entries yet.</div>';
+    logBody.innerHTML = meta.join('') + entries;
+    logModal.hidden = false;
+  }
+
+  function closeLogModal() {
+    const logModal = document.getElementById('ccLogModal');
+    if (logModal) logModal.hidden = true;
+  }
+
   function setRunnerStatus(text) {
     if (!runnerStatusEl) return;
     runnerStatusEl.textContent = String(text || '');
@@ -614,11 +641,12 @@
            </div>`
         : '';
 
+      const viewBtn = `<button class="btn btn-small" data-action="view" data-id="${esc(t.id)}">VIEW LOG</button>`;
       const actions = isAdmin
         ? (() => {
             const base = `
               <div class="cc-actions" data-task-id="${esc(t.id)}">
-                <button class="btn btn-small" data-action="view" data-id="${esc(t.id)}">VIEW LOG</button>
+                ${viewBtn}
                 <button class="btn btn-small" data-action="pause" data-id="${esc(t.id)}">PAUSE</button>
                 <button class="btn btn-small btn-danger" data-action="delete" data-id="${esc(t.id)}">DELETE</button>
               </div>
@@ -643,9 +671,12 @@
             }
             return base;
           })()
-        : (t.status === 'awaiting_approval' || t.status === 'blocked'
-            ? `<div class="cc-actions-note">This task needs admin action. Open <a href="/autoagent">/autoagent</a>.</div>`
-            : '');
+        : `
+            <div class="cc-actions" data-task-id="${esc(t.id)}">${viewBtn}</div>
+            ${t.status === 'awaiting_approval' || t.status === 'blocked'
+              ? `<div class="cc-actions-note">This task needs admin action. Open <a href="/autoagent">/autoagent</a>.</div>`
+              : ''}
+          `;
       const avatarClass = roleToAvatarClass(t.role);
       const avatarLetter = roleToAvatarLetter(t.role);
       const statusClass = String(t.status || '').toLowerCase().replace(/[^a-z0-9_]+/g, '_');
@@ -701,51 +732,104 @@
     }).join('');
   }
 
-  function renderMissions(missions) {
+  function renderMissions(missions, activeTasks) {
     if (!missionsEl) return;
     if (!Array.isArray(missions) || missions.length === 0) {
-      setEmpty(missionsEl, 'No mission reports yet.');
+      setEmpty(missionsEl, 'No missions yet. Dispatch one above.');
       return;
     }
     latestMissions = missions.slice();
+    const taskById = new Map((Array.isArray(activeTasks) ? activeTasks : []).map((t) => [t.id, t]));
+    const active = missions
+      .filter((m) => m && !m.finalReport)
+      .slice()
+      .sort((a, b) => (b.createdAt || b.updatedAt || '').localeCompare(a.createdAt || a.updatedAt || ''))
+      .slice(0, 8);
     const completed = missions
       .filter((m) => m && m.finalReport)
       .slice()
       .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''))
       .slice(0, 12);
-    if (completed.length === 0) {
+
+    const parts = [];
+    if (active.length) {
+      parts.push(`<div class="cc-mission-section-label">In progress</div>`);
+      parts.push(active.map((m) => {
+        const taskIds = Array.isArray(m.taskIds) ? m.taskIds : [];
+        const checklist = taskIds.length
+          ? `<ul class="cc-mission-checklist">${taskIds.map((id) => {
+              const t = taskById.get(id);
+              const short = String(id).slice(0, 8);
+              const status = t ? (t.status || '—') : 'unknown';
+              const title = t ? (t.title || t.goal || short) : short;
+              return `<li><span class="cc-pill">${esc(status)}</span> ${esc(title)}</li>`;
+            }).join('')}</ul>`
+          : '<div class="cc-muted">No child tasks yet.</div>';
+        return `
+          <div class="cc-card cc-card-mission cc-card-mission-active">
+            <div class="cc-card-title">
+              <div class="cc-card-title-main">
+                <span class="cc-avatar cc-avatar-role-triage">M</span>
+                <div>${esc(m.title || m.id)}</div>
+              </div>
+              <div>${pill('in progress')}</div>
+            </div>
+            <div class="cc-card-meta">
+              ${m.id ? pill('mission: ' + String(m.id).slice(0, 14)) : ''}
+              ${taskIds.length ? pill(taskIds.length + ' tasks') : ''}
+            </div>
+            <div class="cc-card-body">${esc(m.summary || '')}</div>
+            ${checklist}
+          </div>
+        `;
+      }).join(''));
+    }
+
+    if (completed.length) {
+      parts.push(`<div class="cc-mission-section-label">Completed</div>`);
+      parts.push(completed.map((m) => {
+        const report = m.finalReport || {};
+        const when = m.completedAt ? new Date(m.completedAt).toLocaleString() : '';
+        const actions = isAdmin
+          ? `
+            <button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>
+            <button class="btn btn-small btn-danger" data-action="delete-report" data-mission-id="${esc(m.id || '')}">DELETE REPORT</button>
+          `
+          : `<button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>`;
+        const payloadTasks = report.payload && Array.isArray(report.payload.tasks) ? report.payload.tasks : [];
+        const checklist = payloadTasks.length
+          ? `<ul class="cc-mission-checklist">${payloadTasks.map((t) => {
+              return `<li><span class="cc-pill">${esc(t.status || '?')}</span> ${esc(t.title || t.id || '')}</li>`;
+            }).join('')}</ul>`
+          : '';
+        return `
+          <div class="cc-card cc-card-mission">
+            <div class="cc-card-title">
+              <div class="cc-card-title-main">
+                <span class="cc-avatar cc-avatar-role-planner">M</span>
+                <div>${esc(report.headline || m.title || m.id)}</div>
+              </div>
+              <div>${pill(report.outcome || 'complete')}</div>
+            </div>
+            <div class="cc-card-meta">
+              ${when ? pill('completed: ' + when) : ''}
+              ${m.id ? pill('mission: ' + String(m.id).slice(0, 14)) : ''}
+            </div>
+            <div class="cc-card-body">${esc(report.summary || '')}</div>
+            ${checklist}
+            <div class="cc-actions">
+              ${actions}
+            </div>
+          </div>
+        `;
+      }).join(''));
+    }
+
+    if (!parts.length) {
       setEmpty(missionsEl, 'No completed mission reports yet.');
       return;
     }
-    missionsEl.innerHTML = completed.map((m) => {
-      const report = m.finalReport || {};
-      const when = m.completedAt ? new Date(m.completedAt).toLocaleString() : '';
-      const actions = isAdmin
-        ? `
-          <button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>
-          <button class="btn btn-small btn-danger" data-action="delete-report" data-mission-id="${esc(m.id || '')}">DELETE REPORT</button>
-        `
-        : `<button class="btn btn-small" data-action="view-report" data-mission-id="${esc(m.id || '')}">VIEW FULL REPORT</button>`;
-      return `
-        <div class="cc-card cc-card-mission">
-          <div class="cc-card-title">
-            <div class="cc-card-title-main">
-              <span class="cc-avatar cc-avatar-role-planner">M</span>
-              <div>${esc(report.headline || m.title || m.id)}</div>
-            </div>
-            <div>${pill(report.outcome || 'complete')}</div>
-          </div>
-          <div class="cc-card-meta">
-            ${when ? pill('completed: ' + when) : ''}
-            ${m.id ? pill('mission: ' + String(m.id).slice(0, 14)) : ''}
-          </div>
-          <div class="cc-card-body">${esc(report.summary || '')}</div>
-          <div class="cc-actions">
-            ${actions}
-          </div>
-        </div>
-      `;
-    }).join('');
+    missionsEl.innerHTML = parts.join('');
   }
 
   function renderSummary(text) {
@@ -770,7 +854,7 @@
       if (workingSummaryEl) workingSummaryEl.textContent = renderSummary(snap.workingSummary || '');
       if (pinnedFactsEl) pinnedFactsEl.textContent = renderPinnedFacts(snap.pinned || {});
       renderTasks(snap.activeTasks || []);
-      renderMissions(snap.missions || []);
+      renderMissions(snap.missions || [], snap.activeTasks || []);
       renderMissionControl(snap.activeTasks || [], latestEvents || []);
       try {
         const ev = await apiJson('/api/hivemind/events?limit=40');
@@ -782,10 +866,9 @@
       } catch (evErr) {
         eventPollFailures += 1;
         logDebug('events fetch error: ' + evErr.message);
-        // Keep the rest of the page functional even if events endpoint is flaky/proxied.
+        // Soft-fail: keep snapshot polling alive even if events endpoint is flaky.
         if (eventPollFailures >= 3) {
-          stopPolling();
-          logDebug('events polling disabled after repeated failures');
+          logDebug('events endpoint flaky; continuing snapshot polling');
         }
       }
       await refreshRunnerStatus();
@@ -804,21 +887,20 @@
 
   async function pollEvents() {
     try {
-      const q = eventsCursor ? ('?since=' + encodeURIComponent(eventsCursor) + '&limit=40') : '?limit=40';
-      const ev = await apiJson('/api/hivemind/events' + q);
-      if (ev.cursor) eventsCursor = ev.cursor;
+      // Always refresh snapshot so Active Tasks stay live even when no hive events fire.
+      await refreshAll();
       eventPollFailures = 0;
-      latestEvents = Array.isArray(ev.events) ? ev.events.slice() : [];
-      if (Array.isArray(ev.events) && ev.events.length > 0) {
-        // Fetch full snapshot if there were new events (cheap enough).
-        await refreshAll();
-      }
     } catch (e) {
       eventPollFailures += 1;
-      logDebug('poll events error: ' + e.message);
+      logDebug('poll refresh error: ' + e.message);
       if (eventPollFailures >= 3) {
+        // Soft-fail: keep trying on a slower cadence instead of stopping forever.
         stopPolling();
-        logDebug('events polling disabled after repeated failures');
+        logDebug('events polling slowed after repeated failures; retrying in 15s');
+        setTimeout(() => {
+          eventPollFailures = 0;
+          startPolling();
+        }, 15000);
       }
     }
   }
@@ -879,9 +961,14 @@
       const action = btn.getAttribute('data-action');
       const id = btn.getAttribute('data-id');
       if (!action || !id) return;
-      if (!isAdmin) return;
       try {
         setText(lastActionEl, `task:${action}`);
+        if (action === 'view') {
+          const task = await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}`);
+          openTaskLogModal(task);
+          return;
+        }
+        if (!isAdmin) return;
         if (action === 'approve') {
           await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}/approve`, { method: 'POST' });
         } else if (action === 'reject') {
@@ -907,22 +994,6 @@
           if (!ok) return;
           await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' });
           logDebug(`delete ok: task=${id.slice(0, 8)}`);
-        } else if (action === 'view') {
-          const task = await apiJson(`/api/agent/tasks/${encodeURIComponent(id)}`);
-          const lines = [];
-          lines.push(`Title: ${task.title}`);
-          lines.push(`Status: ${task.status}`);
-          if (task.role) lines.push(`Role: ${task.role}`);
-          lines.push('');
-          lines.push('Goal:');
-          lines.push(task.goal || '');
-          lines.push('');
-          lines.push('Recent log:');
-          const log = Array.isArray(task.log) ? task.log.slice(-40) : [];
-          for (const entry of log) {
-            lines.push(`[${entry.ts || ''}] [${entry.type || ''}] ${entry.content || ''}`.trim());
-          }
-          window.alert(lines.join('\n').slice(0, 12000));
         }
         try {
           await refreshAll({ force: true });
@@ -976,6 +1047,16 @@
     reportModalEl.addEventListener('click', (e) => {
       const target = e.target;
       if (target && target.getAttribute && target.getAttribute('data-close') === '1') closeReportModal();
+    });
+  }
+
+  const logCloseBtn = document.getElementById('ccLogClose');
+  const logModalEl = document.getElementById('ccLogModal');
+  if (logCloseBtn) logCloseBtn.addEventListener('click', closeLogModal);
+  if (logModalEl) {
+    logModalEl.addEventListener('click', (e) => {
+      const target = e.target;
+      if (target && target.getAttribute && target.getAttribute('data-close') === '1') closeLogModal();
     });
   }
 

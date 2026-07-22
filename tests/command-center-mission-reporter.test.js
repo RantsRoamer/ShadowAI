@@ -34,6 +34,33 @@ test('shouldFinalizeMission returns false when any child task is still active', 
   assert.equal(shouldFinalizeMission(mission, tasks), false);
 });
 
+test('shouldFinalizeMission returns true when remaining children are blocked', () => {
+  const mission = {
+    id: 'mission_1',
+    taskIds: ['a', 'b'],
+    finalReport: null
+  };
+  const tasks = [
+    { id: 'a', status: 'complete' },
+    { id: 'b', status: 'blocked' }
+  ];
+
+  assert.equal(shouldFinalizeMission(mission, tasks), true);
+});
+
+test('shouldFinalizeMission treats missing child tasks as terminal', () => {
+  const mission = {
+    id: 'mission_1',
+    taskIds: ['a', 'missing'],
+    finalReport: null
+  };
+  const tasks = [
+    { id: 'a', status: 'failed' }
+  ];
+
+  assert.equal(shouldFinalizeMission(mission, tasks), true);
+});
+
 test('buildMissionCompletionPayload includes final status counts and last task notes', () => {
   const mission = {
     id: 'mission_1',

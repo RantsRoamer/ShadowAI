@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/styles.css" />
-  <link rel="stylesheet" href="/static/command-center.css" />
+  <link rel="stylesheet" href="/static/command-center.css?v=cc-polish1" />
 </head>
 <body>
   <header class="app-header">
@@ -106,13 +106,13 @@
 
     <section class="cc-panel cc-missions">
       <div class="cc-panel-header">
-        <h2>MISSION REPORTS</h2>
-        <div class="cc-panel-sub">Final command center rollups</div>
+        <h2>MISSIONS</h2>
+        <div class="cc-panel-sub">In-progress checklists and completed rollups</div>
       </div>
       <div id="ccMissions" class="cc-events"></div>
     </section>
 
-    <section class="cc-panel cc-danger">
+    <section class="cc-panel cc-danger" hidden>
       <div class="cc-panel-header">
         <h2>DANGER ZONE</h2>
         <div class="cc-panel-sub">Admin-only controls</div>
@@ -178,8 +178,19 @@
     </div>
   </div>
 
+  <div id="ccLogModal" class="cc-modal" hidden>
+    <div class="cc-modal-backdrop" data-close="1"></div>
+    <div class="cc-modal-card" role="dialog" aria-modal="true" aria-labelledby="ccLogTitle">
+      <div class="cc-modal-header">
+        <h3 id="ccLogTitle">Task log</h3>
+        <button id="ccLogClose" class="btn btn-small" type="button">CLOSE</button>
+      </div>
+      <div id="ccLogBody" class="cc-modal-body cc-log-body"></div>
+    </div>
+  </div>
+
   <script src="/static/nav.js"></script>
-  <script src="/static/command-center.js"></script>
+  <script src="/static/command-center.js?v=cc-polish1"></script>
 </body>
 </html>
 
