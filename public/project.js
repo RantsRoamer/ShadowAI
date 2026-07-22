@@ -24,6 +24,39 @@
   const messageSearch = document.getElementById('messageSearch');
   const clearProjectChatBtn = document.getElementById('clearProjectChatBtn');
 
+  (function lockProjectChatScroll() {
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.height = '100%';
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100%';
+    document.body.style.maxHeight = '100vh';
+    const wrap = document.querySelector('.project-chat-wrap');
+    if (!wrap || !messagesEl) return;
+    function resize() {
+      let used = 0;
+      const style = getComputedStyle(wrap);
+      used += (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+      Array.from(wrap.children).forEach((el) => {
+        if (el === messagesEl || el.id === 'chatDropHint') return;
+        if (!el || el.hidden || getComputedStyle(el).display === 'none') return;
+        used += el.getBoundingClientRect().height;
+        const cs = getComputedStyle(el);
+        used += (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+      });
+      const available = Math.floor(wrap.clientHeight - used);
+      if (available < 80) return;
+      messagesEl.style.flex = 'none';
+      messagesEl.style.height = available + 'px';
+      messagesEl.style.maxHeight = available + 'px';
+      messagesEl.style.overflowY = 'auto';
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(wrap);
+    setTimeout(resize, 50);
+    setTimeout(resize, 300);
+  })();
+
   const channelOwner = 'project_' + projectId;
   let history = [];
   let currentChatId = null;

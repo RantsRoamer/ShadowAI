@@ -20,6 +20,58 @@
   const attachmentInput = document.getElementById('attachmentInput');
   const attachmentList = document.getElementById('attachmentList');
 
+  // Keep document/sidebars fixed; only #messages scrolls when the thread is long.
+  (function lockChatScrollLayout() {
+    document.documentElement.classList.add('page-chat');
+    document.body.classList.add('page-chat');
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.height = '100%';
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100%';
+    document.body.style.maxHeight = '100vh';
+    document.body.style.minHeight = '0';
+
+    const content = document.querySelector('.chat-content');
+    if (!content || !messagesEl) return;
+
+    function measureUsedHeight() {
+      let used = 0;
+      const style = getComputedStyle(content);
+      used += (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+      content.querySelectorAll(':scope > :not(.messages)').forEach((el) => {
+        if (!el || el.hidden || getComputedStyle(el).display === 'none') return;
+        used += el.getBoundingClientRect().height;
+        const cs = getComputedStyle(el);
+        used += (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+      });
+      return used;
+    }
+
+    function resizeMessagesPane() {
+      const available = Math.floor(content.clientHeight - measureUsedHeight());
+      if (available < 80) return;
+      messagesEl.style.flex = 'none';
+      messagesEl.style.height = available + 'px';
+      messagesEl.style.maxHeight = available + 'px';
+      messagesEl.style.minHeight = '0';
+      messagesEl.style.overflowY = 'auto';
+      messagesEl.style.overflowX = 'hidden';
+    }
+
+    resizeMessagesPane();
+    window.addEventListener('resize', resizeMessagesPane);
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(resizeMessagesPane);
+      ro.observe(content);
+      const inputArea = content.querySelector('.input-area');
+      if (inputArea) ro.observe(inputArea);
+      if (indexedSearchResults) ro.observe(indexedSearchResults);
+    }
+    // Re-measure after shell/nav mounts and fonts settle
+    setTimeout(resizeMessagesPane, 50);
+    setTimeout(resizeMessagesPane, 300);
+  })();
+
   let history = [];
   let currentChatId = null;
   let currentChannelOwner = null;

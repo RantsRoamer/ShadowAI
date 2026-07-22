@@ -368,13 +368,19 @@ input:focus, textarea:focus, select:focus {
 }
 
 body.has-app-shell {
-  height: 100vh;
+  height: 100%;
+  max-height: 100vh;
+  overflow: hidden !important;
+}
+
+html:has(body.has-app-shell) {
+  height: 100%;
   overflow: hidden;
 }
 
 .app-shell {
   display: flex;
-  height: 100vh;
+  height: 100%;
   max-height: 100vh;
   width: 100%;
   position: relative;
@@ -639,9 +645,13 @@ body.has-app-shell {
 
 /* Chat (/app): main.app-main must stay row (sidebar | content); only .messages scrolls */
 .app-main-wrap > main.app-main {
+  flex: 1 1 0;
   flex-direction: row;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden !important;
 }
 
 .app-main-wrap > main.app-fallback-main {
