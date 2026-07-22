@@ -24,21 +24,27 @@
   (function lockChatScrollLayout() {
     document.documentElement.classList.add('page-chat');
     document.body.classList.add('page-chat');
-    document.documentElement.style.overflow = 'hidden';
-    document.documentElement.style.height = '100%';
-    document.body.style.overflow = 'hidden';
-    document.body.style.height = '100%';
-    document.body.style.maxHeight = '100vh';
-    document.body.style.minHeight = '0';
+    document.documentElement.style.cssText += ';overflow:hidden;height:100%;';
+    document.body.style.cssText += ';overflow:hidden;height:100%;max-height:100vh;min-height:0;';
 
+    const main = document.querySelector('main.app-main');
     const content = document.querySelector('.chat-content');
-    if (!content || !messagesEl) return;
+    if (!main || !content || !messagesEl) return;
 
-    function measureUsedHeight() {
+    function viewportTopForChat() {
+      const topbar = document.querySelector('.app-topbar');
+      if (topbar) return Math.ceil(topbar.getBoundingClientRect().bottom);
+      const header = document.querySelector('.app-header');
+      if (header) return Math.ceil(header.getBoundingClientRect().bottom);
+      return 0;
+    }
+
+    function measureSiblingHeight() {
       let used = 0;
       const style = getComputedStyle(content);
       used += (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
-      content.querySelectorAll(':scope > :not(.messages)').forEach((el) => {
+      Array.from(content.children).forEach((el) => {
+        if (el === messagesEl) return;
         if (!el || el.hidden || getComputedStyle(el).display === 'none') return;
         used += el.getBoundingClientRect().height;
         const cs = getComputedStyle(el);
@@ -48,7 +54,35 @@
     }
 
     function resizeMessagesPane() {
-      const available = Math.floor(content.clientHeight - measureUsedHeight());
+      const top = viewportTopForChat();
+      const mainH = Math.max(200, window.innerHeight - top);
+      main.style.position = 'fixed';
+      main.style.left = '0';
+      main.style.right = '0';
+      main.style.top = top + 'px';
+      main.style.bottom = '0';
+      main.style.height = mainH + 'px';
+      main.style.maxHeight = mainH + 'px';
+      main.style.width = 'auto';
+      main.style.overflow = 'hidden';
+      main.style.zIndex = '1';
+
+      // If Open WebUI shell is present, main sits to the right of the app sidebar (desktop only)
+      const appSidebar = document.querySelector('.app-sidebar');
+      const shell = document.querySelector('.app-shell');
+      if (shell && appSidebar && window.matchMedia('(min-width: 901px)').matches) {
+        const sideW = Math.ceil(appSidebar.getBoundingClientRect().width);
+        main.style.left = sideW + 'px';
+      } else {
+        main.style.left = '0';
+      }
+
+      content.style.height = '100%';
+      content.style.maxHeight = '100%';
+      content.style.overflow = 'hidden';
+      content.style.minHeight = '0';
+
+      const available = Math.floor(content.clientHeight - measureSiblingHeight());
       if (available < 80) return;
       messagesEl.style.flex = 'none';
       messagesEl.style.height = available + 'px';
@@ -62,14 +96,17 @@
     window.addEventListener('resize', resizeMessagesPane);
     if (typeof ResizeObserver !== 'undefined') {
       const ro = new ResizeObserver(resizeMessagesPane);
-      ro.observe(content);
+      ro.observe(document.body);
       const inputArea = content.querySelector('.input-area');
       if (inputArea) ro.observe(inputArea);
       if (indexedSearchResults) ro.observe(indexedSearchResults);
+      const appSidebar = document.querySelector('.app-sidebar');
+      if (appSidebar) ro.observe(appSidebar);
     }
-    // Re-measure after shell/nav mounts and fonts settle
+    // Re-measure after shell/nav mounts
     setTimeout(resizeMessagesPane, 50);
-    setTimeout(resizeMessagesPane, 300);
+    setTimeout(resizeMessagesPane, 250);
+    setTimeout(resizeMessagesPane, 600);
   })();
 
   let history = [];
