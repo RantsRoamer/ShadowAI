@@ -4,7 +4,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const browserTools = require('../lib/browserTools.js');
-const { appendPendingVisionImages } = require('../lib/agentRunner.js');
+const agentStore = require('../lib/agentStore.js');
+const {
+  appendPendingVisionImages,
+  persistPendingVisionImages,
+  appendTaskPendingVisionImages
+} = require('../lib/agentRunner.js');
 const { toOpenAIMessages } = require('../lib/vllm.js');
 
 test('appendPendingVisionImages drains browser screenshots into a user message', () => {
@@ -24,6 +29,45 @@ test('appendPendingVisionImages drains browser screenshots into a user message',
     }]);
   } finally {
     browserTools.takePendingVisionImages = original;
+  }
+});
+
+test('vision screenshots queued before approval persist and are injected after resume', () => {
+  const originalTake = browserTools.takePendingVisionImages;
+  const originalUpdate = agentStore.updateTask;
+  const updates = [];
+  browserTools.takePendingVisionImages = (taskId) => {
+    assert.equal(taskId, 'task-4');
+    return ['approval-base64'];
+  };
+  agentStore.updateTask = (taskId, update) => {
+    updates.push({ taskId, update });
+  };
+
+  try {
+    const task = { id: 'task-4', pendingVisionImages: [] };
+    persistPendingVisionImages(task);
+    assert.deepEqual(task.pendingVisionImages, ['approval-base64']);
+    assert.deepEqual(updates, [{
+      taskId: 'task-4',
+      update: { pendingVisionImages: ['approval-base64'] }
+    }]);
+
+    const messages = [];
+    appendTaskPendingVisionImages(messages, task);
+    assert.deepEqual(messages, [{
+      role: 'user',
+      content: 'Screenshot(s) from the browser tool follow for visual context.',
+      images: ['approval-base64']
+    }]);
+    assert.deepEqual(task.pendingVisionImages, []);
+    assert.deepEqual(updates[1], {
+      taskId: 'task-4',
+      update: { pendingVisionImages: [] }
+    });
+  } finally {
+    browserTools.takePendingVisionImages = originalTake;
+    agentStore.updateTask = originalUpdate;
   }
 });
 

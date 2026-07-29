@@ -38,3 +38,21 @@ node --test tests/agent-runner-signals.test.js tests/browser-tools-guards.test.j
 ```
 
 Result: 3 new vision serialization tests passed; requested regression suite passed 13 tests with 0 failures.
+
+## Important finding fix: approval-safe vision images
+
+Screenshots captured by browser tools immediately before a high-risk tool request are now persisted in `task.pendingVisionImages` before the task transitions to `awaiting_approval`.
+
+The runner deliberately persists rather than retaining the images in the browser session: sessions can be closed by the idle sweeper while approval is pending. On the next `executeStep` after approval or rejection, the runner adds the persisted screenshots as a multimodal user message before the next LLM call, clears `pendingVisionImages`, and persists that clear operation.
+
+## Regression coverage
+
+`tests/task-4-vision.test.js` now proves that screenshots drained before approval are saved through `agentStore.updateTask`, then injected into the next LLM message and cleared through another persisted update.
+
+## Verification
+
+```powershell
+node --test tests/agent-runner-signals.test.js tests/browser-tools-guards.test.js tests/task-4-vision.test.js
+```
+
+Result: 17 passed, 0 failed, 0 skipped.
