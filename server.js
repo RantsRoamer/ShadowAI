@@ -1003,6 +1003,7 @@ app.get('/api/config', (req, res) => {
     heartbeat: c.heartbeat || [],
     webhooks: c.webhooks || [],
     searxng: c.searxng || { url: '', enabled: false },
+    browser: c.browser || { enabled: true, headless: true, blockPrivateNetworks: true, actionTimeoutMs: 30000, idleTimeoutMs: 300000 },
     email: (() => {
       const e = c.email || {};
       const safe = { ...e };
@@ -1276,6 +1277,7 @@ app.put('/api/config', (req, res) => {
     if (updates.webhooks && Array.isArray(updates.webhooks)) config.webhooks = updates.webhooks;
     if (updates.skills && updates.skills.enabledIds !== undefined) config.skills = { ...(config.skills || {}), enabledIds: updates.skills.enabledIds };
     if (updates.searxng && typeof updates.searxng === 'object') config.searxng = { ...(config.searxng || {}), ...updates.searxng };
+    if (updates.browser && typeof updates.browser === 'object') config.browser = { ...(config.browser || {}), ...updates.browser };
     if (updates.email && typeof updates.email === 'object') {
       config.email = { ...(config.email || {}), ...updates.email };
       if (updates.email.auth && typeof updates.email.auth === 'object') {
@@ -1332,6 +1334,7 @@ app.put('/api/config', (req, res) => {
         heartbeat: config.heartbeat || [],
         webhooks: config.webhooks || [],
         searxng: config.searxng || {},
+        browser: config.browser || { enabled: true, headless: true, blockPrivateNetworks: true, actionTimeoutMs: 30000, idleTimeoutMs: 300000 },
         email: (() => {
           const e = config.email || {};
           const safe = { ...e };
