@@ -157,6 +157,11 @@
     applyOllamaToDom(c.ollama);
     document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
     document.getElementById('searxngEnabled').checked = c.searxng?.enabled === true;
+    document.getElementById('browserEnabled').checked = c.browser?.enabled !== false;
+    document.getElementById('browserHeadless').checked = c.browser?.headless !== false;
+    document.getElementById('browserBlockPrivate').checked = c.browser?.blockPrivateNetworks !== false;
+    document.getElementById('browserActionTimeoutMs').value = c.browser?.actionTimeoutMs ?? 30000;
+    document.getElementById('browserIdleTimeoutMs').value = c.browser?.idleTimeoutMs ?? 300000;
     const e = c.email || {};
     document.getElementById('emailHost').value = e.host ?? '';
     document.getElementById('emailPort').value = e.port ?? 25;
@@ -482,6 +487,13 @@
           url: document.getElementById('searxngUrl').value.trim() || '',
           enabled: document.getElementById('searxngEnabled').checked
         },
+        browser: {
+          enabled: document.getElementById('browserEnabled').checked,
+          headless: document.getElementById('browserHeadless').checked,
+          blockPrivateNetworks: document.getElementById('browserBlockPrivate').checked,
+          actionTimeoutMs: Number(document.getElementById('browserActionTimeoutMs').value) || 30000,
+          idleTimeoutMs: Number(document.getElementById('browserIdleTimeoutMs').value) || 300000
+        },
         email: getEmailFromDom(),
         channels: getChannelsFromDom(),
         ui: {
@@ -508,6 +520,11 @@
         applyOllamaToDom(c.ollama);
         document.getElementById('searxngUrl').value = c.searxng?.url ?? '';
         document.getElementById('searxngEnabled').checked = c.searxng?.enabled === true;
+        document.getElementById('browserEnabled').checked = c.browser?.enabled !== false;
+        document.getElementById('browserHeadless').checked = c.browser?.headless !== false;
+        document.getElementById('browserBlockPrivate').checked = c.browser?.blockPrivateNetworks !== false;
+        document.getElementById('browserActionTimeoutMs').value = c.browser?.actionTimeoutMs ?? 30000;
+        document.getElementById('browserIdleTimeoutMs').value = c.browser?.idleTimeoutMs ?? 300000;
         const e = c.email || {};
         document.getElementById('emailHost').value = e.host ?? '';
         document.getElementById('emailPort').value = e.port ?? 25;

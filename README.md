@@ -20,6 +20,7 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 - **Projects** — Isolated project-specific chats. Each project has its own memory (markdown); you can add notes, paste text, or import PDFs and images (PDF text extraction and image description via Ollama vision). The AI answers only from that project’s context and is not aware of other projects.
 - **Project email reports** — Configure multiple named reports under PROJECTS (Email reports): choose projects, schedule (cron), recipient email, and a custom formatting prompt. Reports are run by the heartbeat scheduler, respect your configured timezone, and send a single combined email per report.
 - **Knowledge index (RAG)** — Built‑in retrieval-augmented generation using Ollama embeddings and a local vector index in `data/vectors`. Upload PDFs/TXT/MD/DOC/DOCX or index project memory, then query via the KNOWLEDGE page, `/rag <query>`, or `#rag` in chat.
+- **Browser tools** — Playwright Chromium tools (`browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_screenshot`, `browser_close`) for JS-rendered pages and interactive flows. Enabled by default; configure under Config → Browser.
 - **UI customization** — Change the application name, toggle tool‑call blocks and the prompt library button, and upload an AI avatar/profile picture used as the assistant’s chat avatar.
 - **Mobile-friendly UI** — Chat, Projects, and other main pages include responsive layouts so the interface remains usable on phones and tablets.
 - **Multi-user & roles** — SQLite-backed users (`data/users.db`) with `admin`, `user`, and `guest` roles. Each user has isolated chats and projects. Admins manage all users and global config from **SYSTEM → USERS**.
@@ -35,6 +36,12 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 ```bash
 npm install
 npm start
+```
+
+After `npm install`, install Chromium once:
+
+```bash
+npx playwright install chromium
 ```
 
 Open **http://localhost:9090** (or the host/port you set). Log in with `admin` / `admin`, then go to **CONFIG** to set your Ollama URL and models.

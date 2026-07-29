@@ -78,10 +78,8 @@ Check schedule, create events, reminders (Google/Apple Calendar).
 
 Control Chrome (or headless browser) for scraping and automation.
 
-- **Puppeteer/Playwright** — Run headless browser in a container or on the host; tools: `navigate(url)`, `click(selector)`, `type(selector, text)`, `screenshot()`, `get_content()`. Needs careful sandboxing and timeouts.
-- **MCP (Model Context Protocol)** — Add an MCP server that wraps Playwright (or other tools) so ShadowAI can expose “browser” as an MCP tool and keep the rest of the stack unchanged.
-
-*Suggested order:* Start with a single “screenshot + content” tool (navigate, wait, return HTML + PNG) before full control.
+- **Built-in Playwright tools (implemented)** — ShadowAI ships with Playwright Chromium tools: `browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_screenshot`, and `browser_close`. Per-chat sessions with idle cleanup, private-network blocking, and configurable timeouts. Enable/disable under Config → Browser.
+- **MCP (Model Context Protocol)** — Add an MCP server that wraps Playwright (or other tools) so ShadowAI can expose “browser” as an MCP tool and keep the rest of the stack unchanged. Future work.
 
 ---
 
