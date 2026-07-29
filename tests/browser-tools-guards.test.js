@@ -83,7 +83,7 @@ test('assertAllowedUrl allows loopback when blockPrivateNetworks false', () => {
   assert.equal(u.hostname, '127.0.0.1');
 });
 
-test('request guard aborts private navigation and subresource requests', async () => {
+test('request guard resolves hostnames and aborts private navigation and subresources', async () => {
   let routeHandler;
   const context = {
     route: async (pattern, handler) => {
@@ -92,7 +92,15 @@ test('request guard aborts private navigation and subresource requests', async (
     }
   };
   const blockedRequests = [];
-  await installPrivateNetworkRequestGuard(context, blockedRequests, { blockPrivateNetworks: true });
+  await installPrivateNetworkRequestGuard(context, blockedRequests, {
+    blockPrivateNetworks: true,
+    lookup: async (hostname) => {
+      if (hostname === 'redirected-private.test') {
+        return [{ address: '127.0.0.1', family: 4 }];
+      }
+      return [{ address: '203.0.113.10', family: 4 }];
+    }
+  });
 
   const navigationRoute = {
     request: () => ({
@@ -117,6 +125,26 @@ test('request guard aborts private navigation and subresource requests', async (
   assert.deepEqual(blockedRequests[1], {
     url: 'http://192.168.1.10/script.js',
     isNavigation: false
+  });
+
+  let redirectedPrivateContinued = false;
+  let redirectedPrivateAborted = false;
+  await routeHandler({
+    request: () => ({
+      url: () => 'https://redirected-private.test/landing',
+      isNavigationRequest: () => true
+    }),
+    continue: async () => { redirectedPrivateContinued = true; },
+    abort: async (reason) => {
+      redirectedPrivateAborted = true;
+      assert.equal(reason, 'blockedbyclient');
+    }
+  });
+  assert.equal(redirectedPrivateContinued, false);
+  assert.equal(redirectedPrivateAborted, true);
+  assert.deepEqual(blockedRequests[2], {
+    url: 'https://redirected-private.test/landing',
+    isNavigation: true
   });
 
   let continued = false;

@@ -71,3 +71,22 @@ node --test tests/browser-tools-guards.test.js tests/browser-tools-integration.t
 ```
 
 Result: 10 passed, 0 failed, 2 skipped. The two Playwright integration tests were skipped because Chromium is not installed in this environment.
+
+## SSRF route resolution follow-up
+
+- Updated the Playwright context route handler to await `assertAllowedUrlResolved` for every routed navigation and subresource request while private-network blocking is enabled.
+- A hostname that passes the literal hostname check but resolves to a private or local address is now aborted with `blockedbyclient`, including redirect destinations.
+- No DNS-result cache was added: the route guard resolves each request immediately before it is continued, avoiding a cache window that could weaken DNS-rebinding protection.
+- Extended the route-guard unit test with a controlled resolver: `redirected-private.test` resolves to `127.0.0.1`, and the test verifies the route is aborted rather than continued.
+
+## SSRF route resolution verification
+
+The new regression test was run before the implementation and failed as intended: the route handler continued `https://redirected-private.test/landing` despite its private resolver answer.
+
+Command:
+
+```powershell
+node --test tests/browser-tools-guards.test.js tests/browser-tools-integration.test.js
+```
+
+Result after the fix: 12 passed, 0 failed, 0 skipped. Chromium was installed with `npx playwright install chromium`; the local loopback fixture continues to work with `blockPrivateNetworks: false`.
