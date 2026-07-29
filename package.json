@@ -8,7 +8,7 @@
     "dev": "node server.js",
     "cli": "node scripts/cli.js",
     "repair:project-memory": "node scripts/repair-project-memories.js",
-    "test": "node --test tests/"
+    "test": "node --test tests/browser-tools-guards.test.js tests/browser-tools-integration.test.js tests/browser-chat-wiring.test.js tests/task-4-vision.test.js tests/agent-runner-signals.test.js tests/chat-attachments.test.js tests/command-center-mission-reporter.test.js tests/pipeline-observability.test.js tests/project-report-memory-prep.test.js tests/project-store-memory-normalization.test.js tests/project-system-prompt-isolation.test.js"
   },
   "engines": {
     "node": ">=20"

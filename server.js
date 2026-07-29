@@ -2100,7 +2100,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               } else if (['create_skill', 'add_heartbeat_job', 'update_skill', 'update_heartbeat_job', 'list_heartbeat_jobs', 'delete_heartbeat_job'].includes(name)) {
                 content = await executeSchedulerTool(name, args);
               } else if (browserTools.handles(name)) {
-                const sessionId = String(bodyChatId || '').trim() || ('web:' + (effectiveUser || user || 'anon'));
+                const sessionId = 'web:' + (effectiveUser || user || 'anon') + ':' + (String(bodyChatId || '').trim() || 'default');
                 content = await browserTools.executeBrowserTool(name, args, { sessionId });
               } else if (agentLoopTools.handles(name)) {
                 content = await agentLoopTools.executeExtra(name, args, {
@@ -2120,9 +2120,9 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               messagesForOllama.push({ role: 'tool', tool_name: name, content: errContent });
             }
           }
-          const sessionId = String(bodyChatId || '').trim() || ('web:' + (effectiveUser || user || 'anon'));
+          const sessionId = 'web:' + (effectiveUser || user || 'anon') + ':' + (String(bodyChatId || '').trim() || 'default');
           const visionImages = browserTools.takePendingVisionImages(sessionId);
-          if (visionImages.length) {
+          if (visionImages.length && browserTools.shouldAttachVisionImages(llm, config)) {
             messagesForOllama.push({
               role: 'user',
               content: 'Screenshot(s) from the browser tool follow for visual context.',

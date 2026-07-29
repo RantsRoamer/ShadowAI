@@ -12,6 +12,8 @@ const {
   installPrivateNetworkRequestGuard,
   truncateText,
   getBrowserToolDefinitions,
+  shouldAttachVisionImages,
+  findLeastRecentlyUsedSessionId,
   handles,
   BROWSER_TOOL_NAMES
 } = require('../lib/browserTools.js');
@@ -158,8 +160,48 @@ test('request guard resolves hostnames and aborts private navigation and subreso
   assert.equal(continued, true);
 });
 
+test('request guard records frames so only blocked main-frame navigation can fail goto', async () => {
+  let routeHandler;
+  const mainFrame = { id: 'main' };
+  const iframe = { id: 'iframe' };
+  const blockedRequests = [];
+  await installPrivateNetworkRequestGuard({
+    route: async (_, handler) => { routeHandler = handler; }
+  }, blockedRequests, {
+    blockPrivateNetworks: true,
+    lookup: async () => [{ address: '127.0.0.1', family: 4 }]
+  });
+
+  await routeHandler({
+    request: () => ({
+      url: () => 'https://private-frame.test/',
+      isNavigationRequest: () => true,
+      frame: () => iframe
+    }),
+    abort: async () => {}
+  });
+
+  assert.equal(blockedRequests[0].frame, iframe);
+  assert.notEqual(blockedRequests[0].frame, mainFrame);
+});
+
 test('truncateText respects max', () => {
   assert.equal(truncateText('abcdef', 3), 'abc');
+});
+
+test('vision screenshots attach for Ollama or configured vision model, not text-only vLLM', () => {
+  assert.equal(shouldAttachVisionImages({ provider: 'ollama' }, { ollama: {} }), true);
+  assert.equal(shouldAttachVisionImages({ provider: 'vllm' }, { ollama: {} }), false);
+  assert.equal(shouldAttachVisionImages({ provider: 'vllm' }, { ollama: { visionModel: 'llava' } }), true);
+});
+
+test('findLeastRecentlyUsedSessionId selects the oldest session', () => {
+  const id = findLeastRecentlyUsedSessionId(new Map([
+    ['recent', { lastUsedAt: 30 }],
+    ['oldest', { lastUsedAt: 10 }],
+    ['middle', { lastUsedAt: 20 }]
+  ]));
+  assert.equal(id, 'oldest');
 });
 
 test('getBrowserToolDefinitions respects enabled flag via setBrowserConfigOverrideForTests', () => {

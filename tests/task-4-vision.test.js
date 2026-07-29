@@ -15,13 +15,13 @@ const { toOpenAIMessages } = require('../lib/vllm.js');
 test('appendPendingVisionImages drains browser screenshots into a user message', () => {
   const original = browserTools.takePendingVisionImages;
   browserTools.takePendingVisionImages = (taskId) => {
-    assert.equal(taskId, 'task-4');
+    assert.equal(taskId, 'agent:task-4');
     return ['first-base64', 'second-base64'];
   };
 
   try {
     const messages = [];
-    appendPendingVisionImages(messages, 'task-4');
+    appendPendingVisionImages(messages, 'task-4', { provider: 'ollama' });
     assert.deepEqual(messages, [{
       role: 'user',
       content: 'Screenshot(s) from the browser tool follow for visual context.',
@@ -37,7 +37,7 @@ test('vision screenshots queued before approval persist and are injected after r
   const originalUpdate = agentStore.updateTask;
   const updates = [];
   browserTools.takePendingVisionImages = (taskId) => {
-    assert.equal(taskId, 'task-4');
+    assert.equal(taskId, 'agent:task-4');
     return ['approval-base64'];
   };
   agentStore.updateTask = (taskId, update) => {
@@ -54,7 +54,7 @@ test('vision screenshots queued before approval persist and are injected after r
     }]);
 
     const messages = [];
-    appendTaskPendingVisionImages(messages, task);
+    appendTaskPendingVisionImages(messages, task, { provider: 'ollama' });
     assert.deepEqual(messages, [{
       role: 'user',
       content: 'Screenshot(s) from the browser tool follow for visual context.',

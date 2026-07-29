@@ -48,7 +48,8 @@
     "actionTimeoutMs": 30000,
     "maxActionsPerSession": 40,
     "maxTextChars": 80000,
-    "blockPrivateNetworks": true
+    "blockPrivateNetworks": true,
+    "maxSessions": 8
   },
   "email": {
     "host": "",

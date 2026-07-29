@@ -28,7 +28,7 @@ For ideas on extending ShadowAI (multi-channel messaging, voice, calendar, smart
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 20+
 - Ollama running locally (or on another host; set URL in Config)
 
 ## Quick start
@@ -44,11 +44,15 @@ After `npm install`, install Chromium once:
 npx playwright install chromium
 ```
 
+Browser tools are enabled by default. If Chromium is not installed, disable **Config → Browser → Enabled** until it is available.
+
 Open **http://localhost:9090** (or the host/port you set). Log in with `admin` / `admin`, then go to **CONFIG** to set your Ollama URL and models.
 
 ## Docker
 
 Requires [Docker](https://docs.docker.com/get-docker/) and an Ollama instance (on the host or elsewhere).
+
+The supplied image installs Chromium and its Playwright dependencies with `npx playwright install --with-deps chromium`. If you build a custom or slimmer image without Chromium, disable `browser.enabled` in the persisted config until you install it; browser tools are enabled by default.
 
 ### Build and run with Docker Compose
 

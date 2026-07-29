@@ -15,6 +15,9 @@ WORKDIR /app
 # Include optionalDependencies so channel bots (Telegram/Discord/Matrix) are available in Docker.
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev --include=optional
+# Browser tools are enabled by default, so include Chromium and its system
+# dependencies in the image rather than failing at first browser-tool use.
+RUN npx playwright install --with-deps chromium
 
 # Copy source (config.json and data/ are excluded via .dockerignore)
 COPY . .
