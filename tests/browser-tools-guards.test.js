@@ -23,6 +23,15 @@ test('isPrivateHostnameOrIp blocks localhost and RFC1918', () => {
   assert.equal(isPrivateHostnameOrIp('example.com'), false);
 });
 
+test('isPrivateHostnameOrIp blocks fe80::/10 link-local and IPv4-mapped private', () => {
+  assert.equal(isPrivateHostnameOrIp('fe80::1'), true);
+  assert.equal(isPrivateHostnameOrIp('fe90::1'), true);
+  assert.equal(isPrivateHostnameOrIp('::ffff:127.0.0.1'), true);
+  assert.equal(isPrivateHostnameOrIp('::ffff:10.1.2.3'), true);
+  assert.equal(isPrivateHostnameOrIp('2001:db8::1'), false);
+  assert.equal(isPrivateHostnameOrIp('example.com'), false);
+});
+
 test('assertAllowedUrl rejects non-http and private hosts when blocking', () => {
   assert.throws(() => assertAllowedUrl('file:///tmp/x'), /http/i);
   assert.throws(() => assertAllowedUrl('http://127.0.0.1/', { blockPrivateNetworks: true }), /private|blocked|local/i);
