@@ -11,7 +11,7 @@
     "test": "node --test tests/"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "dependencies": {
     "archiver": "^7.0.1",

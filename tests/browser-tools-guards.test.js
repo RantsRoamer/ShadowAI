@@ -8,6 +8,7 @@ const {
   setBrowserConfigOverrideForTests,
   isPrivateHostnameOrIp,
   assertAllowedUrl,
+  installPrivateNetworkRequestGuard,
   truncateText,
   getBrowserToolDefinitions,
   handles,
@@ -56,6 +57,53 @@ test('assertAllowedUrl rejects non-http and private hosts when blocking', () => 
 test('assertAllowedUrl allows loopback when blockPrivateNetworks false', () => {
   const u = assertAllowedUrl('http://127.0.0.1:8765/', { blockPrivateNetworks: false });
   assert.equal(u.hostname, '127.0.0.1');
+});
+
+test('request guard aborts private navigation and subresource requests', async () => {
+  let routeHandler;
+  const context = {
+    route: async (pattern, handler) => {
+      assert.equal(pattern, '**/*');
+      routeHandler = handler;
+    }
+  };
+  const blockedRequests = [];
+  await installPrivateNetworkRequestGuard(context, blockedRequests, { blockPrivateNetworks: true });
+
+  const navigationRoute = {
+    request: () => ({
+      url: () => 'http://127.0.0.1/private',
+      isNavigationRequest: () => true
+    }),
+    abort: async (reason) => assert.equal(reason, 'blockedbyclient')
+  };
+  await routeHandler(navigationRoute);
+  assert.deepEqual(blockedRequests, [{
+    url: 'http://127.0.0.1/private',
+    isNavigation: true
+  }]);
+
+  await routeHandler({
+    request: () => ({
+      url: () => 'http://192.168.1.10/script.js',
+      isNavigationRequest: () => false
+    }),
+    abort: async (reason) => assert.equal(reason, 'blockedbyclient')
+  });
+  assert.deepEqual(blockedRequests[1], {
+    url: 'http://192.168.1.10/script.js',
+    isNavigation: false
+  });
+
+  let continued = false;
+  await routeHandler({
+    request: () => ({
+      url: () => 'https://example.com/script.js',
+      isNavigationRequest: () => false
+    }),
+    continue: async () => { continued = true; }
+  });
+  assert.equal(continued, true);
 });
 
 test('truncateText respects max', () => {
