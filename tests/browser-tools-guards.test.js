@@ -28,8 +28,22 @@ test('isPrivateHostnameOrIp blocks fe80::/10 link-local and IPv4-mapped private'
   assert.equal(isPrivateHostnameOrIp('fe90::1'), true);
   assert.equal(isPrivateHostnameOrIp('::ffff:127.0.0.1'), true);
   assert.equal(isPrivateHostnameOrIp('::ffff:10.1.2.3'), true);
+  assert.equal(isPrivateHostnameOrIp('::ffff:7f00:1'), true);
+  assert.equal(isPrivateHostnameOrIp('::ffff:a01:203'), true);
+  assert.equal(isPrivateHostnameOrIp('[::ffff:7f00:1]'), true);
   assert.equal(isPrivateHostnameOrIp('2001:db8::1'), false);
   assert.equal(isPrivateHostnameOrIp('example.com'), false);
+});
+
+test('assertAllowedUrl blocks IPv4-mapped IPv6 private addresses', () => {
+  assert.throws(
+    () => assertAllowedUrl('http://[::ffff:127.0.0.1]/', { blockPrivateNetworks: true }),
+    /private|blocked|local/i
+  );
+  assert.throws(
+    () => assertAllowedUrl('http://[::ffff:10.1.2.3]/', { blockPrivateNetworks: true }),
+    /private|blocked|local/i
+  );
 });
 
 test('assertAllowedUrl rejects non-http and private hosts when blocking', () => {
