@@ -8,6 +8,7 @@ const {
   setBrowserConfigOverrideForTests,
   isPrivateHostnameOrIp,
   assertAllowedUrl,
+  assertAllowedUrlResolved,
   installPrivateNetworkRequestGuard,
   truncateText,
   getBrowserToolDefinitions,
@@ -24,9 +25,10 @@ test('isPrivateHostnameOrIp blocks localhost and RFC1918', () => {
   assert.equal(isPrivateHostnameOrIp('example.com'), false);
 });
 
-test('isPrivateHostnameOrIp blocks fe80::/10 link-local and IPv4-mapped private', () => {
+test('isPrivateHostnameOrIp blocks local IPv6 ranges and IPv4-mapped private', () => {
   assert.equal(isPrivateHostnameOrIp('fe80::1'), true);
   assert.equal(isPrivateHostnameOrIp('fe90::1'), true);
+  assert.equal(isPrivateHostnameOrIp('fec0::1'), true);
   assert.equal(isPrivateHostnameOrIp('::ffff:127.0.0.1'), true);
   assert.equal(isPrivateHostnameOrIp('::ffff:10.1.2.3'), true);
   assert.equal(isPrivateHostnameOrIp('::ffff:7f00:1'), true);
@@ -45,6 +47,28 @@ test('assertAllowedUrl blocks IPv4-mapped IPv6 private addresses', () => {
     () => assertAllowedUrl('http://[::ffff:10.1.2.3]/', { blockPrivateNetworks: true }),
     /private|blocked|local/i
   );
+});
+
+test('assertAllowedUrlResolved rejects hostnames resolving to private addresses', async () => {
+  await assert.rejects(
+    () => assertAllowedUrlResolved('https://example.com/', {
+      blockPrivateNetworks: true,
+      lookup: async (hostname, options) => {
+        assert.equal(hostname, 'example.com');
+        assert.deepEqual(options, { all: true, verbatim: true });
+        return [{ address: '203.0.113.10', family: 4 }, { address: 'fec0::1', family: 6 }];
+      }
+    }),
+    /private|blocked|local/i
+  );
+});
+
+test('assertAllowedUrlResolved permits hostnames resolving to public addresses', async () => {
+  const u = await assertAllowedUrlResolved('https://example.com/', {
+    blockPrivateNetworks: true,
+    lookup: async () => [{ address: '203.0.113.10', family: 4 }]
+  });
+  assert.equal(u.hostname, 'example.com');
 });
 
 test('assertAllowedUrl rejects non-http and private hosts when blocking', () => {

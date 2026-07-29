@@ -53,3 +53,21 @@ node --test tests/browser-tools-guards.test.js tests/browser-tools-integration.t
 ```
 
 Result: 8 passed, 0 failed, 2 skipped. The two Playwright integration tests skipped because the Chromium runtime is not installed in this environment; the private-request guard unit test passed.
+
+## Private-network DNS and IPv6 follow-up
+
+- Classified IPv6 site-local `fec0::/10` (including `fec0::1`) and unspecified `::` as private/local destinations.
+- Added `assertAllowedUrlResolved`, which performs normal URL validation and resolves hostname navigations with `dns.promises.lookup(..., { all: true, verbatim: true })`; it rejects the navigation when any answer is private/local.
+- `browser_navigate` now performs this DNS check before opening a Playwright session or calling `goto`. DNS lookup failures return a clear `URL host lookup failed` error.
+- The Playwright route guard continues to block literal private IP URLs for navigations and subresources. It deliberately does not resolve every subresource because synchronous routing-time DNS checks would stall page loading.
+- Added guard tests for deprecated IPv6 site-local addresses and hostname resolution that includes a private answer.
+
+## Private-network DNS verification
+
+Command:
+
+```powershell
+node --test tests/browser-tools-guards.test.js tests/browser-tools-integration.test.js
+```
+
+Result: 10 passed, 0 failed, 2 skipped. The two Playwright integration tests were skipped because Chromium is not installed in this environment.
