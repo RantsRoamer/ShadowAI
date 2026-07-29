@@ -7,7 +7,8 @@
     "start": "node server.js",
     "dev": "node server.js",
     "cli": "node scripts/cli.js",
-    "repair:project-memory": "node scripts/repair-project-memories.js"
+    "repair:project-memory": "node scripts/repair-project-memories.js",
+    "test": "node --test tests/"
   },
   "engines": {
     "node": ">=18"
@@ -25,6 +26,7 @@
     "marked": "^15.0.12",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^8.0.1",
+    "playwright": "^1.62.0",
     "sqlite3": "^5.1.7"
   },
   "optionalDependencies": {
