@@ -25,6 +25,7 @@ const systemPrompt = require('./lib/systemPrompt.js');
 const chatRunner = require('./lib/chatRunner.js');
 const { executeSchedulerTool, getSchedulerToolDefinitions } = require('./lib/toolHandlers.js');
 const agentLoopTools = require('./lib/agentLoopTools.js');
+const browserTools = require('./lib/browserTools.js');
 const chatHistorySearch = require('./lib/chatHistorySearch.js');
 const pipelineRunner = require('./lib/pipelineRunner.js');
 const pipelineObservability = require('./lib/pipelineObservability.js');
@@ -1964,6 +1965,7 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       const commonTools = [
         ...(webSearchTool ? [webSearchTool] : []),
         fetchUrlTool,
+        ...browserTools.getBrowserToolDefinitions(),
         ...(sendEmailTool ? [sendEmailTool] : []),
         ...skillTools,
         ...getSchedulerToolDefinitions(),
@@ -2094,6 +2096,9 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
                 }
               } else if (['create_skill', 'add_heartbeat_job', 'update_skill', 'update_heartbeat_job', 'list_heartbeat_jobs', 'delete_heartbeat_job'].includes(name)) {
                 content = await executeSchedulerTool(name, args);
+              } else if (browserTools.handles(name)) {
+                const sessionId = String(bodyChatId || '').trim() || ('web:' + (effectiveUser || user || 'anon'));
+                content = await browserTools.executeBrowserTool(name, args, { sessionId });
               } else if (agentLoopTools.handles(name)) {
                 content = await agentLoopTools.executeExtra(name, args, {
                   chatOwnerUser: effectiveUser || user || '',
@@ -2111,6 +2116,15 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
               res.write(`data: ${JSON.stringify({ toolResult: { name, args, result: errContent.slice(0, 500), error: true } })}\n\n`);
               messagesForOllama.push({ role: 'tool', tool_name: name, content: errContent });
             }
+          }
+          const sessionId = String(bodyChatId || '').trim() || ('web:' + (effectiveUser || user || 'anon'));
+          const visionImages = browserTools.takePendingVisionImages(sessionId);
+          if (visionImages.length) {
+            messagesForOllama.push({
+              role: 'user',
+              content: 'Screenshot(s) from the browser tool follow for visual context.',
+              images: visionImages
+            });
           }
         }
         assistantContent = finalContent || '';
