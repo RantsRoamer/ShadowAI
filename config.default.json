@@ -41,6 +41,15 @@
   "heartbeat": [],
   "skills": { "enabledIds": [] },
   "searxng": { "url": "", "enabled": false },
+  "browser": {
+    "enabled": true,
+    "headless": true,
+    "idleTimeoutMs": 300000,
+    "actionTimeoutMs": 30000,
+    "maxActionsPerSession": 40,
+    "maxTextChars": 80000,
+    "blockPrivateNetworks": true
+  },
   "email": {
     "host": "",
     "port": 25,

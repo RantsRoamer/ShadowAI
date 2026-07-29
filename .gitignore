@@ -7,6 +7,7 @@ data/personality.md
 data/memory.md
 data/memory.json
 data/AIBEHAVIOR.md
+data/browser-screenshots/
 .env
 *.log
 .DS_Store
